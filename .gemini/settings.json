@@ -1,0 +1,48 @@
+{
+  "experimental": {
+    "enableAgents": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .gemini/hooks/gsd-check-update.js"
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .gemini/hooks/gsd-context-monitor.js",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .gemini/hooks/gsd-prompt-guard.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .gemini/hooks/gsd-workflow-guard.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node .gemini/hooks/gsd-statusline.js"
+  }
+}
