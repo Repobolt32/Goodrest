@@ -125,8 +125,9 @@ When user's prompt is NOT in English:
 ├── CODEBASE.md          # File Dependency Awareness Map
 ├── .env                 # Secrets
 ├── .gitignore           # Must ignore .env
-├── .planning/           # GSD planning docs
-├── .agent/              # GSD skills and agents
+├── .planning/           # GSD Operational Artifacts (PLAN.md, UI-SPEC.md)
+├── .agent/              # Antigravity Kit (Specialist Agents, Skills, Workflows)
+├── .gemini/             # GSD Operational Engine (GSD Agents, Workflows)
 ├── server/              # Backend logic
 └── public/              # Frontend assets
 ```
