@@ -137,30 +137,6 @@ export async function generateRazorpayOrder(orderId: string) {
 }
 
 /**
- * Task 5: Get Order Details (The Bill)
- * Fetches the order by ID for the success page summary.
- */
-export async function getOrderById(orderId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .single();
-
-    if (error) {
-      console.error('[getOrderById] Supabase error:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-  } catch (err) {
-    console.error('[getOrderById] Unexpected error:', err);
-    return { success: false, error: 'Internal Server Error' };
-  }
-}
-
-/**
  * Task 2.3: Verify Payment Signature — Primary Hook
  * Context7: validatePaymentVerification({ order_id, payment_id }, signature, secret)
  * Uses SDK utility instead of manual HMAC for correctness.

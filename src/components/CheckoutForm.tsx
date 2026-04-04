@@ -50,7 +50,7 @@ export default function CheckoutForm() {
       if (formData.paymentMethod === 'cod') {
         // Direct success for COD
         clearCart();
-        router.push(`/checkout/success?orderId=${orderId}`);
+        router.push('/checkout/success');
         return;
       }
 
@@ -75,7 +75,7 @@ export default function CheckoutForm() {
 
           if (verifyResult.success) {
             clearCart();
-            router.push(`/checkout/success?orderId=${orderId}`);
+            router.push('/checkout/success');
           } else {
             setError(verifyResult.error || 'Payment verification failed');
             setLoading(false);

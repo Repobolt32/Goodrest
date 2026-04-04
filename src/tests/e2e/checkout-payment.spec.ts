@@ -34,10 +34,9 @@ test.describe('Checkout and Payment Flow', () => {
     await expect(placeOrderButton).toBeEnabled();
     await placeOrderButton.click();
 
-    // Verify success page redirect and Bill UI
-    await expect(page).toHaveURL(/\/checkout\/success\?orderId=/, { timeout: 15000 });
-    await expect(page.getByText(/Order Summary/i)).toBeVisible();
-    await expect(page.getByText(/Total Amount/i)).toBeVisible();
+    // Verify success page redirect
+    await expect(page).toHaveURL(/\/checkout\/success/, { timeout: 15000 });
+    await expect(page.getByText(/Order Processed Successfully/i)).toBeVisible();
   });
 
   test('should initialize Online Payment and open Razorpay modal', async ({ page }) => {
