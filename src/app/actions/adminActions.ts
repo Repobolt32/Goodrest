@@ -80,3 +80,67 @@ export async function updateItemPrice(id: string, price: number) {
   revalidatePath('/'); // Main menu
   return { success: true };
 }
+
+export async function addMenuItem(item: {
+  name: string;
+  price: number;
+  category: string;
+  image_url?: string;
+  is_available: boolean;
+}) {
+  const { data, error } = await supabase
+    .from('menu_items')
+    .insert([item])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Failed to add menu item:', error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath('/admin/menu');
+  revalidatePath('/');
+  return { success: true, data };
+}
+
+export async function updateMenuItem(id: string, updates: {
+  name?: string;
+  price?: number;
+  category?: string;
+  image_url?: string;
+  is_available?: boolean;
+}) {
+  const { data, error } = await supabase
+    .from('menu_items')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Failed to update menu item:', error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath('/admin/menu');
+  revalidatePath('/');
+  return { success: true, data };
+}
+
+export async function deleteMenuItem(id: string) {
+  // Soft delete per user request (is_available = false)
+  const { error } = await supabase
+    .from('menu_items')
+    .update({ is_available: false })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Failed to soft delete menu item:', error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath('/admin/menu');
+  revalidatePath('/');
+  return { success: true };
+}

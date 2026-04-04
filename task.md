@@ -1,56 +1,39 @@
 - [x] Skill Audit: Read relevant skills from `.agent/skills/`
 - [x] Write `implementation_plan.md` and get user approval
+- [x] Implement Server Actions (`addMenuItem`, `updateMenuItem`, `deleteMenuItem`)
+- [x] Implement Add New Dish Modal with Framer Motion
+- [x] Integrate Edit functionality in `MenuManagementClient`
+- [x] Implement Soft Delete logic
+- [x] Verify UI/UX responsiveness and type safety
+- [x] Run `npx tsc --noEmit` check
+- [x] Comprehensive E2E Testing for Admin Menu CRUD
+    - [x] Create `src/tests/e2e/admin-menu-crud.spec.ts`
+    - [x] Test: Add New Dish flow
+    - [x] Test: Edit Dish flow
+    - [x] Test: Soft Delete flow
+- [x] Real-time updates & Revalidation verification
 
-## 📊 Overall Progress [|||||||||--] 90%
-
-## 🗺️ Roadmap Tracker
-
-- [x] **Phase 1: Foundation & Seed Data**
-- [x] **Phase 2: Menu Engine & UI**
-- [x] **Phase 3: Order Flow & Persistence**
-- [x] **Phase 4 (Part A): Architecture & RLS Refinement**
-  - [x] [Skill Audit](file:///e:/desktop/goodrest/.agent/skills/architecture) and [Policy Review](file:///e:/desktop/goodrest/src/middleware.ts)
-  - [x] Apply [RLS Security Policies](file:///e:/desktop/goodrest/supabase/policies.sql) for `orders` and `customers`
-  - [x] Refactor [orderActions.ts](file:///e:/desktop/goodrest/src/app/actions/orderActions.ts) to remove redundant logic
-  - [x] Update [Database Trigger](file:///e:/desktop/goodrest/supabase/triggers.sql) for atomic CRM updates
-  - [x] Verify with [Live Integration Test](file:///e:/desktop/goodrest/src/tests/db_integration.test.ts) (8 orders successful)
-- [x] **Phase 4: Admin Panel Implementation**
-  - [x] [Auth Layer](file:///e:/desktop/goodrest/src/middleware.ts): Secure JWT-based Admin protection
-  - [x] [Orders Dashboard](file:///e:/desktop/goodrest/src/app/admin/orders/page.tsx): Real-time tracking & Status management
-  - [x] [Inventory Hub](file:///e:/desktop/goodrest/src/app/admin/menu/page.tsx): Price & Availability controls
-  - [x] [E2E Hardening](file:///e:/desktop/goodrest/src/tests/e2e/): 100% pass rate on Customer & Admin flows
-- [ ] **Phase 5: Payment Finalization & Production Launch**
-  - [ ] [Razorpay SDK](file:///e:/desktop/goodrest/src/app/checkout/page.tsx): Secure frontend payment trigger
-  - [ ] [Webhook Handler](file:///e:/desktop/goodrest/src/app/api/webhooks/razorpay/route.ts): Atomic payment status updates
-  - [ ] Production Secrets Migration (Vercel/Production envs)
-
----
-
-## ✅ Phase 3: Order Flow (COMPLETED)
-- [x] **State Persistence**: Implemented `localStorage` syncing in `useCart`.
-- [x] **Checkout UI**: Built premium Bento-style `/checkout` page.
-- [x] **Server Logic**: Created `orderActions.ts` for secure Supabase insertion.
-- [x] **Customer CRM**: Automated guest record upserting.
-- [x] **Success Path**: Built `/checkout/success` with high-fidelity animations.
-- [x] **Bug Squash**: Fixed Tailwind v4 build error (`ScannerOptions` mismatch).
-
----
-
-## 🏗️ Phase 4: Admin Panel (NEXT)
-- [ ] **Auth Layer**: Simple shared password protection for `/admin`.
-- [ ] **Order Management Dashboard**:
-    - [ ] Real-time order list (Latest first).
-    - [ ] Order Status Switcher (Preparing -> Ready -> Delivered).
-    - [ ] Detail view for Customer info/Address.
-- [ ] **Menu Management Dashboard**:
-    - [ ] Item Availability Toggle (In Stock / Out of Stock).
-    - [ ] Price/Category editing interface.
-    - [ ] New item creation form.
-
----
-
-## 🔍 Verification Checklist
-- [x] Local verification via Chrome DevTools (Page loads, Items add).
-- [x] Hydration test (Cart persists on refresh).
-- [x] Database test (Order appears in Supabase on submit).
-- [x] E2E Test (Playwright): 100% pass on both flows.
+## Phase 3: Razorpay Payment Integration (The "Triple-Lock" Bridge)
+- [x] Skill Audit & Dependency Setup (`npm install razorpay`)
+- [x] Task 1: Initialization & Schema
+    - [x] Initialize `src/lib/razorpay.ts` Singleton
+    - [x] Define Payment Types in `src/types/payment.ts`
+- [x] Task 2: Triple-Lock Core Actions (in `orderActions.ts`)
+    - [x] `createOrder` — DB Intent Lock (Step 1)
+    - [x] `generateRazorpayOrder` — Razorpay Order API call, traces ID to DB (Step 2)
+    - [x] `verifyPaymentSignature` — HMAC verification + idempotency guard (Step 3)
+- [x] Task 3: The Safety Net Handler
+    - [x] Webhook Route at `src/app/api/webhook/razorpay/route.ts`
+    - [x] Signature verification + idempotent DB update
+- [x] Task 4: UI/UX Order Flow (`CheckoutForm.tsx`)
+    - [x] Dynamic Razorpay SDK script injection
+    - [x] COD path: direct success redirect
+    - [x] Online path: full Triple-Lock modal flow
+    - [x] Loading states + modal dismiss handler
+- [/] Task 5: Hardening & Verification
+    - [x] Webhook Signature Hardening (SDK methods)
+    - [x] Order Action Idempotency
+    - [x] TypeScript Check (`npx tsc --noEmit`)
+    - [/] Fix Linting Errors & Impurities
+    - [ ] Run Playwright E2E Tests (`src/tests/e2e/checkout-payment.spec.ts`)
+    - [ ] Final Security Scan

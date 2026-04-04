@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
-import { createOrder } from '@/app/actions/orderActions';
-import { motion } from 'framer-motion';
-import { Phone, User, MapPin, CreditCard, Banknote, Loader2 } from 'lucide-react';
+import { createOrder, generateRazorpayOrder, verifyPaymentSignature } from '@/app/actions/orderActions';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Phone, User, MapPin, CreditCard, Banknote, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import Script from 'next/script';
+import { RazorpayPaymentCallback } from '@/types/payment';
 
 export default function CheckoutForm() {
   const router = useRouter();
@@ -28,6 +30,7 @@ export default function CheckoutForm() {
     setError(null);
 
     try {
+      // STEP 1: LOCK INTENT (Create order in Supabase first)
       const result = await createOrder({
         customer_name: formData.name,
         customer_phone: formData.phone,
@@ -37,15 +40,70 @@ export default function CheckoutForm() {
         payment_method: formData.paymentMethod,
       });
 
-      if (result.success) {
-        clearCart();
-        router.push('/checkout/success');
-      } else {
-        setError(result.error || 'Failed to place order');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to place order');
       }
-    } catch (err) {
-      setError('An unexpected error occurred');
-    } finally {
+
+      const orderId = result.data.id;
+
+      // STEP 2: HANDLE PAYMENT METHOD
+      if (formData.paymentMethod === 'cod') {
+        // Direct success for COD
+        clearCart();
+        router.push(`/checkout/success?orderId=${orderId}`);
+        return;
+      }
+
+      // STEP 3: ONLINE PAYMENT (RAZORPAY)
+      const rzpData = await generateRazorpayOrder(orderId);
+      
+      if (!rzpData.success || !rzpData.razorpayOrderId) {
+        throw new Error(rzpData.error || 'Failed to initialize payment');
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: rzpData.amount,
+        currency: rzpData.currency,
+        name: "Goodrest",
+        description: `Order #${orderId.slice(-6)}`,
+        order_id: rzpData.razorpayOrderId,
+        handler: async function (response: RazorpayPaymentCallback) {
+          setLoading(true);
+          // STEP 4: VERIFY SIGNATURE (Primary Hook)
+          const verifyResult = await verifyPaymentSignature(response);
+
+          if (verifyResult.success) {
+            clearCart();
+            router.push(`/checkout/success?orderId=${orderId}`);
+          } else {
+            setError(verifyResult.error || 'Payment verification failed');
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: formData.name,
+          contact: formData.phone,
+        },
+        theme: {
+          color: "#E11D48", // Matches our primary red-600
+        },
+        modal: {
+          ondismiss: function() {
+            setLoading(false);
+          }
+        }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.on('payment.failed', (response: { error: { description: string } }) => {
+        setError(response.error.description || 'Payment failed');
+      });
+      paymentObject.open();
+
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -164,9 +222,17 @@ export default function CheckoutForm() {
         {loading ? (
           <Loader2 className="animate-spin" size={24} />
         ) : (
-          <>Place Order • ₹{totalPrice}</>
+          <>
+            {formData.paymentMethod === 'online' ? <CreditCard size={24} /> : <Banknote size={24} />}
+            {formData.paymentMethod === 'online' ? 'Pay & Order' : 'Place Order'} • ₹{totalPrice}
+          </>
         )}
       </motion.button>
+      
+      <Script
+        id="razorpay-checkout-js"
+        src="https://checkout.razorpay.com/v1/checkout.js"
+      />
     </form>
   );
 }

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import MenuManagementClient from '@/components/admin/MenuManagementClient';
+import { MenuItem } from '@/types/menu';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export default async function AdminMenuPage() {
         <p className="text-slate-500 font-medium tracking-wide">Sync your inventory and adjust pricing details.</p>
       </div>
 
-      <MenuManagementClient initialItems={menuItems || []} />
+      <MenuManagementClient initialItems={(menuItems as MenuItem[]) || []} />
     </div>
   );
 }
