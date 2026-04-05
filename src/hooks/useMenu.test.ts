@@ -1,13 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useMenu } from './useMenu';
-import { supabase } from '@/lib/supabase';
 
 // Mock Supabase
 const mockSupabaseQuery = {
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
-  async then(resolve: any) {
+  async then(resolve: (value: unknown) => void) {
     resolve({ data: [{ id: '1', name: 'Test Food', category: 'Main Course' }], error: null });
   },
 };

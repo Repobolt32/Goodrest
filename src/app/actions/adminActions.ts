@@ -1,11 +1,11 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { revalidatePath } from 'next/cache';
 
 export async function updateOrderStatus(orderId: string, status: string) {
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('orders')
     .update({ order_status: status })
     .eq('id', orderId);
@@ -20,7 +20,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
 }
 
 export async function updatePaymentStatus(orderId: string, status: string) {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('orders')
     .update({ payment_status: status })
     .eq('id', orderId);
@@ -35,7 +35,7 @@ export async function updatePaymentStatus(orderId: string, status: string) {
 }
 
 export async function deleteOrder(orderId: string) {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('orders')
     .delete()
     .eq('id', orderId);
@@ -50,7 +50,7 @@ export async function deleteOrder(orderId: string) {
 }
 
 export async function toggleItemAvailability(id: string, isAvailable: boolean) {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('menu_items')
     .update({ is_available: isAvailable })
     .eq('id', id);
@@ -66,7 +66,7 @@ export async function toggleItemAvailability(id: string, isAvailable: boolean) {
 }
 
 export async function updateItemPrice(id: string, price: number) {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('menu_items')
     .update({ price })
     .eq('id', id);
@@ -88,7 +88,7 @@ export async function addMenuItem(item: {
   image_url?: string;
   is_available: boolean;
 }) {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('menu_items')
     .insert([item])
     .select()
@@ -111,7 +111,7 @@ export async function updateMenuItem(id: string, updates: {
   image_url?: string;
   is_available?: boolean;
 }) {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('menu_items')
     .update(updates)
     .eq('id', id)
@@ -130,7 +130,7 @@ export async function updateMenuItem(id: string, updates: {
 
 export async function deleteMenuItem(id: string) {
   // Soft delete per user request (is_available = false)
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('menu_items')
     .update({ is_available: false })
     .eq('id', id);

@@ -4,10 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
 import { createOrder, generateRazorpayOrder, verifyPaymentSignature } from '@/app/actions/orderActions';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, User, MapPin, CreditCard, Banknote, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Phone, User, MapPin, CreditCard, Banknote, Loader2 } from 'lucide-react';
 import Script from 'next/script';
-import { RazorpayPaymentCallback } from '@/types/payment';
+import { RazorpayPaymentCallback, RazorpayOptions, RazorpayErrorResponse } from '@/types/payment';
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => {
+      on: (event: string, callback: (res: RazorpayErrorResponse) => void) => void;
+      open: () => void;
+    };
+  }
+}
 
 export default function CheckoutForm() {
   const router = useRouter();
@@ -19,7 +28,7 @@ export default function CheckoutForm() {
     name: '',
     phone: '',
     address: '',
-    paymentMethod: 'cod' as 'online' | 'cod',
+    paymentMethod: 'online' as 'online',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,10 +102,10 @@ export default function CheckoutForm() {
             setLoading(false);
           }
         }
-      };
+      } satisfies RazorpayOptions;
 
-      const paymentObject = new (window as any).Razorpay(options);
-      paymentObject.on('payment.failed', (response: { error: { description: string } }) => {
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.on('payment.failed', (response: RazorpayErrorResponse) => {
         setError(response.error.description || 'Payment failed');
       });
       paymentObject.open();
@@ -171,39 +180,14 @@ export default function CheckoutForm() {
         </div>
       </section>
 
-      {/* Payment Method */}
+      {/* Payment Information Note */}
       <section className="bg-white p-6 rounded-bento border border-gray-100 shadow-sm">
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-          <CreditCard className="text-primary" size={20} />
-          Payment Method
-        </h2>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => setFormData({ ...formData, paymentMethod: 'cod' })}
-            className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-              formData.paymentMethod === 'cod' 
-              ? 'border-primary bg-primary/5 text-primary shadow-lg shadow-primary/5' 
-              : 'border-gray-50 bg-gray-50 text-gray-500 grayscale opacity-60'
-            }`}
-          >
-            <Banknote size={24} />
-            <span className="font-bold text-sm">Cash</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFormData({ ...formData, paymentMethod: 'online' })}
-            className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-              formData.paymentMethod === 'online' 
-              ? 'border-primary bg-primary/5 text-primary shadow-lg shadow-primary/5' 
-              : 'border-gray-50 bg-gray-50 text-gray-500 grayscale opacity-60'
-            }`}
-          >
-            <CreditCard size={24} />
-            <span className="font-bold text-sm">Online</span>
-          </button>
+        <div className="flex items-center gap-4 text-primary bg-primary/5 p-4 rounded-2xl border border-primary/10">
+          <CreditCard size={24} />
+          <div>
+            <p className="text-sm font-black uppercase tracking-widest">Secure Online Payment</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Powered by Razorpay • Cards, UPI, Netbanking</p>
+          </div>
         </div>
       </section>
 
@@ -223,8 +207,8 @@ export default function CheckoutForm() {
           <Loader2 className="animate-spin" size={24} />
         ) : (
           <>
-            {formData.paymentMethod === 'online' ? <CreditCard size={24} /> : <Banknote size={24} />}
-            {formData.paymentMethod === 'online' ? 'Pay & Order' : 'Place Order'} • ₹{totalPrice}
+            <CreditCard size={24} />
+            Pay & Order • ₹{totalPrice}
           </>
         )}
       </motion.button>

@@ -1,5 +1,3 @@
-import { LucideIcon } from 'lucide-react';
-
 export type Category = 'Starters' | 'Main Course' | 'Breads' | 'Rice' | 'Beverages' | 'Desserts';
 
 export interface MenuItem {

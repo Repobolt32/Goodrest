@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
       // 4. Verify JWT
       await jwtVerify(session, JWT_SECRET);
       return NextResponse.next();
-    } catch (err) {
+    } catch {
       // Invalid session
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }

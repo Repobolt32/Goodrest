@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import { 
-  Check, 
   X, 
   Save, 
-  RotateCcw, 
   Tag, 
   ChefHat, 
   Eye, 
@@ -190,9 +189,12 @@ export default function MenuManagementClient({ initialItems }: { initialItems: M
                     <div className="flex items-start gap-6 relative z-10">
                       {/* Image Preview */}
                       <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex-shrink-0 relative group">
-                        <img 
-                          src={item.image_url} 
+                        <Image 
+                          src={item.image_url || ''} 
                           alt={item.name} 
+                          width={80}
+                          height={80}
+                          unoptimized
                           className="w-full h-full object-cover transition-transform group-hover:scale-110" 
                         />
                         <button 
@@ -370,7 +372,7 @@ export default function MenuManagementClient({ initialItems }: { initialItems: M
                         id="dishCategory"
                         className="w-full bg-slate-50 border-0 rounded-2xl p-4 text-slate-900 focus:ring-2 focus:ring-orange-500 transition-all outline-none appearance-none cursor-pointer"
                         value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value as Category })}
                         required
                       >
                         <option value="" disabled>Select category</option>

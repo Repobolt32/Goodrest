@@ -1,0 +1,118 @@
+{
+  "data": {
+    "metadata": {
+      "viewport": [
+        "width=device-width, initial-scale=1",
+        "width=device-width, initial-scale=1.0"
+      ],
+      "og:image": "/gaya/good-rest-jai-ram-hotel-gaya-locality/order",
+      "title": "Good Rest(Jai Ram Hotel), Gaya Locality order online - Zomato",
+      "referrer": "no-referrer",
+      "og:description": "Order food online from Good Rest(Jai Ram Hotel), Gaya Locality, Gaya. Get great offers and super fast food delivery when you order food online from Good Rest(Jai Ram Hotel) on Zomato.",
+      "og:title": "Good Rest(Jai Ram Hotel), Gaya Locality order online - Zomato",
+      "language": "en-in",
+      "ogTitle": "Good Rest(Jai Ram Hotel), Gaya Locality order online - Zomato",
+      "robots": "NOODP,NOYDIR",
+      "description": "Order food online from Good Rest(Jai Ram Hotel), Gaya Locality, Gaya. Get great offers and super fast food delivery when you order food online from Good Rest(Jai Ram Hotel) on Zomato.",
+      "twitter:card": "summary",
+      "google-site-verification": "wpKLzkoQQlIQcu2LzlVmxVTVJbvUyazijG6QYaTzXqw",
+      "ogDescription": "Order food online from Good Rest(Jai Ram Hotel), Gaya Locality, Gaya. Get great offers and super fast food delivery when you order food online from Good Rest(Jai Ram Hotel) on Zomato.",
+      "ogImage": "/gaya/good-rest-jai-ram-hotel-gaya-locality/order",
+      "favicon": "https://b.zmtcdn.com/data/o2_assets/5376b760d3b12ca9af29fc8f4e1847e71717417610.png",
+      "scrapeId": "019d5c96-4006-77b8-a64d-8440427b6f94",
+      "sourceURL": "https://www.zomato.com/gaya/good-rest-jai-ram-hotel-gaya-locality/order",
+      "url": "https://www.zomato.com/gaya/good-rest-jai-ram-hotel-gaya-locality/order",
+      "statusCode": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "timezone": "America/New_York",
+      "proxyUsed": "basic",
+      "cacheState": "miss",
+      "indexId": "5aa2d0b6-1946-451d-806b-236fd8d9c2d1",
+      "creditsUsed": 5,
+      "concurrencyLimited": false
+    },
+    "json": {
+      "company_name": "Good Rest (Jai Ram Hotel)",
+      "company_description": "A restaurant located in Gaya Locality offering a variety of cuisines including Chinese and North Indian, with both dining and delivery options."
+    }
+  },
+  "scrape_id": "019d5c96-4006-77b8-a64d-8440427b6f94",
+  "id": "fdiP1yalLSZ12FqHiwDes",
+  "startedAt": "2026-04-05T07:41:27.521Z",
+  "endedAt": "2026-04-05T07:41:33.092Z",
+  "endpoint": "scrape",
+  "formState": {
+    "extractSetupCompleted": false,
+    "urls": [],
+    "extractSchema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "company_mission": {
+          "type": "string"
+        },
+        "supports_sso": {
+          "type": "boolean"
+        },
+        "is_open_source": {
+          "type": "boolean"
+        },
+        "is_in_yc": {
+          "type": "boolean"
+        }
+      }
+    },
+    "extractPrompt": "Extract the company details, following the schema.",
+    "enableWebSearch": false,
+    "constrainUrls": false,
+    "options": {
+      "onlyMainContent": true,
+      "parsePDF": false,
+      "stealthMode": false,
+      "excludeTags": [],
+      "includeTags": [],
+      "waitFor": "",
+      "timeout": "",
+      "maxAge": "2 days",
+      "ignoreSitemap": false,
+      "crawlEntireDomain": false,
+      "sitemap": "include",
+      "limit": "10",
+      "maxDepth": "",
+      "excludePaths": [],
+      "includePaths": [],
+      "includeSubdomains": false,
+      "search": "",
+      "scrapeContentFromSearchResults": true,
+      "timeBasedSearch": "",
+      "location": "",
+      "prompt": ""
+    },
+    "formats": [
+      "json"
+    ],
+    "sources": [
+      "web"
+    ],
+    "categories": [],
+    "jsonSchema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "company_name": {
+          "type": "string"
+        },
+        "company_description": {
+          "type": "string"
+        }
+      }
+    },
+    "jsonPrompt": "",
+    "agent": {},
+    "url": "www.zomato.com/gaya/good-rest-jai-ram-hotel-gaya-locality/order",
+    "endpoint": "scrape"
+  },
+  "status": "success",
+  "version": "pH71f-RrZ9hiymECQ7WmI",
+  "isPreview": false
+}

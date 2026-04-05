@@ -5,11 +5,9 @@ import { logout } from '@/app/actions/authActions';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShoppingBag, 
-  LayoutDashboard, 
   LogOut, 
   Search, 
   Bell, 
-  Menu as MenuIcon,
   ChefHat,
   ChevronRight
 } from 'lucide-react';

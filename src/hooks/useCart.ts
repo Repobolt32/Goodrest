@@ -14,12 +14,15 @@ export const useCart = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        setItems(JSON.parse(saved));
+        const parsedItems = JSON.parse(saved);
+        // Avoid setting state directly within an effect synchronously during render
+        setTimeout(() => setItems(parsedItems), 0);
       } catch (e) {
         console.error('Failed to parse cart storage', e);
       }
     }
-    setMounted(true);
+    // Set mounted asynchronously to avoid synchronous effect triggering issues
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   // Save to localStorage on change

@@ -1,9 +1,8 @@
 "use server";
 
 import crypto from 'crypto';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { razorpay } from '@/lib/razorpay';
-import Razorpay from 'razorpay';
 import { CartItem } from '@/types/menu';
 import { Database } from '@/types/database.types';
 import { RazorpayPaymentCallback } from '@/types/payment';
@@ -32,11 +31,11 @@ export async function createOrder(input: OrderInput) {
       return { success: false, error: 'Missing required fields' };
     }
 
+    // 1. Insert into orders table first
     const orderData: Database['public']['Tables']['orders']['Insert'] = {
       customer_name: input.customer_name,
       customer_phone: input.customer_phone,
       delivery_address: input.delivery_address,
-      // Serialize via JSON.stringify to prevent JSONB type mismatch
       items: JSON.parse(JSON.stringify(input.items)),
       total_amount: input.total_amount,
       payment_method: input.payment_method,
@@ -44,18 +43,35 @@ export async function createOrder(input: OrderInput) {
       order_status: 'created',
     };
 
-    const { data, error } = await supabase
+    const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert(orderData)
       .select()
       .single();
 
-    if (error) {
-      console.error('[createOrder] Supabase error:', error);
-      return { success: false, error: error.message };
+    if (orderError) {
+      console.error('[createOrder] Supabase order error:', orderError);
+      return { success: false, error: orderError.message };
     }
 
-    return { success: true, data };
+    // 2. Insert into order_items table for normalized auditing
+    const orderItemsData: Database['public']['Tables']['order_items']['Insert'][] = input.items.map(item => ({
+      order_id: order.id,
+      menu_item_id: item.id,
+      quantity: item.quantity
+    }));
+
+    const { error: itemsError } = await supabaseAdmin
+      .from('order_items')
+      .insert(orderItemsData);
+
+    if (itemsError) {
+      console.error('[createOrder] Supabase order_items error:', itemsError);
+      // We don't fail the whole request here since the order was created, 
+      // but we log it for recovery.
+    }
+
+    return { success: true, data: order };
   } catch (err) {
     console.error('[createOrder] Unexpected error:', err);
     return { success: false, error: 'Internal Server Error' };
@@ -69,7 +85,7 @@ export async function createOrder(input: OrderInput) {
  */
 export async function generateRazorpayOrder(orderId: string) {
   try {
-    const { data: order, error: fetchError } = await supabase
+    const { data: order, error: fetchError } = await supabaseAdmin
       .from('orders')
       .select()
       .eq('id', orderId)
@@ -110,7 +126,7 @@ export async function generateRazorpayOrder(orderId: string) {
 
     // Trace RP order ID back to our DB record
     // Use .select().single() to verify the update persisted locally
-    const { data: updatedOrder, error: updateError } = await supabase
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({ razorpay_order_id: rzpOrder.id })
       .eq('id', order.id)
@@ -166,7 +182,7 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
     }
 
     // Idempotency Check: Don't double-update an already paid order
-    const { data: order, error: fetchError } = await supabase
+    const { data: order, error: fetchError } = await supabaseAdmin
       .from('orders')
       .select('id, payment_status')
       .eq('razorpay_order_id', razorpay_order_id)
@@ -183,7 +199,7 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
     }
 
     // Mark as paid — DB as Source of Truth
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
         payment_status: 'paid',

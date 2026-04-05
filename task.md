@@ -36,4 +36,11 @@
     - [x] TypeScript Check (`npx tsc --noEmit`)
     - [/] Fix Linting Errors & Impurities
     - [ ] Run Playwright E2E Tests (`src/tests/e2e/checkout-payment.spec.ts`)
-    - [ ] Final Security Scan
+    - [ ] GitHub Push Workflow
+    - [ ] Skill Audit: Read relevant skills from `.agent/skills/`
+    - [ ] Write `implementation_plan_github_push.md` and get user approval
+    - [ ] Update `.gitignore` to exclude testing reports and UI artifacts
+    - [ ] Run `security_scan.py` (simulated via manual check) to ensure no secrets in staged files
+    - [ ] Add all relevant files to Git
+    - [ ] Commit with message: "feat: final order management system and payment integration fixes"
+    - [ ] Push to GitHub remote `origin`

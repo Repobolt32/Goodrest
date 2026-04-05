@@ -8,6 +8,7 @@ import CategoryTabs from '@/components/CategoryTabs';
 import MenuItemCard from '@/components/MenuItemCard';
 import FloatingCart from '@/components/FloatingCart';
 import { motion, AnimatePresence } from 'framer-motion';
+import Header from '@/components/Header';
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
@@ -20,13 +21,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen pb-32">
-      {/* Header */}
-      <header className="bg-white pt-8 pb-6 px-6">
-        <h1 className="text-4xl font-black tracking-tight text-gray-900 mb-2">
-          Good<span className="text-primary italic">rest</span>
-        </h1>
-        <p className="text-gray-500 font-medium tracking-wide">Select from our chef-curated menu.</p>
-      </header>
+      <Header />
 
       {/* Categories */}
       <div className="mx-6">

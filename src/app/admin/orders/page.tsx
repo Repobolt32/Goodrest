@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import OrdersDashboardClient from '@/components/admin/OrdersDashboardClient';
+import OrdersDashboardClient, { Order } from '@/components/admin/OrdersDashboardClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,7 @@ export default async function AdminOrdersPage() {
         </div>
       </div>
 
-      <OrdersDashboardClient initialOrders={initialOrders || []} />
+      <OrdersDashboardClient initialOrders={(initialOrders as unknown as Order[]) || []} />
     </div>
   );
 }

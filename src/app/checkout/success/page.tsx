@@ -23,22 +23,32 @@ export default function SuccessPage() {
       >
         <h1 className="text-3xl font-black text-gray-900 mb-2">Order Placed!</h1>
         <p className="text-gray-500 font-medium mb-12 max-w-sm mx-auto">
-          Thank you for your order. Your delicious meal is now being prepared. We'll update you soon!
+          Thank you for your order. Your delicious meal is now being prepared. We&apos;ll update you soon!
         </p>
 
         <div className="space-y-4">
-          <Link href="/">
+          <Link href="/track">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="w-full sm:w-64 py-4 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-primary/20"
             >
               <Utensils size={18} />
+              Track Your Order
+            </motion.button>
+          </Link>
+
+          <Link href="/">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full sm:w-64 py-4 bg-gray-50 text-gray-900 rounded-2xl font-bold flex items-center justify-center gap-2 border-2 border-gray-100 transition-colors"
+            >
               Back to Menu
             </motion.button>
           </Link>
           
-          <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+          <p className="text-xs font-bold text-gray-300 uppercase tracking-widest pt-4">
             Order Processed Successfully
           </p>
         </div>
