@@ -8,17 +8,18 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const CATEGORIES: (Category | 'All')[] = ['All', 'Starters', 'Main Course', 'Breads', 'Rice', 'Beverages', 'Desserts'];
-
 interface CategoryTabsProps {
+  categories: string[];
   activeCategory: Category | 'All';
   onSelect: (category: Category | 'All') => void;
 }
 
-export default function CategoryTabs({ activeCategory, onSelect }: CategoryTabsProps) {
+export default function CategoryTabs({ categories, activeCategory, onSelect }: CategoryTabsProps) {
+  const allCategories: (Category | 'All')[] = ['All', ...(categories as Category[])];
+
   return (
     <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md py-4 px-4 -mx-4 overflow-x-auto hide-scrollbar flex gap-3 shadow-sm border-b">
-      {CATEGORIES.map((category) => (
+      {allCategories.map((category) => (
         <button
           key={category}
           onClick={() => onSelect(category)}

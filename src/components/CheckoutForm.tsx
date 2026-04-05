@@ -28,7 +28,7 @@ export default function CheckoutForm() {
     name: '',
     phone: '',
     address: '',
-    paymentMethod: 'online' as 'online',
+    paymentMethod: 'online' as 'online' | 'cod',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

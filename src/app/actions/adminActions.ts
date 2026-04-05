@@ -85,6 +85,7 @@ export async function addMenuItem(item: {
   name: string;
   price: number;
   category: string;
+  category_id?: string;
   image_url?: string;
   is_available: boolean;
 }) {
@@ -108,6 +109,7 @@ export async function updateMenuItem(id: string, updates: {
   name?: string;
   price?: number;
   category?: string;
+  category_id?: string;
   image_url?: string;
   is_available?: boolean;
 }) {
@@ -125,6 +127,20 @@ export async function updateMenuItem(id: string, updates: {
 
   revalidatePath('/admin/menu');
   revalidatePath('/');
+  return { success: true, data };
+}
+
+export async function getCategories() {
+  const { data, error } = await supabaseAdmin
+    .from('categories')
+    .select('*')
+    .order('display_order', { ascending: true });
+
+  if (error) {
+    console.error('Failed to fetch categories:', error);
+    return { success: false, error: error.message };
+  }
+
   return { success: true, data };
 }
 

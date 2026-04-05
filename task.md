@@ -40,7 +40,11 @@
     - [ ] Skill Audit: Read relevant skills from `.agent/skills/`
     - [ ] Write `implementation_plan_github_push.md` and get user approval
     - [ ] Update `.gitignore` to exclude testing reports and UI artifacts
-    - [ ] Run `security_scan.py` (simulated via manual check) to ensure no secrets in staged files
-    - [ ] Add all relevant files to Git
-    - [ ] Commit with message: "feat: final order management system and payment integration fixes"
-    - [ ] Push to GitHub remote `origin`
+    - [x] Run `security_scan.py` (simulated via manual check) to ensure no secrets in staged files
+    - [/] Add all relevant files to Git
+    - [ ] Commit with message: "feat: localized menu migration, normalized categories, and secure payment integration"
+- [x] Real Menu Migration Workflow (Approved)
+    - [x] Database: Apply `real_menu_schema_upgrade` migration (Categories + Real Items)
+    - [x] Backend: Update `adminActions.ts` to support `category_id`
+    - [x] Frontend: Update `MenuManagementClient.tsx` with dynamic category dropdown
+    - [x] Verification: Run `npx tsc --noEmit` and Playwright E2E tests

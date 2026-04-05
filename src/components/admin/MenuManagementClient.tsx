@@ -18,10 +18,15 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { addMenuItem, updateMenuItem, deleteMenuItem, toggleItemAvailability, updateItemPrice } from '@/app/actions/adminActions';
+import { MenuItem, Category, CategoryData } from '@/types/menu';
 
-import { MenuItem, Category } from '@/types/menu';
-
-export default function MenuManagementClient({ initialItems }: { initialItems: MenuItem[] }) {
+export default function MenuManagementClient({ 
+  initialItems,
+  categories 
+}: { 
+  initialItems: MenuItem[];
+  categories: CategoryData[];
+}) {
   const [items, setItems] = useState<MenuItem[]>(initialItems);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState<string>('');
@@ -37,6 +42,7 @@ export default function MenuManagementClient({ initialItems }: { initialItems: M
     name: '',
     price: '',
     category: '' as Category | '',
+    category_id: '',
     image_url: '',
     is_available: true
   });
@@ -46,6 +52,7 @@ export default function MenuManagementClient({ initialItems }: { initialItems: M
       name: '',
       price: '',
       category: '',
+      category_id: '',
       image_url: '',
       is_available: true
     });
@@ -65,6 +72,7 @@ export default function MenuManagementClient({ initialItems }: { initialItems: M
       name: item.name,
       price: item.price.toString(),
       category: item.category,
+      category_id: item.category_id || '',
       image_url: item.image_url || '',
       is_available: item.is_available
     });
@@ -145,8 +153,10 @@ export default function MenuManagementClient({ initialItems }: { initialItems: M
     setLoading(null);
   };
 
-  // Group items by category
-  const categories = Array.from(new Set(items.map(i => i.category || 'Uncategorized')));
+  // Group items by category (using the prop list to ensure order and completeness)
+  const displayCategories = categories.length > 0 
+    ? categories 
+    : Array.from(new Set(items.map(i => i.category || 'Uncategorized'))).map(name => ({ id: name, name } as CategoryData));
 
   return (
     <div className="space-y-12 pb-32">
@@ -163,20 +173,20 @@ export default function MenuManagementClient({ initialItems }: { initialItems: M
         </button>
       </div>
 
-      {categories.map((category) => (
-        <section key={category} className="space-y-6">
+      {displayCategories.map((cat) => (
+        <section key={cat.id} className="space-y-6">
           <div className="flex items-center gap-3 px-2">
             <div className="p-2 bg-primary/10 rounded-xl">
               <ChefHat className="text-primary" size={20} />
             </div>
-            <h2 className="text-xl font-black tracking-tight text-slate-800 uppercase tracking-widest">{category}</h2>
+            <h2 className="text-xl font-black tracking-tight text-slate-800 uppercase tracking-widest">{cat.name}</h2>
             <div className="flex-1 h-[1px] bg-slate-100" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <AnimatePresence>
               {items
-                .filter(i => i.category === category)
+                .filter(i => (i.category_id === cat.id) || (i.category === cat.name))
                 .map((item) => (
                   <motion.div
                     layout
@@ -371,13 +381,21 @@ export default function MenuManagementClient({ initialItems }: { initialItems: M
                       <select
                         id="dishCategory"
                         className="w-full bg-slate-50 border-0 rounded-2xl p-4 text-slate-900 focus:ring-2 focus:ring-orange-500 transition-all outline-none appearance-none cursor-pointer"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value as Category })}
+                        value={formData.category_id}
+                        onChange={(e) => {
+                          const catId = e.target.value;
+                          const selectedCat = categories.find(c => c.id === catId);
+                          setFormData({ 
+                            ...formData, 
+                            category_id: catId,
+                            category: (selectedCat?.name || '') as Category
+                          });
+                        }}
                         required
                       >
                         <option value="" disabled>Select category</option>
-                        {['Starters', 'Main Course', 'Breads', 'Rice', 'Beverages', 'Desserts'].map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                       </select>
                     </div>

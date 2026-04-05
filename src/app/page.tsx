@@ -12,7 +12,7 @@ import Header from '@/components/Header';
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
-  const { menuItems, loading } = useMenu(activeCategory);
+  const { menuItems, categories, loading } = useMenu(activeCategory);
   const { items, addToCart, removeFromCart, totalItems, totalPrice } = useCart();
 
   const getQuantity = (id: string) => {
@@ -25,7 +25,11 @@ export default function Home() {
 
       {/* Categories */}
       <div className="mx-6">
-        <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
+        <CategoryTabs 
+          categories={categories}
+          activeCategory={activeCategory} 
+          onSelect={setActiveCategory} 
+        />
       </div>
 
       {/* Menu Grid */}
