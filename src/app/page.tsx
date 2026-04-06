@@ -9,6 +9,7 @@ import MenuItemCard from '@/components/MenuItemCard';
 import FloatingCart from '@/components/FloatingCart';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from '@/components/Header';
+import Hero from '@/components/Hero';
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
@@ -22,9 +23,13 @@ export default function Home() {
   return (
     <div className="min-h-screen pb-32">
       <Header />
+      <Hero />
+
+      {/* Internal Anchor for Smooth Scroll */}
+      <div id="menu-section" className="scroll-mt-6"></div>
 
       {/* Categories */}
-      <div className="mx-6">
+      <div className="mx-6 mt-8">
         <CategoryTabs 
           categories={categories}
           activeCategory={activeCategory} 

@@ -24,10 +24,10 @@ export default function CategoryTabs({ categories, activeCategory, onSelect }: C
           key={category}
           onClick={() => onSelect(category)}
           className={cn(
-            "px-6 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200",
+            "px-6 py-2.5 rounded-full text-[14px] font-semibold whitespace-nowrap transition-all duration-200",
             activeCategory === category
               ? "bg-primary text-white shadow-lg shadow-primary/30"
-              : "bg-surface-muted text-gray-600 hover:bg-gray-100"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
           )}
         >
           {category}

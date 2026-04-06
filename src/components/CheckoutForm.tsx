@@ -143,7 +143,7 @@ export default function CheckoutForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Contact Information */}
-      <section className="bg-white p-6 rounded-bento border border-gray-100 shadow-sm">
+      <section className="bg-white p-6 rounded-bento border-2 border-slate-100 shadow-md">
         <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
           <User className="text-primary" size={20} />
           Contact Info
@@ -151,14 +151,14 @@ export default function CheckoutForm() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Full Name</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Full Name</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 required
                 type="text"
                 placeholder="John Doe"
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                className="w-full pl-10 pr-4 py-4 bg-gray-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none font-bold text-gray-900"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
@@ -166,7 +166,7 @@ export default function CheckoutForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Phone Number</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Phone Number</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -176,7 +176,7 @@ export default function CheckoutForm() {
                 minLength={10}
                 maxLength={10}
                 placeholder="9876543210"
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                className="w-full pl-10 pr-4 py-4 bg-gray-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none font-bold text-gray-900"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
@@ -186,7 +186,7 @@ export default function CheckoutForm() {
       </section>
 
       {/* Delivery Address */}
-      <section className="bg-white p-6 rounded-bento border border-gray-100 shadow-sm">
+      <section className="bg-white p-6 rounded-bento border-2 border-slate-100 shadow-md">
         <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
           <MapPin className="text-primary" size={20} />
           Delivery Address
@@ -197,7 +197,7 @@ export default function CheckoutForm() {
             required
             rows={3}
             placeholder="Complete Address (Flat No, Street, Landmark)"
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none"
+            className="w-full px-4 py-4 bg-gray-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none resize-none font-bold text-gray-900"
             value={formData.address}
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
           />
@@ -205,12 +205,12 @@ export default function CheckoutForm() {
       </section>
 
       {/* Payment Information Note */}
-      <section className="bg-white p-6 rounded-bento border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-4 text-primary bg-primary/5 p-4 rounded-2xl border border-primary/10">
-          <CreditCard size={24} />
+      <section className="bg-white p-6 rounded-bento border-2 border-slate-50 shadow-sm">
+        <div className="flex items-center gap-4 text-primary bg-primary/5 p-4 rounded-2xl border-2 border-primary/20">
+          <CreditCard size={24} strokeWidth={3} />
           <div>
-            <p className="text-sm font-black uppercase tracking-widest">Secure Online Payment</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Powered by Razorpay • Cards, UPI, Netbanking</p>
+            <p className="text-xs font-black uppercase tracking-widest">Secure Online Payment</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Powered by Razorpay • Cards, UPI, Netbanking</p>
           </div>
         </div>
       </section>
