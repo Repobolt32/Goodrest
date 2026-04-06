@@ -1,7 +1,6 @@
-import { describe, it, expect, afterAll } from 'vitest';
 import { createOrder } from '@/app/actions/orderActions';
 import { supabase } from '@/lib/supabase';
-import { Category } from '@/types/menu';
+import { Category, MenuItem, CartItem } from '@/types/menu';
 
 describe('Billing Infrastructure Integration', () => {
   let createdOrderId: string | null = null;
@@ -16,37 +15,44 @@ describe('Billing Infrastructure Integration', () => {
       .single();
     
     expect(menuError).toBeNull();
-    expect(menuItem).not.toBeNull();
+    if (!menuItem) throw new Error('No menu items found for test');
 
     const input = {
       customer_name: 'Test Billing User',
       customer_phone: TEST_PHONE,
       delivery_address: '123 Integration Lane',
-      payment_method: 'cod' as const,
+      payment_method: 'online' as const,
       items: [
         { 
-          ...menuItem,
-          quantity: 2,
-          category: menuItem.category as Category // Cast to match expected type
-        }
+          id: menuItem.id,
+          name: menuItem.name,
+          price: Number(menuItem.price),
+          category: (menuItem.category || 'Other') as Category,
+          category_id: menuItem.category_id || undefined,
+          tags: Array.isArray(menuItem.tags) ? (menuItem.tags as string[]) : [],
+          is_available: !!menuItem.is_available,
+          quantity: 2
+        } as CartItem
       ],
-      total_amount: Number(menuItem.price) * 2
+      total_amount: (Number(menuItem.price) || 0) * 2
     };
 
     // 2. Act: Create the order
     const result = await createOrder(input);
     expect(result.success).toBe(true);
     createdOrderId = result.data?.id || null;
+    if (!createdOrderId) throw new Error('Order creation failed to return ID');
 
     // 3. Assert: Verify the audit-proof records in the database
     // A. Verify the Order record
     const { data: order, error: fetchOrderError } = await supabase
       .from('orders')
       .select('*')
-      .eq('id', createdOrderId)
+      .eq('id', createdOrderId as string)
       .single();
     
     expect(fetchOrderError).toBeNull();
+    if (!order) throw new Error('Order not found after creation');
     expect(order.friendly_id).toMatch(/^#GR-\d+$/);
     console.log(`[Test] Generated Friendly ID: ${order.friendly_id}`);
 
@@ -54,10 +60,11 @@ describe('Billing Infrastructure Integration', () => {
     const { data: items, error: fetchItemsError } = await supabase
       .from('order_items')
       .select('*')
-      .eq('order_id', createdOrderId);
+      .eq('order_id', createdOrderId as string);
     
     expect(fetchItemsError).toBeNull();
-    expect(items).toHaveLength(1);
+    expect(items).not.toBeNull();
+    expect(items!).toHaveLength(1);
     
     const capturedItem = items![0];
     expect(capturedItem.menu_item_id).toBe(menuItem.id);

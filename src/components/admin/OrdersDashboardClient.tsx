@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { Database } from '@/types/database.types';
 import { updateOrderStatus, deleteOrder } from '@/app/actions/adminActions';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { OrderItem, OrderRecord as Order, OrderRow } from '@/types/orders';
+import { toOrderRecord } from '@/types/orders';
 import { 
-  Package, 
   MapPin, 
   Phone, 
   Trash2, 
@@ -16,27 +17,7 @@ import {
   CreditCard
 } from 'lucide-react';
 
-export interface OrderItem {
-  id?: string;
-  name: string;
-  price: number;
-  quantity: number;
-  category: string;
-}
-
-export interface Order {
-  id: string;
-  friendly_id: string | null;
-  customer_name: string;
-  customer_phone: string;
-  delivery_address: string;
-  total_amount: number;
-  order_status: string | null;
-  payment_method: string | null;
-  payment_status: string | null;
-  items?: OrderItem[]; // Now strictly typed
-  created_at: string | null;
-}
+export type { OrderItem, Order };
 
 export default function OrdersDashboardClient({ initialOrders }: { initialOrders: Order[] }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
@@ -80,24 +61,15 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
         if (error) {
           console.error(`[Attempt ${i+1}] Error fetching full order:`, error);
         } else if (data) {
-          const rawOrder = data as Database['public']['Tables']['orders']['Row'];
-          
           // Use exponential backoff if friendly_id is missing
-          if (!rawOrder.friendly_id && i < maxRetries - 1) {
+          if (!data.friendly_id && i < maxRetries - 1) {
             const delay = Math.pow(2, i) * 500; // 500ms, 1s, 2s, 4s...
             console.log(`[Attempt ${i+1}] friendly_id is null, retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
           }
 
-          const order: Order = {
-            ...rawOrder,
-            items: typeof rawOrder.items === 'string' 
-              ? JSON.parse(rawOrder.items) 
-              : (rawOrder.items || [])
-          };
-          
-          return order;
+          return toOrderRecord(data);
         }
         
         if (i < maxRetries - 1) {
@@ -114,22 +86,42 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        async (payload) => {
+        async (payload: RealtimePostgresChangesPayload<OrderRow>) => {
+          const orderId = payload.eventType === 'DELETE' ? payload.old.id : payload.new.id;
+          console.log('Realtime event received:', payload.eventType, orderId);
+          
           if (payload.eventType === 'INSERT') {
-            // Wait slightly for any immediate backend processes, then poll
             const fullOrder = await fetchFullOrder(payload.new.id);
             if (fullOrder) {
               setOrders((prev) => {
-                // Prevent duplicates if fetch happened too fast or twice
                 if (prev.some(o => o.id === fullOrder.id)) return prev;
                 return [fullOrder, ...prev];
               });
-              playNotificationSound();
+              // Only play sound if it's already active (e.g. cash on delivery or instant update)
+              const s = fullOrder.order_status || 'created';
+              if (s === 'placed' || s === 'preparing') {
+                playNotificationSound();
+              }
             }
           } else if (payload.eventType === 'UPDATE') {
             const fullOrder = await fetchFullOrder(payload.new.id);
             if (fullOrder) {
-              setOrders((prev) => prev.map((o) => (o.id === fullOrder.id ? fullOrder : o)));
+              setOrders((prev) => {
+                const exists = prev.some(o => o.id === fullOrder.id);
+                if (exists) {
+                   console.log('Updating existing order:', fullOrder.friendly_id);
+                   return prev.map((o) => (o.id === fullOrder.id ? fullOrder : o));
+                }
+                
+                // If it didn't exist in the list but is now active, add it
+                const s = fullOrder.order_status || 'created';
+                if (s === 'placed' || s === 'preparing') {
+                  console.log('Adding newly active order:', fullOrder.friendly_id);
+                  playNotificationSound(); 
+                  return [fullOrder, ...prev];
+                }
+                return prev;
+              });
             }
           } else if (payload.eventType === 'DELETE') {
             setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
@@ -256,7 +248,7 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Order Items</h4>
             <div className="space-y-3">
-              {(order.items as OrderItem[] | undefined)?.map((item, idx) => (
+              {order.items.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between group/item p-4 bg-slate-50/50 rounded-2xl border border-slate-100 shadow-sm transition-all hover:bg-white hover:border-primary/20">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary text-white w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs shadow-md shadow-primary/20">

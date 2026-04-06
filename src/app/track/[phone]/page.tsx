@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getOrdersByPhone } from '@/app/actions/trackActions';
+import type { OrderSummary } from '@/types/orders';
 import Header from '@/components/Header';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -9,7 +10,7 @@ import { ChevronRight, Clock, Package, Utensils } from 'lucide-react';
 
 export default function OrderListPage({ params }: { params: Promise<{ phone: string }> }) {
   const unwrappedParams = React.use(params);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export default function OrderListPage({ params }: { params: Promise<{ phone: str
                   <Link href={`/track/order/${order.id}`}>
                     <div className="group bg-white p-6 rounded-bento shadow-xl shadow-gray-200 border border-gray-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all relative overflow-hidden">
                       {/* Active indicator */}
-                      {['preparing', 'ready', 'out_for_delivery'].includes(order.order_status) && (
+                      {['preparing', 'ready', 'out_for_delivery'].includes(order.order_status || 'placed') && (
                         <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
                       )}
 
@@ -68,15 +69,15 @@ export default function OrderListPage({ params }: { params: Promise<{ phone: str
                         <div className="space-y-2">
                           <div className="flex items-center gap-3">
                             <span className="text-xl font-black text-gray-900 tracking-tight">{order.friendly_id}</span>
-                            <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border ${getStatusColor(order.order_status)}`}>
-                              {order.order_status.replace(/_/g, ' ')}
+                            <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border ${getStatusColor(order.order_status || 'placed')}`}>
+                              {(order.order_status || 'placed').replace(/_/g, ' ')}
                             </span>
                           </div>
                           
                           <div className="flex items-center gap-4 text-sm font-medium text-gray-400">
                             <span className="flex items-center gap-1.5">
                               <Clock size={14} />
-                              {new Date(order.created_at).toLocaleDateString()}
+                              {new Date(order.created_at || '').toLocaleDateString()}
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Utensils size={14} />

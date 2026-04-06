@@ -1,8 +1,10 @@
 "use client";
 
 import { supabase } from '@/lib/supabase';
+import type { OrderRecord, OrderSummary } from '@/types/orders';
+import { toOrderRecord, toOrderSummary } from '@/types/orders';
 
-export async function getOrdersByPhone(phone: string) {
+export async function getOrdersByPhone(phone: string): Promise<OrderSummary[]> {
   const { data, error } = await supabase
     .from('orders')
     .select(`
@@ -25,7 +27,7 @@ export async function getOrdersByPhone(phone: string) {
   // Sort: Active first (preparing, ready, out_for_delivery, created, placed)
   const activeStatuses = ['preparing', 'ready', 'out_for_delivery', 'created', 'placed'];
   
-  return data.sort((a, b) => {
+  return data.map(toOrderSummary).sort((a, b) => {
     const isAActive = activeStatuses.includes(a.order_status || '');
     const isBActive = activeStatuses.includes(b.order_status || '');
     
@@ -35,7 +37,7 @@ export async function getOrdersByPhone(phone: string) {
   });
 }
 
-export async function getOrderById(id: string) {
+export async function getOrderById(id: string): Promise<OrderRecord | null> {
   const { data, error } = await supabase
     .from('orders')
     .select('*')
@@ -47,5 +49,5 @@ export async function getOrderById(id: string) {
     return null;
   }
 
-  return data;
+  return toOrderRecord(data);
 }

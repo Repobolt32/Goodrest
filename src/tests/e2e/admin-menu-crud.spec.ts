@@ -11,17 +11,19 @@ test.describe('Admin Menu CRUD Flow', () => {
   const imageUrl = 'https://picsum.photos/200';
 
   test.beforeEach(async ({ page }) => {
-    // Login as Admin
-    await page.goto('/admin/login');
+    // Reach Menu page, login only if needed
+    await page.goto('/admin/menu');
+    if (page.url().includes('/admin/login')) {
+      await page.waitForLoadState('networkidle');
+      await page.getByPlaceholder('••••••••').fill(ADMIN_PASSWORD);
+      await page.getByRole('button', { name: /Unlock Dashboard/ }).click();
+      // Middleware may redirect via orders first, then menu
+      await expect(page).toHaveURL(/\/admin\/orders/, { timeout: 20000 });
+      await page.getByRole('link', { name: /Menu Editor/ }).click();
+      await expect(page).toHaveURL(/\/admin\/menu/, { timeout: 20000 });
+    }
     await page.waitForLoadState('networkidle');
-    await page.getByPlaceholder('••••••••').fill(ADMIN_PASSWORD);
-    await page.getByRole('button', { name: /Unlock Dashboard/ }).click();
-    await page.waitForURL(/\/admin\/orders/);
-    
-    // Navigate to Menu Management
-    await page.getByRole('link', { name: /Menu Editor/ }).click();
-    await page.waitForURL(/\/admin\/menu/);
-    await expect(page.getByText(/Menu Management/i)).toBeVisible();
+    await expect(page.getByText(/Menu Management/i)).toBeVisible({ timeout: 10000 });
   });
 
   test('should perform full CRUD operations on a dish', async ({ page }) => {

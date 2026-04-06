@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import OrdersDashboardClient, { Order } from '@/components/admin/OrdersDashboardClient';
+import { toOrderRecord } from '@/types/orders';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,7 @@ export default async function AdminOrdersPage() {
         </div>
       </div>
 
-      <OrdersDashboardClient initialOrders={(initialOrders as unknown as Order[]) || []} />
+      <OrdersDashboardClient initialOrders={(initialOrders ?? []).map(toOrderRecord) as Order[]} />
     </div>
   );
 }

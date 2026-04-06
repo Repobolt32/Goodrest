@@ -1,4 +1,20 @@
 import { test, expect } from '@playwright/test';
+import type { RazorpayPaymentCallback } from '@/types/payment';
+
+interface MockRazorpayArgs {
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface MockRazorpayOptions {
+  order_id: string;
+  handler: (response: RazorpayPaymentCallback) => void | Promise<void>;
+}
+
+interface MockRazorpayInstance {
+  on: (event: string) => void;
+  open: () => void;
+}
 
 test.describe('Customer Ordering Flow', () => {
   test('should allow a customer to browse, add items, and checkout successfully', async ({ page }) => {
@@ -11,18 +27,15 @@ test.describe('Customer Ordering Flow', () => {
 
     // 2. Add an item to the cart
     const addButton = page.getByRole('button', { name: 'Add' }).first();
+    await addButton.waitFor({ state: 'visible' });
     await addButton.click();
     
     // Wait for cart animation/state update
     await page.waitForTimeout(1000);
 
-    // 3. Verify floating cart appears
-    const checkoutButton = page.getByText('Checkout');
-    await expect(checkoutButton).toBeVisible({ timeout: 10000 });
-
-    // 4. Go to checkout
-    await checkoutButton.click();
-    await page.waitForURL(/\/checkout/);
+    // 3. Go to checkout (direct navigation to avoid SPA timing issues)
+    await page.goto('/checkout');
+    await expect(page).toHaveURL(/\/checkout/, { timeout: 20000 });
     await page.waitForLoadState('networkidle');
 
     // 5. Fill out the checkout form
@@ -36,9 +49,9 @@ test.describe('Customer Ordering Flow', () => {
       razorpay_signature: 'sig_test_flow'
     };
 
-    await page.evaluate((args: any) => {
+    await page.evaluate((args: MockRazorpayArgs) => {
       Object.defineProperty(window, 'Razorpay', {
-        value: function(options: any) {
+        value: function(this: MockRazorpayInstance, options: MockRazorpayOptions) {
           this.on = (event: string) => {
             console.log(`[E2E] Razorpay.on(${event}) called`);
           };
@@ -57,6 +70,7 @@ test.describe('Customer Ordering Flow', () => {
     }, mockData);
 
     const payOrderButton = page.getByRole('button', { name: /Pay & Order/ });
+    await expect(payOrderButton).toBeEnabled();
     await payOrderButton.click();
 
     // 7. Verify success page

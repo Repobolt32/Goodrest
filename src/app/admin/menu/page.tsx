@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import MenuManagementClient from '@/components/admin/MenuManagementClient';
-import { MenuItem } from '@/types/menu';
+import { CategoryData, MenuItem } from '@/types/menu';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,14 @@ export default async function AdminMenuPage() {
 
       <MenuManagementClient 
         initialItems={(menuItems as MenuItem[]) || []} 
-        categories={(categories as any[]) || []}
+        categories={
+          (categories ?? []).map((category): CategoryData => ({
+            id: category.id,
+            name: category.name,
+            display_order: category.display_order ?? 0,
+            is_active: category.is_active ?? true,
+          }))
+        }
       />
     </div>
   );

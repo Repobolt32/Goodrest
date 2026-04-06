@@ -14,24 +14,32 @@ export const useMenu = (category: Category | 'All') => {
       setLoading(true);
       
       // Fetch categories
-      const { data: catData } = await supabase
+      const { data: catData, error: catError } = await supabase
         .from('categories')
         .select('name')
-        .eq('is_active', true)
-        .order('display_order');
+        .order('display_order')
+        .eq('is_active', true);
       
-      if (catData) {
+      if (catError) {
+        console.error('[useMenu] Error fetching categories:', catError);
+      } else if (catData) {
         setCategories(catData.map(c => c.name));
       }
 
-      let query = supabase.from('menu_items').select('*').eq('is_available', true);
+      let query = supabase
+        .from('menu_items')
+        .select('*')
+        .order('name')
+        .eq('is_available', true);
       
       if (category !== 'All') {
         query = query.eq('category', category);
       }
 
-      const { data, error } = await query.order('name');
-      if (!error && data) {
+      const { data, error } = await query;
+      if (error) {
+        console.error('[useMenu] Error fetching menu items:', error);
+      } else if (data) {
         setMenuItems(data as unknown as MenuItem[]);
       }
       setLoading(false);

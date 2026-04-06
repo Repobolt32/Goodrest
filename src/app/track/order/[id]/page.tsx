@@ -6,22 +6,51 @@ import { getOrderById } from '@/app/actions/trackActions';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import OrderTracker from '@/components/OrderTracker';
-import { motion } from 'framer-motion';
-import { Package, Utensils, ReceiptText, ChevronLeft } from 'lucide-react';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import type { OrderRecord, OrderRow } from '@/types/orders';
+import { toOrderRecord } from '@/types/orders';
+import { ReceiptText, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SingleOrderPage() {
   const params = useParams();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<OrderRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchOrder() {
-      if (params.id) {
-        const data = await getOrderById(params.id as string);
-        setOrder(data);
-        setLoading(false);
-      }
+      if (!params.id) return;
+      
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      const tryFetch = async () => {
+        try {
+          const data = await getOrderById(params.id as string);
+          if (data) {
+            setOrder(data);
+            setLoading(false);
+            return true;
+          }
+          return false;
+        } catch (err) {
+          console.error('Fetch error:', err);
+          return false;
+        }
+      };
+
+      const success = await tryFetch();
+      if (success) return;
+
+      // Poll if not found
+      const interval = setInterval(async () => {
+        attempts++;
+        const found = await tryFetch();
+        if (found || attempts >= maxAttempts) {
+          clearInterval(interval);
+          setLoading(false);
+        }
+      }, 1000);
     }
     fetchOrder();
 
@@ -36,18 +65,32 @@ export default function SingleOrderPage() {
           table: 'orders',
           filter: `id=eq.${params.id}`,
         },
-        (payload) => {
-          if (payload.new && payload.new.order_status) {
-            setOrder((prev: any) => ({ ...prev, order_status: payload.new.order_status }));
+        async (payload: RealtimePostgresChangesPayload<OrderRow>) => {
+          const newOrder = payload.new as OrderRow;
+          if (newOrder && 'id' in newOrder && newOrder.id) {
+            setOrder((prev) => (prev ? { ...prev, ...toOrderRecord(newOrder) } : toOrderRecord(newOrder)));
+            // Robust: Refetch full object to ensure all fields are fresh
+            const freshData = await getOrderById(params.id as string);
+            if (freshData) setOrder(freshData);
           }
         }
       )
       .subscribe();
 
+    // POLLLING FALLBACK: Ensure sync even if Realtime fluffs
+    const pollInterval = setInterval(async () => {
+      const freshData = await getOrderById(params.id as string);
+      if (freshData && freshData.order_status !== order?.order_status) {
+        console.log('POLLING_FALLBACK_SYNC:', freshData.order_status);
+        setOrder(freshData);
+      }
+    }, 5000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
-  }, [params.id]);
+  }, [params.id, order?.order_status]);
 
   if (loading) {
     return (
@@ -86,11 +129,16 @@ export default function SingleOrderPage() {
             <h2 className="text-4xl font-black text-gray-900 tracking-tight">{order.friendly_id}</h2>
             <div className="text-right">
               <span className="block text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Status</span>
-              <span className="text-sm font-black text-primary uppercase tracking-widest">{order.order_status.replace(/_/g, ' ')}</span>
+              <span 
+                data-testid="order-status-heading"
+                className="text-sm font-black text-primary uppercase tracking-widest"
+              >
+                {(order.order_status || 'placed').replace(/_/g, ' ')}
+              </span>
             </div>
           </div>
           
-          <OrderTracker orderId={order.id} initialStatus={order.order_status} />
+          <OrderTracker orderId={order.id} initialStatus={order.order_status || 'placed'} />
         </section>
 
         {/* Right Column: Order Details */}
@@ -102,7 +150,7 @@ export default function SingleOrderPage() {
             </h3>
 
             <div className="space-y-4 mb-8">
-              {order.items?.map((item: any, idx: number) => (
+              {order.items.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-primary font-black">

@@ -48,3 +48,22 @@
     - [x] Backend: Update `adminActions.ts` to support `category_id`
     - [x] Frontend: Update `MenuManagementClient.tsx` with dynamic category dropdown
     - [x] Verification: Run `npx tsc --noEmit` and Playwright E2E tests
+
+## Web App Testing & Verification (Approved)
+- [/] Regression Testing: Run `npx playwright test`
+- [ ] Audit `admin-menu-crud.spec.ts` selectors for dynamic categories
+- [ ] Targeted Test: Verify real menu items (Shahi Paneer, etc.) visibility
+- [ ] Targeted Test: Verify category filtering on Homepage
+- [ ] Triple-Lock Payment Verification: Run `checkout-payment.spec.ts`
+- [ ] Visual Audit: Capture screenshots of new Admin Menu CRUD modal
+
+## Phase 4: COD Eradication & E2E Hardening (Approved)
+- [x] Backend: Remove 'cod' from types and hardcode to 'online' in `orderActions.ts`
+- [x] Frontend: Remove payment selector and update button to "Pay & Order" in `CheckoutForm.tsx`
+- [x] Admin: Remove COD indicators from `OrdersDashboardClient.tsx`
+- [/] E2E Suite Hardening (100% Pass Rate Objective)
+    - [/] Update `checkout-payment.spec.ts`: Remove Online btn click + Mock Razorpay
+    - [x] Update `customer-flow.spec.ts`: Implement Razorpay Mock + Pay & Order btn
+    - [x] Update `billing-realtime.spec.ts`: Implement Razorpay Mock + Pay & Order btn
+    - [x] Update `order-tracking-refactor.spec.ts`: Implement Razorpay Mock + Pay & Order btn
+- [ ] Final Verification: Run full `npx playwright test`
