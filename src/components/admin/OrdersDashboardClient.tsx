@@ -13,8 +13,7 @@ import {
   CheckCircle2, 
   Clock, 
   Truck, 
-  CreditCard, 
-  Banknote
+  CreditCard
 } from 'lucide-react';
 
 export interface OrderItem {
@@ -146,9 +145,14 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
 
   const handleStatusUpdate = async (id: string, status: string) => {
     setUpdating(id);
+    
+    // Optimistic Update: Update local state immediately to ensure smooth UI and stable E2E tests
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, order_status: status } : o));
+
     const result = await updateOrderStatus(id, status);
     if (!result.success) {
       alert('Failed to update status: ' + result.error);
+      // Rollback on failure (optional, but good practice. For now, Realtime will eventually correct it)
     }
     setUpdating(null);
   };
@@ -182,8 +186,8 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
     <div className="space-y-12 pb-32">
       {/* SECTION: ACTIVE ORDERS */}
       <section>
-        <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
-          <Clock size={16} /> Active Kitchen Feed
+        <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3 font-mono">
+          <Clock size={16} className="text-primary animate-pulse" /> Active Kitchen Feed
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <AnimatePresence mode="popLayout">
@@ -222,20 +226,22 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
     return (
       <motion.div
         layout
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className={`bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group overflow-hidden relative ${
-          updating === order.id ? 'opacity-50 pointer-events-none' : ''
+        className={`glass-card p-8 group overflow-hidden relative ${
+          updating === order.id ? 'opacity-70 grayscale-[0.5] pointer-events-none' : ''
         }`}
       >
+        {/* Glow Decorator */}
+        {!isDispatched && <div className="status-glow bg-primary/40 -top-1 -right-1" />}
         {/* Status Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(order.order_status)}`}>
               {order.order_status?.replace(/_/g, ' ')}
             </div>
-            <span className="text-slate-400 font-bold text-xs">{order.friendly_id || `#${order.id.slice(0, 8)}`}</span>
+            <span className="text-primary/60 font-mono font-bold text-xs bg-primary/5 px-2 py-1 rounded-lg">{order.friendly_id || `#${order.id.slice(0, 8)}`}</span>
           </div>
           <button 
             onClick={() => handleDelete(order.id)}
@@ -265,9 +271,9 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
                 </div>
               ))}
             </div>
-            <div className="pt-4 border-t border-dashed border-slate-100 flex justify-between items-center">
-              <span className="text-sm font-black text-slate-800 uppercase tracking-widest">Total Value</span>
-              <span className="text-2xl font-black text-primary">₹{order.total_amount}</span>
+            <div className="pt-4 border-t border-dashed border-slate-200/50 flex justify-between items-center">
+              <span className="text-sm font-black text-slate-800 uppercase tracking-widest font-mono">Total</span>
+              <span className="text-2xl font-black text-primary drop-shadow-sm font-mono">₹{order.total_amount}</span>
             </div>
           </div>
 
@@ -296,20 +302,13 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
               </div>
 
               <div className="flex items-center gap-4 pt-4">
-                {order.payment_method === 'online' ? (
-                  <div className="flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600">
-                    <CreditCard size={18} />
-                    <span className="text-xs font-black uppercase tracking-widest">Online</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${order.payment_status === 'paid' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                      {order.payment_status}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600">
-                    <Banknote size={18} />
-                    <span className="text-xs font-black uppercase tracking-widest">COD</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600">
+                  <CreditCard size={18} />
+                  <span className="text-xs font-black uppercase tracking-widest">Online</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${order.payment_status === 'paid' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                    {order.payment_status}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -330,7 +329,7 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
                     {order.order_status === 'preparing' && (
                       <button 
                         onClick={() => handleStatusUpdate(order.id, 'out_for_delivery')}
-                        className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl transition-all border border-primary/20 hover:scale-105 active:scale-95 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
+                        className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl transition-all border border-primary/20 hover:scale-105 active:scale-95 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/40"
                       >
                         <Truck size={16} /> Dispatch Order
                       </button>

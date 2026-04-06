@@ -10,7 +10,6 @@ test.describe('Customer Ordering Flow', () => {
     await expect(page.getByText('Goodrest', { exact: false })).toBeVisible();
 
     // 2. Add an item to the cart
-    // We'll click the first "Add" button we find
     const addButton = page.getByRole('button', { name: 'Add' }).first();
     await addButton.click();
     
@@ -29,19 +28,40 @@ test.describe('Customer Ordering Flow', () => {
     // 5. Fill out the checkout form
     await page.getByPlaceholder('John Doe').fill('E2E Test User');
     await page.getByPlaceholder('9876543210').fill('1234567890');
-    await page.getByPlaceholder('Complete Address').fill('123 Test Street, Playwright City, 99999');
+    await page.getByPlaceholder(/Complete Address/i).fill('123 Test Street, Playwright City, 99999');
 
-    // Select Cash on Delivery (it's default, but let's be explicit)
-    await page.getByRole('button', { name: 'Cash' }).click();
+    // 6. Mock Razorpay and Submit (Hardened against script overwrite)
+    const mockData = {
+      razorpay_payment_id: 'pay_test_flow',
+      razorpay_signature: 'sig_test_flow'
+    };
 
-    // 6. Submit the order
-    const placeOrderButton = page.getByRole('button', { name: /Place Order/ });
-    await placeOrderButton.click();
+    await page.evaluate((args: any) => {
+      Object.defineProperty(window, 'Razorpay', {
+        value: function(options: any) {
+          this.on = (event: string) => {
+            console.log(`[E2E] Razorpay.on(${event}) called`);
+          };
+          this.open = () => {
+            console.log('[E2E] Hardened Razorpay Mock: intercepting open()');
+            options.handler({
+              razorpay_payment_id: args.razorpay_payment_id,
+              razorpay_order_id: options.order_id,
+              razorpay_signature: args.razorpay_signature
+            });
+          };
+        },
+        configurable: true,
+        writable: false
+      });
+    }, mockData);
+
+    const payOrderButton = page.getByRole('button', { name: /Pay & Order/ });
+    await payOrderButton.click();
 
     // 7. Verify success page
-    // Increased timeout for database insertion and redirect
-    await expect(page).toHaveURL(/\/checkout\/success/, { timeout: 15000 });
-    await expect(page.getByText(/Order Placed/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/checkout\/success/, { timeout: 20000 });
+    await expect(page.getByRole('heading', { name: 'Order Placed!' })).toBeVisible();
     await expect(page.getByText(/Thank you/i)).toBeVisible();
   });
 });

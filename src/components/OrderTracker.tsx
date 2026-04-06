@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, ChefHat, Truck, Package, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { CheckCircle2, ChefHat, Truck, Package, AlertCircle, Wifi } from 'lucide-react';
 
 interface OrderTrackerProps {
   orderId: string;
@@ -40,19 +40,19 @@ const steps = [
 export default function OrderTracker({ orderId, initialStatus }: OrderTrackerProps) {
   const [status, setStatus] = useState(initialStatus);
 
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
+
   const getStepStatus = (stepId: string, index: number) => {
     const currentIdx = steps.findIndex(s => s.id === status);
-    
-    // Explicit transition logic for the new simplified flow
-    if (status === 'delivered') return 'completed';
     if (stepId === status) return 'current';
-    
+    if (status === 'delivered') return 'completed';
     if (currentIdx > index) return 'completed';
-    return 'upcoming';
+    return 'pending';
   };
 
   useEffect(() => {
-    // Real-time subscription for this specific order
     const channel = supabase
       .channel(`order-tracking-${orderId}`)
       .on(
@@ -61,7 +61,7 @@ export default function OrderTracker({ orderId, initialStatus }: OrderTrackerPro
           event: 'UPDATE',
           schema: 'public',
           table: 'orders',
-          filter: `id=eq.${orderId}`,
+          filter: `order_status=is.not.null and id=eq.${orderId}`,
         },
         (payload) => {
           if (payload.new && payload.new.order_status) {
@@ -76,83 +76,104 @@ export default function OrderTracker({ orderId, initialStatus }: OrderTrackerPro
     };
   }, [orderId]);
 
+  const currentStepIndex = steps.findIndex(s => s.id === status);
+
   return (
-    <div className="bg-white p-8 rounded-bento shadow-xl shadow-gray-200 border border-gray-100 flex flex-col gap-10">
+    <div className="glass-panel p-10 rounded-glass flex flex-col gap-12 relative overflow-hidden">
+      {/* Background Decorator */}
+      <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
+      
       {status === 'cancelled' ? (
-        <div className="flex flex-col items-center justify-center py-10 gap-4 text-red-500">
-          <AlertCircle size={64} />
-          <h3 className="text-2xl font-black">Order Cancelled</h3>
-          <p className="text-gray-400 font-medium">Please contact the restaurant for more details.</p>
+        <div className="flex flex-col items-center justify-center py-16 gap-6 text-red-500">
+          <AlertCircle size={80} strokeWidth={1} />
+          <div className="text-center">
+            <h3 className="text-3xl font-black font-mono tracking-tighter">ORDER CANCELLED</h3>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Please contact support</p>
+          </div>
         </div>
       ) : (
-        <div className="relative space-y-12">
-          {/* Vertical Line */}
-          <div className="absolute left-6 top-4 bottom-4 w-1 bg-gray-50 -z-0" />
+        <div className="relative">
+          {/* Animated SVG Path for Tracking Line */}
+          <div className="absolute left-[23px] top-6 bottom-6 w-[2px] bg-slate-100 -z-0">
+            <motion.div 
+              initial={{ height: 0 }}
+              animate={{ height: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+              className="w-full bg-primary shadow-[0_0_15px_rgba(225,29,72,0.4)]"
+            />
+          </div>
           
-          {steps.map((step, index) => {
-            const stepStatus = getStepStatus(step.id, index);
-            const isCompleted = stepStatus === 'completed';
-            const isActive = stepStatus === 'current';
-            
-            return (
-              <div key={step.id} className="flex items-start gap-8 relative z-10">
-                <motion.div
-                  initial={false}
-                  animate={{
-                    backgroundColor: (isCompleted || isActive) ? 'var(--primary)' : '#F9FAFB',
-                    scale: isActive ? 1.1 : 1,
-                    boxShadow: isActive ? '0 0 20px rgba(var(--primary-rgb), 0.3)' : 'none'
-                  }}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 border-4 ${(isCompleted || isActive) ? 'border-primary/20' : 'border-gray-50'}`}
+          <div className="space-y-12">
+            {steps.map((step, index) => {
+              const stepStatus = getStepStatus(step.id, index);
+              const isCompleted = stepStatus === 'completed';
+              const isActive = stepStatus === 'current';
+              
+              return (
+                <div 
+                  key={step.id} 
+                  data-testid={`tracker-step-${step.id}`}
+                  data-step-status={isCompleted ? 'completed' : isActive ? 'current' : 'pending'}
+                  className="flex items-start gap-8 relative z-10"
                 >
-                  <div className={(isCompleted || isActive) ? 'text-white' : 'text-gray-200'}>
+                  <motion.div
+                    animate={{
+                      backgroundColor: (isCompleted || isActive) ? 'var(--color-primary)' : 'rgba(241, 245, 249, 1)',
+                      scale: isActive ? 1.15 : 1,
+                      borderColor: isActive ? 'rgba(225, 29, 72, 0.2)' : 'transparent'
+                    }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg border-2 ${(isCompleted || isActive) ? 'text-white' : 'text-slate-300'}`}
+                  >
                     {step.icon}
-                  </div>
-                  
-                  {/* Dynamic pulse for the current active step */}
-                  {isActive && status !== 'delivered' && (
-                    <motion.div
-                      animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute inset-0 bg-primary/20 rounded-2xl -z-10"
-                    />
-                  )}
-                </motion.div>
-
-                <div className="flex-1 pb-10">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className={`font-black uppercase tracking-widest text-sm transition-colors ${
-                      stepStatus === 'current' ? 'text-primary' : 
-                      stepStatus === 'completed' ? 'text-slate-800' : 'text-slate-300'
-                    }`}>
-                      {step.label}
-                    </h3>
-                    {stepStatus === 'current' && (
-                      <motion.span
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                        className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                    
+                    {/* Ring Pulse for Active Step */}
+                    {isActive && status !== 'delivered' && (
+                      <motion.div
+                        animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                        className="absolute inset-0 bg-primary/30 rounded-2xl -z-10"
                       />
                     )}
+                  </motion.div>
+
+                  <div className="flex-1 pb-2">
+                    <div className="flex items-center gap-4 mb-2">
+                      <h3 className={`font-black uppercase tracking-[0.15em] text-sm font-mono transition-colors duration-500 ${
+                        isActive ? 'text-primary' : isCompleted ? 'text-slate-800' : 'text-slate-300'
+                      }`}>
+                        {step.label}
+                      </h3>
+                      {isActive && (
+                        <div className="status-glow bg-primary top-1" />
+                      )}
+                    </div>
+                    <p className={`text-xs font-bold leading-relaxed transition-colors duration-500 ${
+                      isActive ? 'text-slate-600' : isCompleted ? 'text-slate-400' : 'text-slate-200'
+                    }`}>
+                      {step.id === 'delivered' && status === 'out_for_delivery' 
+                        ? 'Rider is arriving shortly...' 
+                        : step.description}
+                    </p>
                   </div>
-                  <p className={`text-xs font-bold transition-colors ${
-                    stepStatus === 'upcoming' ? 'text-slate-300' : 'text-slate-500'
-                  }`}>
-                    {step.id === 'delivered' && status === 'out_for_delivery' 
-                      ? 'Waiting for delivery confirmation...' 
-                      : step.description}
-                  </p>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
       {/* Connection status footer */}
-      <div className="pt-8 border-t border-gray-50 flex items-center justify-center gap-2">
-        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-        <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Connected to Kitchen • Live Feed</span>
+      <div className="pt-8 border-t border-slate-100/50 flex flex-col items-center gap-4">
+        <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50 rounded-full border border-emerald-100 shadow-sm shadow-emerald-50/50">
+          <div className="relative">
+             <div className="status-glow bg-emerald-500 -top-1 -left-1" />
+             <Wifi size={14} className="text-emerald-500" />
+          </div>
+          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest font-mono">Live Sync: Active</span>
+        </div>
+        <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[0.2em] text-center">
+            Goodrest High-Performance Delivery Network
+        </p>
       </div>
     </div>
   );

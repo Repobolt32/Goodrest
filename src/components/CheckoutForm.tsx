@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
 import { createOrder, generateRazorpayOrder, verifyPaymentSignature } from '@/app/actions/orderActions';
 import { motion } from 'framer-motion';
-import { Phone, User, MapPin, CreditCard, Banknote, Loader2 } from 'lucide-react';
+import { Phone, User, MapPin, CreditCard, Loader2 } from 'lucide-react';
 import Script from 'next/script';
 import { RazorpayPaymentCallback, RazorpayOptions, RazorpayErrorResponse } from '@/types/payment';
 
@@ -28,7 +28,7 @@ export default function CheckoutForm() {
     name: '',
     phone: '',
     address: '',
-    paymentMethod: 'online' as 'online' | 'cod',
+    paymentMethod: 'online' as 'online',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,15 +55,7 @@ export default function CheckoutForm() {
 
       const orderId = result.data.id;
 
-      // STEP 2: HANDLE PAYMENT METHOD
-      if (formData.paymentMethod === 'cod') {
-        // Direct success for COD
-        clearCart();
-        router.push('/checkout/success');
-        return;
-      }
-
-      // STEP 3: ONLINE PAYMENT (RAZORPAY)
+      // STEP 2: ONLINE PAYMENT (RAZORPAY)
       const rzpData = await generateRazorpayOrder(orderId);
       
       if (!rzpData.success || !rzpData.razorpayOrderId) {
@@ -78,15 +70,25 @@ export default function CheckoutForm() {
         description: `Order #${orderId.slice(-6)}`,
         order_id: rzpData.razorpayOrderId,
         handler: async function (response: RazorpayPaymentCallback) {
-          setLoading(true);
-          // STEP 4: VERIFY SIGNATURE (Primary Hook)
-          const verifyResult = await verifyPaymentSignature(response);
+          console.log('[CheckoutForm] Razorpay handler success, starting verification...', response.razorpay_payment_id);
+          setLoading(true); // Maintain loading while verifying
+          try {
+            // STEP 4: VERIFY SIGNATURE (Primary Hook)
+            const verifyResult = await verifyPaymentSignature(response);
 
-          if (verifyResult.success) {
-            clearCart();
-            router.push('/checkout/success');
-          } else {
-            setError(verifyResult.error || 'Payment verification failed');
+            if (verifyResult.success) {
+              console.log('[CheckoutForm] Payment verified successfully, clearing cart and redirecting...');
+              clearCart();
+              router.push(`/checkout/success?order_id=${orderId}`);
+            } else {
+              const errorMsg = verifyResult.error || 'Payment verification failed';
+              console.error('[CheckoutForm] Payment verification failure path:', errorMsg);
+              setError(errorMsg);
+              setLoading(false);
+            }
+          } catch (err) {
+            console.error('[CheckoutForm] ERROR during signature verification:', err);
+            setError('An error occurred while verifying your payment. Please contact support.');
             setLoading(false);
           }
         },
