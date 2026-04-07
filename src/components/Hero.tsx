@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight, Star } from "lucide-react";
+import Image from "next/image";
 
 export default function Hero() {
   const scrollToMenu = () => {
@@ -13,18 +14,18 @@ export default function Hero() {
 
   return (
     <section className="relative w-full min-h-screen flex items-center justify-center bg-[#0e0e0e] overflow-hidden px-6 lg:px-8">
-      
+
       {/* 1. CINEMATIC BACKGROUND (SMOKY NOISE + AMBIENT SPILLS) */}
-      <div 
+      <div
         className="absolute inset-0 pointer-events-none opacity-[0.03]"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3%3Cfilter id='noiseFilter'%3%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3%3C/filter%3%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3%3C/svg%3")`,
           filter: 'contrast(120%) brightness(100%)'
         }}
       />
-      
+
       {/* Background Ambient Spills */}
-      <div 
+      <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background: `
@@ -87,7 +88,7 @@ export default function Hero() {
                 background: 'linear-gradient(135deg, #dc1e0a 0%, #991b1b 100%)'
               }}
             >
-              Explore Menu & Order 
+              Explore Menu & Order
               <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" />
             </button>
 
@@ -112,6 +113,45 @@ export default function Hero() {
               </div>
             </div>
           </div>
+        </div>
+      </motion.div>
+
+      {/* 4. PREMIUM FLOATING DISH (Z-INDEX 20) */}
+      <motion.div
+        initial={{ x: "60%", opacity: 0, scale: 0.9, rotate: 10 }}
+        animate={{ x: 0, opacity: 1, scale: 1, rotate: 0 }}
+        transition={{
+          delay: 1.0,
+          duration: 1.8,
+          ease: [0.16, 1, 0.3, 1]
+        }}
+        className="absolute z-20 pointer-events-none block"
+        style={{
+          bottom: '5%',
+          right: 'max(-120px, calc(50% - 915px))', // Responsive anchor for 50/50 overlap
+          width: 'min(550px, 60vw)',
+          maxWidth: '500px',
+        }}
+      >
+        {/* Layered Shadow Container */}
+        <div className="relative drop-shadow-[0_80px_120px_rgba(0,0,0,1.0)]">
+          {/* Pure Isolated Object: Surgically extracted dish with zero background noise */}
+          <div className="relative group">
+             <Image 
+              src="/hero-dish-isolated-pure.png" 
+              alt="Signature Biryani"
+              width={500}
+              height={500}
+              priority
+              className="w-full h-full object-contain relative z-20 transition-all duration-700 hover:scale-105"
+            />
+            {/* Ambient Shadow: Softening the contact point with the glass surface */}
+            <div className="absolute inset-0 bg-black/40 blur-3xl rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+          </div>
+
+          {/* Light Spill & Cinematic Glow */}
+          <div className="absolute inset-x-[-20%] inset-y-[-20%] bg-[#dc1e0a]/15 blur-[120px] rounded-full -z-10 opacity-70" />
+          <div className="absolute inset-[-10%] bg-white/5 blur-[80px] rounded-full -z-10 opacity-40 translate-y-[-10%]" />
         </div>
       </motion.div>
     </section>

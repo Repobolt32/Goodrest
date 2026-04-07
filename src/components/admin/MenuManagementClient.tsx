@@ -17,8 +17,44 @@ import {
   Loader2,
   Image as ImageIcon
 } from 'lucide-react';
-import { addMenuItem, updateMenuItem, deleteMenuItem, toggleItemAvailability, updateItemPrice } from '@/app/actions/adminActions';
+import { 
+  addMenuItem, 
+  updateMenuItem, 
+  deleteMenuItem, 
+  toggleItemAvailability, 
+  updateItemPrice,
+  uploadDishImage 
+} from '@/app/actions/adminActions';
 import { MenuItem, Category, CategoryData } from '@/types/menu';
+import { useRef } from 'react';
+
+const isGalleryUrl = (url: string) => {
+  if (!url) return false;
+  const galleryPatterns = [
+    'pexels.com/photo',
+    'unsplash.com/photos',
+    'pixabay.com/images',
+    'shutterstock.com/image'
+  ];
+  return galleryPatterns.some(pattern => url.toLowerCase().includes(pattern)) && 
+         !/\.(jpg|jpeg|png|webp|avif|gif)/i.test(url.split('?')[0]);
+};
+
+const isValidPreviewUrl = (url: string) => {
+  if (!url) return false;
+  // Next.js Image with unoptimized=true still requires a valid-looking URL or relative path
+  try {
+    if (url.startsWith('/') || url.startsWith('http')) {
+      if (url.startsWith('http')) {
+        new URL(url); // This will throw if invalid
+      }
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+};
 
 export default function MenuManagementClient({ 
   initialItems,
@@ -46,6 +82,9 @@ export default function MenuManagementClient({
     image_url: '',
     is_available: true
   });
+  
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
     setFormData({
@@ -63,6 +102,29 @@ export default function MenuManagementClient({
     setModalMode('add');
     resetForm();
     setIsModalOpen(true);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadLoading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const result = await uploadDishImage(formData);
+      if (result.success && result.url) {
+        setFormData(prev => ({ ...prev, image_url: result.url as string }));
+      } else {
+        alert('Upload failed: ' + result.error);
+      }
+    } catch (err) {
+      const error = err as Error;
+      alert('Upload error: ' + error.message);
+    } finally {
+      setUploadLoading(false);
+    }
   };
 
   const handleOpenEditModal = (item: MenuItem) => {
@@ -264,7 +326,7 @@ export default function MenuManagementClient({
                           {editingId === item.id ? (
                             <div className="flex items-center gap-2 flex-1 animate-in slide-in-from-left-2 transition-all">
                               <div className="relative flex-1">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">Rs </span>
                                 <input 
                                   autoFocus
                                   type="number"
@@ -289,7 +351,7 @@ export default function MenuManagementClient({
                             </div>
                           ) : (
                             <div className="flex items-center justify-between flex-1">
-                              <span className="text-xl font-black text-slate-900 tracking-tight">₹{item.price}</span>
+                              <span className="text-xl font-black text-slate-900 tracking-tight">Rs {item.price}</span>
                               <button 
                                 onClick={() => {
                                   setEditingId(item.id);
@@ -364,7 +426,7 @@ export default function MenuManagementClient({
 
                   <div className="grid grid-cols-2 gap-6">
                     <div>
-                      <label htmlFor="dishPrice" className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Price (₹)</label>
+                      <label htmlFor="dishPrice" className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Price (Rs)</label>
                       <input
                         id="dishPrice"
                         type="number"
@@ -402,20 +464,68 @@ export default function MenuManagementClient({
                   </div>
 
                   <div>
-                    <label htmlFor="imageUrl" className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Image URL</label>
-                    <div className="relative group/input">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/input:text-orange-500 transition-colors">
-                        <ImageIcon size={20} />
+                    <label htmlFor="imageUrl" className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">
+                      {formData.image_url ? 'Validated Image URL' : 'Image (Upload or URL)'}
+                    </label>
+                    
+                    {/* Visual Preview */}
+                    {formData.image_url && isValidPreviewUrl(formData.image_url) && (
+                      <div className="mb-4 relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-50 border-2 border-slate-100 group">
+                        <Image 
+                          src={formData.image_url} 
+                          alt="Preview" 
+                          fill 
+                          className="object-cover" 
+                          unoptimized
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                           <p className="text-white text-xs font-bold uppercase tracking-widest">Live Preview</p>
+                        </div>
                       </div>
-                      <input
-                        id="imageUrl"
-                        type="url"
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full bg-slate-50 border-0 rounded-2xl py-4 pl-12 pr-4 text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-orange-500 transition-all outline-none"
-                        value={formData.image_url}
-                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                        required
+                    )}
+
+                    <div className="flex gap-3">
+                      <div className="relative flex-1 group/input">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/input:text-orange-500 transition-colors">
+                          <ImageIcon size={20} />
+                        </div>
+                        <input
+                          id="imageUrl"
+                          type="url"
+                          placeholder="Paste URL or use upload..."
+                          className="w-full bg-slate-50 border-0 rounded-2xl py-4 pl-12 pr-4 text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-orange-500 transition-all outline-none text-sm"
+                          value={formData.image_url}
+                          onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                          required
+                        />
+                        {isGalleryUrl(formData.image_url) && (
+                          <motion.p 
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mt-2 px-1"
+                          >
+                            ⚠️ Warning: This looks like a gallery page, not a direct image. Next.js may not render it.
+                          </motion.p>
+                        )}
+                      </div>
+                      
+                      <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={handleFileChange}
                       />
+                      
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadLoading}
+                        className="flex items-center justify-center aspect-square h-[56px] bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 transition-all active:scale-95 disabled:opacity-50"
+                        title="Upload from computer"
+                      >
+                        {uploadLoading ? <Loader2 className="animate-spin" size={20} /> : <Plus size={24} />}
+                      </button>
                     </div>
                   </div>
 

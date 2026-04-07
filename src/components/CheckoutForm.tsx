@@ -151,10 +151,13 @@ export default function CheckoutForm() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Full Name</label>
+            <label htmlFor="customer-name" className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2 cursor-pointer">Full Name</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
+                id="customer-name"
+                name="name"
+                autoComplete="name"
                 required
                 type="text"
                 placeholder="John Doe"
@@ -166,10 +169,14 @@ export default function CheckoutForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Phone Number</label>
+            <label htmlFor="customer-phone" className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2 cursor-pointer">Phone Number</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
+                id="customer-phone"
+                name="phone"
+                autoComplete="tel"
+                inputMode="numeric"
                 required
                 type="tel"
                 pattern="[0-9]{10}"
@@ -193,7 +200,11 @@ export default function CheckoutForm() {
         </h2>
         
         <div>
+          <label htmlFor="delivery-address" className="sr-only">Complete Delivery Address</label>
           <textarea
+            id="delivery-address"
+            name="address"
+            autoComplete="street-address"
             required
             rows={3}
             placeholder="Complete Address (Flat No, Street, Landmark)"
@@ -232,7 +243,7 @@ export default function CheckoutForm() {
         ) : (
           <>
             <CreditCard size={24} />
-            Pay & Order • ₹{totalPrice}
+            Pay & Order • Rs {totalPrice}
           </>
         )}
       </motion.button>
@@ -245,24 +256,24 @@ export default function CheckoutForm() {
       {/* Functional Loading Overlay */}
       <AnimatePresence>
         {loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center p-6 text-center"
-          >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-3xl p-8 max-w-xs w-full shadow-2xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center p-6 text-center overscroll-contain"
             >
-              <Loader2 className="animate-spin text-primary mx-auto mb-4" size={48} />
-              <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">Securing Order</h3>
-              <p className="text-gray-500 text-sm font-bold uppercase tracking-widest leading-tight">
-                Please do not refresh or close this window...
-              </p>
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-3xl p-8 max-w-xs w-full shadow-2xl"
+              >
+                <Loader2 className="animate-spin text-primary mx-auto mb-4" size={48} />
+                <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">Securing Order</h3>
+                <p className="text-gray-500 text-sm font-bold uppercase tracking-widest leading-tight">
+                  Please do not refresh or close this window…
+                </p>
+              </motion.div>
             </motion.div>
-          </motion.div>
         )}
       </AnimatePresence>
     </form>

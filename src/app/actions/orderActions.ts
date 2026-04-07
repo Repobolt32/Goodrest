@@ -61,8 +61,8 @@ export async function createOrder(input: OrderInput) {
       delivery_address: input.delivery_address,
       items: JSON.parse(JSON.stringify(input.items)), // Deep copy for JSONB
       total_amount: Number(input.total_amount),
-      payment_method: 'online', // Enforce online-only per roadmap
-      payment_status: 'pending',
+      payment_method: input.payment_method,
+      payment_status: input.payment_method === 'cod' ? 'pending' : 'pending',
       order_status: 'created',
     };
 

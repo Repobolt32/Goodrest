@@ -1,6 +1,6 @@
 import { createOrder } from '@/app/actions/orderActions';
 import { supabase } from '@/lib/supabase';
-import { Category, MenuItem, CartItem } from '@/types/menu';
+import { Category, CartItem } from '@/types/menu';
 
 describe('Billing Infrastructure Integration', () => {
   let createdOrderId: string | null = null;

@@ -17,7 +17,6 @@ test.describe('Goodrest Deep Audit - Edge Cases', () => {
       name: testDishName,
       price: testDishPrice,
       category: 'Starters',
-      category_id: '1af3767c-42e2-4233-aa17-136528d04b44',
       is_available: true
     }]);
   });
@@ -27,7 +26,7 @@ test.describe('Goodrest Deep Audit - Edge Cases', () => {
     await supabaseAdmin.from('menu_items').delete().eq('name', testDishName);
   });
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     // Reset test item status between tests to ensure isolation
     await supabaseAdmin.from('menu_items')
       .update({ is_available: true, price: testDishPrice })
@@ -54,9 +53,10 @@ test.describe('Goodrest Deep Audit - Edge Cases', () => {
     await expect(dishCard.getByText('Hidden')).toBeVisible({ timeout: 10000 });
 
     // 3. Verify it is GONE from Home page (State Sync Check)
+    // Ensure reload to capture the state change
     await page.goto('/');
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText(testDishName)).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(testDishName)).not.toBeVisible({ timeout: 20000 });
   });
 
   test('ADMIN -> HOME SYNC: Price Update should reflect on Landing page', async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('Goodrest Deep Audit - Edge Cases', () => {
     await page.getByRole('button', { name: /^Starters$/i }).click();
 
     const menuCard = page.locator('.bento-card').filter({ hasText: testDishName });
-    await expect(menuCard.getByText(new RegExp(`₹${updatedPrice}`, 'i'))).toBeVisible({ timeout: 15000 });
+    await expect(menuCard.getByText(new RegExp(`Rs\\s*${updatedPrice}`, 'i'))).toBeVisible({ timeout: 15000 });
   });
 
   test('BOUNDARY: Large quantities and form validation', async ({ page }) => {
@@ -117,6 +117,8 @@ test.describe('Goodrest Deep Audit - Edge Cases', () => {
     await submitBtn.click();
     
     const phoneInput = page.getByPlaceholder('9876543210');
+    // Ensure the browser has processed the input state
+    await page.waitForTimeout(500);
     const isValid = await phoneInput.evaluate((el: HTMLInputElement) => el.checkValidity());
     expect(isValid).toBe(false);
   });

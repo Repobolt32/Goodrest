@@ -259,13 +259,13 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
                       <p className="text-[10px] text-slate-400 font-bold uppercase">{item.category || 'Food'}</p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold text-slate-400">₹{(item.price || 0) * item.quantity}</span>
+                  <span className="text-xs font-bold text-slate-400">Rs {(item.price || 0) * item.quantity}</span>
                 </div>
               ))}
             </div>
             <div className="pt-4 border-t border-dashed border-slate-200/50 flex justify-between items-center">
               <span className="text-sm font-black text-slate-800 uppercase tracking-widest font-mono">Total</span>
-              <span className="text-2xl font-black text-primary drop-shadow-sm font-mono">₹{order.total_amount}</span>
+              <span className="text-2xl font-black text-primary drop-shadow-sm font-mono">Rs {order.total_amount}</span>
             </div>
           </div>
 

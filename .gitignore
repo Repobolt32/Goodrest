@@ -35,6 +35,18 @@ yarn-error.log*
 
 # vercel
 .vercel
+public/hero-dish-*.png
+public/hero-dish-user-*.jpg
+public/hero-feast-*.jpg
+nul
+.agent/
+.kilo/
+*.txt
+*.json
+*.log
+!package.json
+!tsconfig.json
+!next.config.ts
 
 # typescript
 *.tsbuildinfo
@@ -48,3 +60,5 @@ lint_report.txt
 # miscellaneous
 *.png
 !public/*.png
+
+.vercel

@@ -70,9 +70,9 @@ export default function CheckoutSummary() {
                 </div>
                 <div className="flex justify-between items-center mt-1">
                   <p className="text-sm font-medium text-gray-500">
-                    <span className="text-primary font-black">₹{item.price}</span> × {item.quantity}
+                    <span className="text-primary font-black">Rs {item.price}</span> × {item.quantity}
                   </p>
-                  <p className="font-black text-gray-900">₹{item.price * item.quantity}</p>
+                  <p className="font-black text-gray-900">Rs {item.price * item.quantity}</p>
                 </div>
               </div>
             </motion.li>
@@ -82,7 +82,7 @@ export default function CheckoutSummary() {
       
       <div className="bg-gray-50 p-6 flex justify-between items-center border-t border-gray-100">
         <span className="font-bold uppercase tracking-widest text-xs text-gray-400">Total Payable</span>
-        <span className="text-2xl font-black text-primary">₹{totalPrice}</span>
+        <span className="text-2xl font-black text-primary">Rs {totalPrice}</span>
       </div>
     </div>
   );

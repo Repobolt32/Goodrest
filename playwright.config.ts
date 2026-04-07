@@ -56,7 +56,7 @@ export default defineConfig({
     reuseExistingServer: true,
     env: {
       E2E_MODE: 'true',
-      E2E_VERIFICATION_SECRET: 'goodrest_test_secret',
+      E2E_VERIFICATION_SECRET: process.env.E2E_VERIFICATION_SECRET || '',
     },
     stdout: 'pipe',
     stderr: 'pipe',

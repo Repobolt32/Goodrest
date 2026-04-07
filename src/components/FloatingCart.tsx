@@ -30,7 +30,7 @@ export default function FloatingCart({ totalItems, totalPrice }: FloatingCartPro
             </div>
             <div className="flex flex-col">
               <span className="text-[10px] uppercase font-bold tracking-widest text-white/70">Cart Total</span>
-              <span className="text-xl font-black">₹{totalPrice}</span>
+              <span className="text-xl font-black">Rs {totalPrice}</span>
             </div>
           </div>
 

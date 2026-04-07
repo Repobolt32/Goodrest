@@ -12,7 +12,7 @@ interface MockRazorpayInstance {
 }
 
 test.describe('Order Tracking Refactor Verification', () => {
-  const ADMIN_PASSWORD = 'goodrest88';
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'goodrest88';
   const UNIQUE_ID = Math.random().toString(36).substring(7);
   const UNIQUE_CUSTOMER_NAME = `Tracker_Refactor_${UNIQUE_ID}`;
   const UNIQUE_PHONE = `99${Math.floor(Math.random() * 89999999 + 10000000)}`;

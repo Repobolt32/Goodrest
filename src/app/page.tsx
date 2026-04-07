@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMenu } from '@/hooks/useMenu';
 import { useCart } from '@/hooks/useCart';
 import { Category } from '@/types/menu';
@@ -13,8 +13,18 @@ import Hero from '@/components/Hero';
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
+  const [showFloatingElements, setShowFloatingElements] = useState(false);
   const { menuItems, categories, loading } = useMenu(activeCategory);
   const { items, addToCart, removeFromCart, totalItems, totalPrice } = useCart();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show floating cart only after scrolling past the first 200px
+      setShowFloatingElements(window.scrollY > 200);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const getQuantity = (id: string) => {
     return items.find((i) => i.id === id)?.quantity || 0;
@@ -71,8 +81,12 @@ export default function Home() {
         )}
       </main>
 
-      {/* Floating Cart */}
-      <FloatingCart totalItems={totalItems} totalPrice={totalPrice} />
+      {/* Floating Cart (Only shown after scrolling) */}
+      <AnimatePresence>
+        {showFloatingElements && (
+          <FloatingCart totalItems={totalItems} totalPrice={totalPrice} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -158,7 +158,7 @@ export default function SingleOrderPage() {
                     </div>
                     <span className="font-bold text-gray-900">{item.name}</span>
                   </div>
-                  <span className="font-black text-gray-900 ml-4">₹{(item.price_at_order || item.price || 0) * item.quantity}</span>
+                  <span className="font-black text-gray-900 ml-4">Rs {(item.price_at_order || item.price || 0) * item.quantity}</span>
                 </div>
               ))}
             </div>
@@ -166,11 +166,11 @@ export default function SingleOrderPage() {
             <div className="space-y-4 pt-4 border-t-2 border-dashed border-gray-100">
               <div className="flex justify-between items-center text-gray-400 font-bold">
                 <span>Subtotal</span>
-                <span>₹{order.total_amount}</span>
+                <span>Rs {order.total_amount}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-900 font-black text-lg">Total Payable</span>
-                <span className="text-primary font-black text-2xl tracking-tight">₹{order.total_amount}</span>
+                <span className="text-primary font-black text-2xl tracking-tight">Rs {order.total_amount}</span>
               </div>
             </div>
 

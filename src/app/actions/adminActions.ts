@@ -156,7 +156,53 @@ export async function deleteMenuItem(id: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath('/admin/menu');
+ revalidatePath('/admin/menu');
   revalidatePath('/');
   return { success: true };
+}
+
+export async function uploadDishImage(formData: FormData) {
+  const file = formData.get('file') as File;
+  if (!file) {
+    return { success: false, error: 'No file provided' };
+  }
+
+  // File validation
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+  if (!validTypes.includes(file.type)) {
+    return { success: false, error: 'Invalid file type. Please upload an image (JPG, PNG, WebP).' };
+  }
+
+  // Max size: 2MB for performance
+  if (file.size > 2 * 1024 * 1024) {
+    return { success: false, error: 'Image too large. Max size is 2MB.' };
+  }
+
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+  const filePath = `dishes/${fileName}`;
+
+  try {
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('dish-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      return { success: false, error: uploadError.message };
+    }
+
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from('dish-images')
+      .getPublicUrl(filePath);
+
+    return { success: true, url: publicUrl };
+  } catch (err) {
+    const error = err as Error;
+    console.error('Unexpected upload error:', error);
+    return { success: false, error: error.message || 'An unexpected error occurred during upload' };
+  }
 }

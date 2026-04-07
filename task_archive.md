@@ -1,0 +1,86 @@
+- [x] Skill Audit: Read relevant skills from `.agent/skills/`
+- [x] Write `implementation_plan.md` and get user approval
+- [x] Implement Server Actions (`addMenuItem`, `updateMenuItem`, `deleteMenuItem`)
+- [x] Implement Add New Dish Modal with Framer Motion
+- [x] Integrate Edit functionality in `MenuManagementClient`
+- [x] Implement Soft Delete logic
+- [x] Verify UI/UX responsiveness and type safety
+- [x] Run `npx tsc --noEmit` check
+- [x] Comprehensive E2E Testing for Admin Menu CRUD
+    - [x] Create `src/tests/e2e/admin-menu-crud.spec.ts`
+    - [x] Test: Add New Dish flow
+    - [x] Test: Edit Dish flow
+    - [x] Test: Soft Delete flow
+- [x] Real-time updates & Revalidation verification
+
+## Phase 3: Razorpay Payment Integration (The "Triple-Lock" Bridge)
+- [x] Skill Audit & Dependency Setup (`npm install razorpay`)
+- [x] Task 1: Initialization & Schema
+    - [x] Initialize `src/lib/razorpay.ts` Singleton
+    - [x] Define Payment Types in `src/types/payment.ts`
+- [x] Task 2: Triple-Lock Core Actions (in `orderActions.ts`)
+    - [x] `createOrder` — DB Intent Lock (Step 1)
+    - [x] `generateRazorpayOrder` — Razorpay Order API call, traces ID to DB (Step 2)
+    - [x] `verifyPaymentSignature` — HMAC verification + idempotency guard (Step 3)
+- [x] Task 3: The Safety Net Handler
+    - [x] Webhook Route at `src/app/api/webhook/razorpay/route.ts`
+    - [x] Signature verification + idempotent DB update
+- [x] Task 4: UI/UX Order Flow (`CheckoutForm.tsx`)
+    - [x] Dynamic Razorpay SDK script injection
+    - [x] COD path: direct success redirect
+    - [x] Online path: full Triple-Lock modal flow
+    - [x] Loading states + modal dismiss handler
+- [/] Task 5: Hardening & Verification
+    - [x] Webhook Signature Hardening (SDK methods)
+    - [x] Order Action Idempotency
+    - [x] TypeScript Check (`npx tsc --noEmit`)
+    - [/] Fix Linting Errors & Impurities
+    - [ ] Run Playwright E2E Tests (`src/tests/e2e/checkout-payment.spec.ts`)
+    - [ ] GitHub Push Workflow
+    - [ ] Skill Audit: Read relevant skills from `.agent/skills/`
+    - [ ] Write `implementation_plan_github_push.md` and get user approval
+    - [ ] Update `.gitignore` to exclude testing reports and UI artifacts
+    - [x] Run `security_scan.py` (simulated via manual check) to ensure no secrets in staged files
+    - [/] Add all relevant files to Git
+    - [ ] Commit with message: "feat: localized menu migration, normalized categories, and secure payment integration"
+- [x] Real Menu Migration Workflow (Approved)
+    - [x] Database: Apply `real_menu_schema_upgrade` migration (Categories + Real Items)
+    - [x] Backend: Update `adminActions.ts` to support `category_id`
+    - [x] Frontend: Update `MenuManagementClient.tsx` with dynamic category dropdown
+    - [x] Verification: Run `npx tsc --noEmit` and Playwright E2E tests
+
+## Web App Testing & Verification (Approved)
+- [/] Regression Testing: Run `npx playwright test`
+- [ ] Audit `admin-menu-crud.spec.ts` selectors for dynamic categories
+- [ ] Targeted Test: Verify real menu items (Shahi Paneer, etc.) visibility
+- [ ] Targeted Test: Verify category filtering on Homepage
+- [ ] Triple-Lock Payment Verification: Run `checkout-payment.spec.ts`
+- [ ] Visual Audit: Capture screenshots of new Admin Menu CRUD modal
+
+## Phase 4: COD Eradication & E2E Hardening (Approved)
+- [x] Backend: Remove 'cod' from types and hardcode to 'online' in `orderActions.ts`
+- [x] Frontend: Remove payment selector and update button to "Pay & Order" in `CheckoutForm.tsx`
+- [x] Admin: Remove COD indicators from `OrdersDashboardClient.tsx`
+- [/] E2E Suite Hardening (100% Pass Rate Objective)
+    - [/] Update `checkout-payment.spec.ts`: Remove Online btn click + Mock Razorpay
+    - [x] Update `customer-flow.spec.ts`: Implement Razorpay Mock + Pay & Order btn
+    - [x] Update `billing-realtime.spec.ts`: Implement Razorpay Mock + Pay & Order btn
+    - [x] Update `order-tracking-refactor.spec.ts`: Implement Razorpay Mock + Pay & Order btn
+- [ ] Final Verification: Run full `npx playwright test`
+
+## Phase 5: Aesthetic Evolution (minimalism)
+- [x] Skill Audit: Read relevant skills from `.agent/skills/`
+- [x] Write `implementation_plan_hero_cleanup.md` and get user approval
+- [x] Execute: Clean Hero section (remove all images)
+- [x] Verify: Responsive check / No broken layout
+
+## Phase 6: Skill Creation (Obsidian Glass Card)
+- [x] Audit: Retrieve Stitch project and screen metadata
+- [x] Research: Download and analyze reference image
+- [ ] Write `implementation_plan_obsidian_skill.md` and get user approval
+- [ ] Execute: Create `.agent/skills/obsidian-glass-card/SKILL.md`
+- [ ] Verify: Generate sample component match
+
+## Phase 7: Hero UI Eradication (Blank Slate)
+- [x] Execute: Reset `Hero.tsx` to barebones structure
+- [x] Verify: No decorative UI or custom colors remain

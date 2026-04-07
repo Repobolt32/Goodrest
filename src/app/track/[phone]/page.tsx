@@ -89,7 +89,7 @@ export default function OrderListPage({ params }: { params: Promise<{ phone: str
                         <div className="flex items-center gap-6">
                           <div className="text-right">
                             <span className="block text-xs font-bold text-gray-300 uppercase tracking-widest mb-1">Payable</span>
-                            <span className="text-2xl font-black text-primary">₹{order.total_amount}</span>
+                            <span className="text-2xl font-black text-primary">Rs {order.total_amount}</span>
                           </div>
                           <ChevronRight className="text-gray-200 group-hover:text-primary group-hover:translate-x-1 transition-all" size={24} />
                         </div>

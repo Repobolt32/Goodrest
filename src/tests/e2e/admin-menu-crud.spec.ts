@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Admin Menu CRUD Flow', () => {
-  const ADMIN_PASSWORD = 'goodrest88';
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'goodrest88';
   const timestamp = Date.now();
   const dishName = `Test Dish ${timestamp}`;
   const updatedDishName = `Updated Dish ${timestamp}`;
@@ -41,7 +41,7 @@ test.describe('Admin Menu CRUD Flow', () => {
     // Verify Add
     const dishCard = page.getByTestId('menu-item-card').filter({ hasText: dishName });
     await expect(dishCard).toBeVisible({ timeout: 15000 });
-    await expect(dishCard.getByText(new RegExp(`₹${dishPrice.replace('.', '\\.')}`, 'i'))).toBeVisible();
+    await expect(dishCard.getByText(new RegExp(`Rs\\s*${dishPrice.replace('.', '\\.')}`, 'i'))).toBeVisible();
 
     // 2. EDIT DISH
     // Use aria-label for robust selection
@@ -56,7 +56,7 @@ test.describe('Admin Menu CRUD Flow', () => {
     // Verify Edit
     const updatedDishCard = page.getByTestId('menu-item-card').filter({ hasText: updatedDishName });
     await expect(updatedDishCard).toBeVisible({ timeout: 15000 });
-    await expect(updatedDishCard.getByText(new RegExp(`₹${updatedPrice.replace('.', '\\.')}`, 'i'))).toBeVisible();
+    await expect(updatedDishCard.getByText(new RegExp(`Rs\\s*${updatedPrice.replace('.', '\\.')}`, 'i'))).toBeVisible();
 
     // 3. SOFT DELETE DISH
     // Use aria-label for Delete button
