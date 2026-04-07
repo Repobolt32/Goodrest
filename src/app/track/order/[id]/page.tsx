@@ -116,7 +116,7 @@ export default function SingleOrderPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-12">
-      <Header />
+      <Header variant="light" />
       
       <main className="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left Column: Real-time Tracker */}
@@ -125,13 +125,13 @@ export default function SingleOrderPage() {
             <ChevronLeft size={18} />
             Back to List
           </Link>
-          <div className="flex items-center justify-between">
-            <h2 className="text-4xl font-black text-gray-900 tracking-tight">{order.friendly_id}</h2>
-            <div className="text-right">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight text-center sm:text-left">{order.friendly_id}</h2>
+            <div className="text-center sm:text-right">
               <span className="block text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Status</span>
               <span 
                 data-testid="order-status-heading"
-                className="text-sm font-black text-primary uppercase tracking-widest"
+                className="text-xs sm:text-sm font-black text-primary uppercase tracking-widest bg-primary/5 px-4 py-1 rounded-full border border-primary/10"
               >
                 {(order.order_status || 'placed').replace(/_/g, ' ')}
               </span>
@@ -143,7 +143,7 @@ export default function SingleOrderPage() {
 
         {/* Right Column: Order Details */}
         <section className="space-y-6">
-          <div className="bg-white p-8 rounded-bento shadow-xl shadow-gray-200 border border-gray-100">
+          <div className="bg-white p-5 sm:p-8 rounded-bento shadow-xl shadow-gray-200 border border-gray-100">
             <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3">
               <ReceiptText size={22} className="text-primary" />
               Order Summary

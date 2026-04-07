@@ -34,7 +34,7 @@ export default function OrderListPage({ params }: { params: Promise<{ phone: str
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
+      <Header variant="light" />
       
       <main className="flex-1 p-6 max-w-2xl mx-auto w-full">
         <h2 className="text-2xl font-black text-gray-900 mb-8 px-2 flex items-center gap-3">
@@ -67,9 +67,9 @@ export default function OrderListPage({ params }: { params: Promise<{ phone: str
 
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl font-black text-gray-900 tracking-tight">{order.friendly_id}</span>
-                            <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border ${getStatusColor(order.order_status || 'placed')}`}>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                            <span className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">{order.friendly_id}</span>
+                            <span className={`px-3 sm:px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest border ${getStatusColor(order.order_status || 'placed')}`}>
                               {(order.order_status || 'placed').replace(/_/g, ' ')}
                             </span>
                           </div>

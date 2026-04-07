@@ -62,3 +62,4 @@ lint_report.txt
 !public/*.png
 
 .vercel
+.env*.local

@@ -40,7 +40,7 @@ export default function Hero() {
         initial={{ opacity: 0, scale: 0.98, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-7xl backdrop-blur-[32px] rounded-[32px] p-8 md:p-20 overflow-hidden"
+        className="relative z-10 w-full max-w-7xl backdrop-blur-[32px] rounded-[32px] p-6 md:p-20 overflow-hidden"
         style={{
           background: `
             radial-gradient(ellipse 60% 60% at 0% 0%, 
@@ -71,7 +71,7 @@ export default function Hero() {
             </p>
           </div>
 
-          <h1 className="text-[56px] md:text-[80px] font-extrabold text-white leading-[1.05] tracking-[-0.03em] mb-10 filter drop-shadow-sm">
+          <h1 className="text-[clamp(2.25rem,8vw,5.5rem)] font-extrabold text-white leading-[1.05] tracking-[-0.03em] mb-10 filter drop-shadow-sm">
             Authentic Taste.<br />
             <span className="text-[#dc1e0a]">Delivered Fresh.</span>
           </h1>
@@ -127,8 +127,8 @@ export default function Hero() {
         }}
         className="absolute z-20 pointer-events-none block"
         style={{
-          bottom: '5%',
-          right: 'max(-120px, calc(50% - 915px))', // Responsive anchor for 50/50 overlap
+          bottom: 'clamp(50px, 12%, 15%)', // Raised by approx 50px as requested
+          right: 'max(-120px, calc(50% - 915px))', 
           width: 'min(550px, 60vw)',
           maxWidth: '500px',
         }}
