@@ -40,7 +40,7 @@ export default function Hero() {
         initial={{ opacity: 0, scale: 0.98, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-7xl backdrop-blur-[32px] rounded-[32px] p-6 md:p-20 overflow-hidden"
+        className="relative z-10 w-full max-w-7xl backdrop-blur-[32px] rounded-[32px] p-6 md:p-20 overflow-hidden mt-12 sm:mt-0"
         style={{
           background: `
             radial-gradient(ellipse 60% 60% at 0% 0%, 
@@ -83,7 +83,7 @@ export default function Hero() {
           <div className="flex flex-col sm:flex-row items-center gap-8">
             <button
               onClick={scrollToMenu}
-              className="group relative px-10 py-5 bg-[#dc1e0a] text-white font-bold rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(220,30,10,0.4)] hover:shadow-[0_15px_30px_-5px_rgba(220,30,10,0.5)] hover:scale-[1.02] active:scale-95 text-lg overflow-hidden"
+              className="group relative px-7 py-4 sm:px-10 sm:py-5 bg-[#dc1e0a] text-white font-bold rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(220,30,10,0.4)] hover:shadow-[0_15px_30px_-5px_rgba(220,30,10,0.5)] hover:scale-[1.02] active:scale-95 text-base sm:text-lg overflow-hidden"
               style={{
                 background: 'linear-gradient(135deg, #dc1e0a 0%, #991b1b 100%)'
               }}
@@ -127,9 +127,9 @@ export default function Hero() {
         }}
         className="absolute z-20 pointer-events-none block"
         style={{
-          bottom: 'clamp(50px, 12%, 15%)', // Raised by approx 50px as requested
-          right: 'max(-120px, calc(50% - 915px))', 
-          width: 'min(550px, 60vw)',
+          bottom: 'clamp(50px, 12%, 15%)', 
+          right: 'max(-70px, calc(50% - 915px))', // Reduced from -120px to show 75% of the bowl
+          width: 'min(550px, 72vw)', // Increased from 60vw to make it "little large"
           maxWidth: '500px',
         }}
       >
