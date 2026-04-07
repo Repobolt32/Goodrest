@@ -1,0 +1,6 @@
+- [x] Skill Audit: Read relevant skills from `.agent/skills/`
+- [x] Write `implementation_plan.md` and get user approval
+- [x] Implement Obsidian Glass Hero background update in `Hero.tsx`
+- [x] Refine Hero card lighting with surgical CSS
+- [ ] Eradicate all Hero UI (Absolute Blank Mode)
+- [ ] Verify Hero is blank via screenshot
