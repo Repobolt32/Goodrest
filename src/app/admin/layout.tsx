@@ -1,22 +1,35 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { logout } from '@/app/actions/authActions';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShoppingBag, 
   LogOut, 
-  Search, 
   Bell, 
   ChefHat,
-  ChevronRight
+  ChevronRight,
+  Menu,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
+import AdminSearchBar from '@/components/admin/AdminSearchBar';
 
+/**
+ * AdminLayout - The core layout for the admin portal.
+ * Handles primary navigation, mobile menu state, and common header elements.
+ */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  // Close sidebar on navigation (mobile)
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
+
   const isLoginPage = pathname === '/admin/login';
   if (isLoginPage) return <>{children}</>;
 
@@ -32,13 +45,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA] text-slate-800">
-      {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-slate-100 flex flex-col p-6 sticky top-0 h-screen z-40 shadow-sm transition-all duration-300">
-        <div className="flex items-center gap-3 mb-10 px-2">
-          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 shadow-md shadow-primary/5">
-            <ShoppingBag className="text-primary" size={20} strokeWidth={2.5} />
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar Navigation */}
+      <aside className={`fixed inset-y-0 left-0 w-72 bg-white border-r border-slate-100 flex flex-col p-6 z-50 transition-transform duration-300 lg:sticky lg:translate-x-0 ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="flex items-center justify-between mb-10 px-2 lg:block">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 shadow-md shadow-primary/5">
+              <ShoppingBag className="text-primary" size={20} strokeWidth={2.5} />
+            </div>
+            <span className="font-black text-xl tracking-tight text-slate-900">Good<span className="text-primary italic">rest</span></span>
           </div>
-          <span className="font-black text-xl tracking-tight">Good<span className="text-primary italic">rest</span></span>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            aria-label="Close menu"
+            className="lg:hidden p-2 text-slate-400 hover:text-slate-600 focus:outline-none"
+          >
+            <X size={24} />
+          </button>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -68,7 +105,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         <div className="pt-6 border-t border-slate-100 mt-6 space-y-4">
-          <div className="px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100 hidden sm:block">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Authenticated As</p>
             <p className="text-sm font-bold text-slate-800">Resto Administrator</p>
           </div>
@@ -83,45 +120,53 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col relative">
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 relative">
         {/* Header Bar */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 px-10 flex items-center justify-between sticky top-0 z-30">
-          <div className="relative w-96 hidden md:block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search orders, customers..." 
-              className="w-full pl-12 pr-4 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary/30 transition-all outline-none text-sm font-medium"
-            />
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 md:px-10 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              aria-label="Open menu"
+              className="lg:hidden p-2 text-slate-500 hover:bg-slate-50 rounded-xl border border-slate-100 focus:outline-none"
+            >
+              <Menu size={24} />
+            </button>
+            
+            {/* Suspense-wrapped Search Bar */}
+            <AdminSearchBar />
           </div>
           
-          <div className="flex items-center gap-4">
-            <button className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:bg-primary/5 transition-all relative">
+          <div className="flex items-center gap-2 md:gap-4">
+            <button 
+              aria-label="View notifications"
+              className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:bg-primary/5 transition-all relative outline-none"
+            >
               <Bell size={20} />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-white shadow-sm" />
             </button>
-            <div className="h-10 w-[1px] bg-slate-100 mx-2" />
-            <div className="flex items-center gap-3 pl-2">
-              <div className="text-right">
+            <div className="h-10 w-[1px] bg-slate-100 mx-1 md:mx-2" />
+            <div className="flex items-center gap-3 pl-1 md:pl-2">
+              <div className="text-right hidden sm:block">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-0.5">Manager</p>
                 <p className="text-sm font-bold text-slate-900 leading-none">Admin Panel</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-hover shadow-lg flex items-center justify-center text-white font-black">
-                A
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-primary to-primary-hover shadow-lg flex items-center justify-center text-white font-black overflow-hidden">
+                <span className="text-sm sm:text-base">A</span>
               </div>
             </div>
           </div>
         </header>
 
-        <section className="p-10 flex-1 overflow-auto max-w-7xl mx-auto w-full">
-           <AnimatePresence mode="wait">
+        {/* Dynamic Page Content */}
+        <section className="p-4 md:p-10 flex-1 overflow-x-hidden max-w-7xl mx-auto w-full">
+           <AnimatePresence mode="popLayout">
             <motion.div
               key={pathname}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.2 }}
             >
               {children}
             </motion.div>

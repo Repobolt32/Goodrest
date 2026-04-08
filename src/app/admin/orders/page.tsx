@@ -4,28 +4,50 @@ import { toOrderRecord } from '@/types/orders';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminOrdersPage() {
-  // Fetch initial orders on the server
-  const { data: initialOrders, error } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false });
+export default async function AdminOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const params = await searchParams;
+  const query = params.q;
 
-  if (error) {
-    return (
-      <div className="p-8 bg-red-50 text-red-500 rounded-2xl border border-red-100">
-        <h1 className="font-bold mb-2">Error Loading Orders</h1>
-        <p>{error.message}</p>
-      </div>
-    );
+  let initialOrders: any[] = [];
+  
+  if (query) {
+    // 1. Search Mode: Search across all orders (by phone or name)
+    const { data: searchResults, error } = await supabase
+      .from('orders')
+      .select('*')
+      .or(`customer_phone.ilike.%${query}%,customer_name.ilike.%${query}%,friendly_id.ilike.%${query}%`)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    initialOrders = searchResults || [];
+    if (error) console.error('Search error:', error);
+  } else {
+    // 2. Normal Mode: Fetch ONLY the 10 most recent orders total
+    const { data: recentOrders } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    initialOrders = recentOrders || [];
   }
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900">Live Orders</h1>
-          <p className="text-slate-500 font-medium tracking-wide">Monitor and manage incoming requests in real-time.</p>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">
+            {query ? `Search: "${query}"` : 'Live Orders'}
+          </h1>
+          <p className="text-slate-500 font-medium tracking-wide">
+            {query 
+              ? `Found ${initialOrders.length} results for your search.` 
+              : 'Monitor and manage incoming requests in real-time.'}
+          </p>
         </div>
         
         <div className="flex items-center gap-3">

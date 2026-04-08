@@ -223,13 +223,13 @@ export default function MenuManagementClient({
   return (
     <div className="space-y-12 pb-32">
       {/* Header Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-5 md:p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group">
         <div className="relative z-10">
-          <p className="text-slate-500 font-medium tracking-wide">Control your dishes, prices, and availability</p>
+          <p className="text-slate-500 font-medium tracking-wide text-sm md:text-base">Control your dishes, prices, and availability</p>
         </div>
         <button 
           onClick={handleOpenAddModal}
-          className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
+          className="flex items-center justify-center gap-2 bg-primary text-white px-6 py-4 md:py-3 rounded-2xl font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
         >
           <Plus size={20} /> Add New Dish
         </button>
@@ -254,21 +254,27 @@ export default function MenuManagementClient({
                     layout
                     key={item.id}
                     data-testid="menu-item-card"
-                    className={`bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden ${
+                    className={`bg-white rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden ${
                       !item.is_available ? 'grayscale opacity-75' : ''
                     }`}
                   >
                     <div className="flex items-start gap-6 relative z-10">
                       {/* Image Preview */}
-                      <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex-shrink-0 relative group">
-                        <Image 
-                          src={item.image_url || ''} 
-                          alt={item.name} 
-                          width={80}
-                          height={80}
-                          unoptimized
-                          className="w-full h-full object-cover transition-transform group-hover:scale-110" 
-                        />
+                      <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex-shrink-0 relative group flex items-center justify-center">
+                        {item.image_url ? (
+                          <Image 
+                            src={item.image_url} 
+                            alt={item.name} 
+                            width={80}
+                            height={80}
+                            unoptimized
+                            className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-300 group-hover:bg-slate-100 transition-colors">
+                            <ChefHat size={32} strokeWidth={1.5} />
+                          </div>
+                        )}
                         <button 
                           onClick={() => handleOpenEditModal(item)}
                           className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
@@ -380,7 +386,7 @@ export default function MenuManagementClient({
       {/* Add/Edit Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -392,7 +398,7 @@ export default function MenuManagementClient({
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden"
+              className="bg-white w-full h-full md:h-auto md:max-w-lg md:rounded-[2.5rem] shadow-2xl relative z-10 overflow-auto md:overflow-hidden"
             >
               <div className="p-8">
                 <div className="flex items-center justify-between mb-8">
@@ -424,7 +430,7 @@ export default function MenuManagementClient({
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                     <div>
                       <label htmlFor="dishPrice" className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Price (Rs)</label>
                       <input
@@ -481,6 +487,13 @@ export default function MenuManagementClient({
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                            <p className="text-white text-xs font-bold uppercase tracking-widest">Live Preview</p>
                         </div>
+                      </div>
+                    )}
+
+                    {!formData.image_url && (
+                      <div className="mb-4 w-full aspect-video rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-slate-400 gap-2">
+                        <ImageIcon size={40} strokeWidth={1} />
+                        <p className="text-[10px] font-black uppercase tracking-widest">No Image Provided</p>
                       </div>
                     )}
 
