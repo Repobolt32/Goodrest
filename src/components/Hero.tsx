@@ -118,8 +118,8 @@ export default function Hero() {
 
       {/* 4. PREMIUM FLOATING DISH (Z-INDEX 20) */}
       <motion.div
-        initial={{ x: "60%", opacity: 0, scale: 0.9, rotate: 10 }}
-        animate={{ x: 0, opacity: 1, scale: 1, rotate: 0 }}
+        initial={{ x: "60%", opacity: 0, scale: 0.9, rotate: 10, z: 0 }}
+        animate={{ x: 0, opacity: 1, scale: 1, rotate: 0, z: 0 }}
         transition={{
           delay: 1.0,
           duration: 1.8,
@@ -128,9 +128,10 @@ export default function Hero() {
         className="absolute z-20 pointer-events-none block"
         style={{
           bottom: 'clamp(50px, 12%, 15%)', 
-          right: 'max(-70px, calc(50% - 915px))', // Reduced from -120px to show 75% of the bowl
-          width: 'min(550px, 72vw)', // Increased from 60vw to make it "little large"
+          right: 'max(-70px, calc(50% - 915px))',
+          width: 'min(550px, 72vw)', 
           maxWidth: '500px',
+          willChange: "transform, opacity",
         }}
       >
         {/* Layered Shadow Container */}
