@@ -3,7 +3,7 @@
   "appName": "Goodrest Rider",
   "webDir": "out",
   "server": {
-    "url": "https://your-goodrest-production-domain.com/rider/dashboard",
+    "url": "https://goodrest-rider-iamku.loca.lt/rider/dashboard",
     "cleartext": true
   }
 }
