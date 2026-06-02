@@ -13,7 +13,7 @@ import {
 } from '@/app/actions/riderActions';
 import TerminalView from '@/components/rider/TerminalView';
 import EarningsView from '@/components/rider/EarningsView';
-import { Bike, BarChart3, LogOut } from 'lucide-react';
+import { Bike, BarChart3, LogOut, RefreshCw } from 'lucide-react';
 
 interface RiderSession {
   id: string;
@@ -57,6 +57,7 @@ export default function RiderDashboardPage() {
   const [stats, setStats] = useState<RiderStats | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'terminal' | 'earnings'>('terminal');
+  const [refreshing, setRefreshing] = useState(false);
   const lastLat = useRef<number | null>(null);
   const lastLng = useRef<number | null>(null);
   const geoUnsupported = useRef(false);
@@ -179,6 +180,12 @@ export default function RiderDashboardPage() {
     };
   }, [isOnline, rider]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshData();
+    setRefreshing(false);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('rider_session');
     localStorage.removeItem('rider_isOnline');
@@ -255,12 +262,22 @@ export default function RiderDashboardPage() {
             {isOnline ? '● Online & Ready' : '○ Currently Offline'}
           </p>
         </div>
-        <button
-          onClick={handleLogout}
-          className="p-3 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-colors"
-        >
-          <LogOut size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-3 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+          <button
+            onClick={handleLogout}
+            className="p-3 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-colors"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
       </header>
 
       {/* Tab Content */}
