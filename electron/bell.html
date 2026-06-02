@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fff;
+      border: 2px solid #dc2626;
+      border-radius: 16px;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+      user-select: none;
+    }
+
+    /* Dismiss X — Fitts' Law: 44x44px target, subtle gray, top-right corner */
+    .dismiss {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 20px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .dismiss:hover { background: #f1f5f9; color: #64748b; }
+
+    /* Header */
+    .new-order {
+      color: #dc2626;
+      font-weight: 900;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* Content hierarchy — clear reading order */
+    .customer { font-weight: 900; font-size: 18px; margin-top: 6px; color: #0f172a; }
+    .items { font-size: 12px; color: #64748b; margin-top: 4px; line-height: 1.4; }
+    .total { font-weight: 900; font-size: 22px; margin-top: 8px; color: #0f172a; }
+
+    /* Countdown — urgency states driven by JS class */
+    .countdown {
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 10px;
+      transition: color 0.3s;
+    }
+    .countdown.green  { color: #16a34a; }
+    .countdown.amber  { color: #d97706; }
+    .countdown.red    { color: #dc2626; animation: pulse 1s ease-in-out infinite; }
+    .countdown.rejected {
+      color: #fff;
+      background: #dc2626;
+      padding: 6px 12px;
+      border-radius: 8px;
+      text-align: center;
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Accept button — Von Restorff: visually distinct, Fitts' Law: 52px height */
+    .accept-btn {
+      display: block;
+      width: 100%;
+      height: 52px;
+      margin-top: 14px;
+      background: #16a34a;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .accept-btn:hover { background: #15803d; transform: translateY(-1px); }
+    .accept-btn:active { transform: translateY(0); }
+    .accept-btn:disabled { background: #86efac; cursor: default; transform: none; }
+
+    /* Accepted state */
+    .accept-btn.accepted { background: #16a34a; }
+  </style>
+</head>
+<body>
+  <button class="dismiss" id="dismiss" title="Dismiss">&times;</button>
+  <div class="new-order">New Order</div>
+  <div class="customer" id="customer">--</div>
+  <div class="items" id="items">--</div>
+  <div class="total" id="total">--</div>
+  <div class="countdown green" id="countdown">Auto-reject in 5:00</div>
+  <button class="accept-btn" id="acceptBtn">Accept Order</button>
+
+  <script>
+    const TOTAL_SECONDS = 5 * 60;
+    let remaining = TOTAL_SECONDS;
+    let countdownInterval = null;
+    let ringInterval = null;
+    let accepted = false;
+
+    const countdownEl = document.getElementById('countdown');
+    const acceptBtn = document.getElementById('acceptBtn');
+    const dismissBtn = document.getElementById('dismiss');
+
+    let currentOrderId = null;
+
+    const ringAudio = new Audio('assets/goodrest-bill.mp3');
+    ringAudio.loop = true;
+
+    function startRinging() {
+      try {
+        ringAudio.currentTime = 0;
+        ringAudio.play().catch(e => console.warn('Audio play failed:', e));
+      } catch (e) {
+        console.warn('Audio play error:', e);
+      }
+    }
+
+    function stopRinging() {
+      try {
+        ringAudio.pause();
+        ringAudio.currentTime = 0;
+      } catch (e) {
+        console.warn('Audio pause error:', e);
+      }
+    }
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+
+    function updateCountdown() {
+      if (accepted) return;
+
+      remaining--;
+      if (remaining < 0) remaining = 0;
+
+      countdownEl.textContent = 'Auto-reject in ' + formatTime(remaining);
+
+      // Urgency color transitions
+      if (remaining <= 60) {
+        countdownEl.className = 'countdown red';
+      } else if (remaining <= 180) {
+        countdownEl.className = 'countdown amber';
+      } else {
+        countdownEl.className = 'countdown green';
+      }
+
+      // Auto-reject at 0:00
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        stopRinging();
+        countdownEl.textContent = 'AUTO-REJECTED';
+        countdownEl.className = 'countdown rejected';
+        acceptBtn.disabled = true;
+        acceptBtn.textContent = 'Rejected';
+        acceptBtn.style.background = '#94a3b8';
+        // Hide window after 3 seconds
+        setTimeout(() => {
+          if (window.electronAPI) window.electronAPI.hideBellWindow();
+        }, 3000);
+      }
+    }
+
+    function startCountdown() {
+      remaining = TOTAL_SECONDS;
+      accepted = false;
+      countdownEl.textContent = 'Auto-reject in 5:00';
+      countdownEl.className = 'countdown green';
+      acceptBtn.disabled = false;
+      acceptBtn.textContent = 'Accept Order';
+      acceptBtn.style.background = '';
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(updateCountdown, 1000);
+      startRinging();
+    }
+
+    // Accept handler — Doherty Threshold: immediate feedback
+    acceptBtn.addEventListener('click', () => {
+      if (accepted || acceptBtn.disabled) return;
+      accepted = true;
+      clearInterval(countdownInterval);
+      stopRinging();
+
+      // Trigger actual acceptance in database via IPC!
+      if (window.electronAPI && currentOrderId) {
+        window.electronAPI.acceptOrder({ id: currentOrderId });
+      }
+
+      // Immediate visual feedback
+      acceptBtn.textContent = 'Accepting...';
+      acceptBtn.disabled = true;
+
+      // Brief delay then show confirmed state
+      setTimeout(() => {
+        acceptBtn.textContent = 'Accepted!';
+        acceptBtn.classList.add('accepted');
+        countdownEl.textContent = 'Order accepted';
+        countdownEl.className = 'countdown green';
+
+        // Hide window after showing confirmation
+        setTimeout(() => {
+          if (window.electronAPI) window.electronAPI.hideBellWindow();
+        }, 1200);
+      }, 300);
+    });
+
+    // Dismiss handler
+    dismissBtn.addEventListener('click', () => {
+      stopRinging();
+      if (window.electronAPI) window.electronAPI.hideBellWindow();
+    });
+
+    // Listen for new order data
+    if (window.electronAPI && window.electronAPI.onNewOrder) {
+      window.electronAPI.onNewOrder((data) => {
+        currentOrderId = data.id; // Store order ID
+        document.getElementById('customer').textContent = data.customer_name || '--';
+        document.getElementById('items').textContent = data.items_summary || '--';
+        document.getElementById('total').textContent = 'INR ' + (data.total_amount || '--');
+        startCountdown();
+      });
+    }
+
+    // Listen for stop ringing event from main process
+    if (window.electronAPI && window.electronAPI.onStopRinging) {
+      window.electronAPI.onStopRinging(() => {
+        stopRinging();
+        if (countdownInterval) clearInterval(countdownInterval);
+      });
+    }
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap');
+@import "tailwindcss";
+@source not "../node_modules";
+
+@theme {
+  --color-primary: #E11D48; /* Hedgehog Red / Rose 600 */
+  --color-primary-dark: #BE123C; /* Rose 700 */
+  --color-primary-light: #FB7185; /* Rose 400 */
+  
+  --color-accent: #10B981; /* Emerald 500 for success/active */
+  --color-accent-dark: #059669;
+  
+  --color-surface: #ffffff;
+  --color-surface-glass: rgba(255, 255, 255, 0.7);
+  --color-surface-muted: #f8fafc;
+  
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: "Fira Code", monospace;
+  
+  --radius-bento: 2rem;
+  --radius-glass: 1.5rem;
+}
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+  overscroll-behavior: contain;
+}
+
+/* --- PREMIUM UTILITIES --- */
+
+/* Glassmorphism Effect - Hardened for legibility */
+.glass-panel {
+  @apply bg-white/80 backdrop-blur-xl border-2 border-white/40 shadow-2xl;
+  background-image: radial-gradient(at top left, rgba(255, 255, 255, 0.4), transparent);
+}
+
+.glass-card {
+  @apply bg-white/60 backdrop-blur-md border-2 border-white/50 shadow-xl rounded-glass hover:bg-white/80 transition-all duration-300;
+}
+
+/* Category Tab Scrollbar Hide */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Bento Card - Hardened Borders */
+.bento-card {
+  @apply border-2 border-slate-100 shadow-md;
+  transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bento-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.15);
+}
+
+/* Pulsing Status Indicators */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); filter: blur(4px); }
+  50% { opacity: 1; transform: scale(1.2); filter: blur(6px); }
+}
+
+.status-glow {
+  @apply absolute w-3 h-3 rounded-full;
+  animation: glow-pulse 2s infinite;
+}
+
+/* Steam Effect for Hero Image */
+.hero-steam-wrapper {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+/* Steam Effect for Hero Image - HIGH REALISM */
+.hero-steam-wrapper {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50; /* Ensure on top of all vignettes */
+  overflow: hidden;
+}
+
+.organic-steam {
+  position: absolute;
+  bottom: 28%; /* Aligned with center curry bowl in v2 image */
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.3) 40%, rgba(255,255,255,0) 80%);
+  filter: blur(12px);
+  opacity: 0;
+  animation: organicRise infinite ease-in-out;
+  transform-origin: bottom center;
+}
+
+/* 5 Progressive Layers for Depth and Variety - Shifted right by 50px (~3%) */
+.steam-1 { width: 40px; height: 120px; right: 27%; animation-duration: 3.5s; animation-delay: 0.0s; }
+.steam-2 { width: 55px; height: 140px; right: 30%; animation-duration: 5.0s; animation-delay: 1.2s; }
+.steam-3 { width: 35px; height: 100px; right: 26%; animation-duration: 4.2s; animation-delay: 2.4s; }
+.steam-4 { width: 60px; height: 160px; right: 31%; animation-duration: 6.0s; animation-delay: 0.6s; }
+.steam-5 { width: 45px; height: 110px; right: 28%; animation-duration: 4.8s; animation-delay: 1.8s; }
+
+@keyframes organicRise {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.6) rotate(0deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.95; /* Significant density increase */
+  }
+  60% {
+    transform: translateY(-90px) translateX(-30px) scale(2.0) rotate(15deg);
+    opacity: 0.6;
+  }
+  85% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-220px) translateX(40px) scale(3.8) rotate(-15deg);
+    opacity: 0;
+  }
+}
+
+/* --- STRONG BUTTON UTILITY --- */
+.btn-strong {
+  @apply font-semibold tracking-[0.5px] transition-all active:scale-95;
+  font-family: var(--font-sans);
+}
