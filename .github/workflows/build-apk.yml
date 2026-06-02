@@ -48,6 +48,13 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Add Location Permission to AndroidManifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          # Add location permissions before the closing </manifest> tag
+          sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' "$MANIFEST"
+          cat "$MANIFEST"
+
       - name: Build Android App (Assemble Debug)
         run: |
           cd android
