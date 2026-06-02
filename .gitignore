@@ -107,3 +107,4 @@ graphify-out/
 .chrome-profile/
 .chrome-profile-headful/
 
+scripts/bin/

@@ -15,7 +15,8 @@
     "electron:dev": "wait-on http-get://localhost:3000 && electron .",
     "electron:start": "electron .",
     "electron:build": "next build && node scripts/copy-standalone.js && electron-builder --win",
-    "electron:icons": "node scripts/generate-icons.js"
+    "electron:icons": "node scripts/generate-icons.js",
+    "tunnel": "node scripts/start-tunnel.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^6.0.0",
@@ -52,6 +53,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "jsdom": "^29.0.1",
+    "localtunnel": "^2.0.2",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.3.0",
     "typescript": "^5",
