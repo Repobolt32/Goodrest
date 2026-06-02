@@ -4,7 +4,7 @@
   "webDir": "out",
   "overrideUserAgent": "cloudflared-tunnel",
   "server": {
-    "url": "https://insight-joel-bloggers-introduction.trycloudflare.com/rider/dashboard",
+    "url": "https://super-plains-afford-major.trycloudflare.com/rider/dashboard",
     "cleartext": true
   }
 }
