@@ -2,6 +2,7 @@
   "appId": "com.goodrest.rider",
   "appName": "Goodrest Rider",
   "webDir": "out",
+  "overrideUserAgent": "localtunnel",
   "server": {
     "url": "https://goodrest-rider-iamku.loca.lt/rider/dashboard",
     "cleartext": true
