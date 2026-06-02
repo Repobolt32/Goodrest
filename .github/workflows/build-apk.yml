@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/apk-pipeline
+      - 02-06-final
   workflow_dispatch:
 
 jobs:
