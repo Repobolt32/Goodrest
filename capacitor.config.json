@@ -1,0 +1,9 @@
+{
+  "appId": "com.goodrest.rider",
+  "appName": "Goodrest Rider",
+  "webDir": "out",
+  "server": {
+    "url": "https://your-goodrest-production-domain.com/rider/dashboard",
+    "cleartext": true
+  }
+}
