@@ -4,7 +4,7 @@
   "webDir": "out",
   "overrideUserAgent": "cloudflared-tunnel",
   "server": {
-    "url": "https://collins-raid-advisor-prep.trycloudflare.com/rider/dashboard",
+    "url": "https://collins-raid-advisor-prep.trycloudflare.com/rider/login",
     "cleartext": true
   }
 }
