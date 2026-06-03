@@ -1,6 +1,20 @@
 import { createOrder } from '@/app/actions/orderActions';
 import { supabase } from '@/lib/supabase';
 import { Category } from '@/types/menu';
+import { vi } from 'vitest';
+
+vi.mock('@/lib/auth', () => ({
+  verifyCustomerSession: vi.fn().mockResolvedValue({ success: true, session: { phone: '9999999999' } }),
+  signCustomerSession: vi.fn().mockResolvedValue('mock-token'),
+}));
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn().mockResolvedValue({
+    set: vi.fn(),
+    get: vi.fn(),
+    delete: vi.fn(),
+  }),
+}));
 
 // Test Data Constants
 const TEST_PREFIX = 'TEST_USER_';

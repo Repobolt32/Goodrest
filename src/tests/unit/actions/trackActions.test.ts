@@ -8,6 +8,11 @@ const mocks = vi.hoisted(() => ({
   mockSingle: vi.fn(),
   mockUpdate: vi.fn(),
   mockFrom: vi.fn(),
+  mockCookies: vi.fn(),
+}));
+
+const authMocks = vi.hoisted(() => ({
+  verifyCustomerSession: vi.fn(),
 }));
 
 vi.mock('@/lib/supabaseAdmin', () => ({
@@ -16,11 +21,20 @@ vi.mock('@/lib/supabaseAdmin', () => ({
   },
 }));
 
+vi.mock('@/lib/auth', () => ({
+  verifyCustomerSession: authMocks.verifyCustomerSession,
+}));
+
+vi.mock('next/headers', () => ({
+  cookies: () => mocks.mockCookies(),
+}));
+
 import { getOrdersByPhone, getOrderById } from '@/app/actions/trackActions';
 
 describe('trackActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authMocks.verifyCustomerSession.mockResolvedValue({ success: true, session: { phone: '1234567890' } });
     const chain = {
       select: mocks.mockSelect,
       eq: mocks.mockEq,
@@ -56,8 +70,8 @@ describe('trackActions', () => {
   });
 
   describe('getOrderById', () => {
-    it('should return order for valid id', async () => {
-      const mockData = { id: 'order-1', friendly_id: 'F001', order_status: 'placed', total_amount: 200, items: '[{"name":"Pizza","quantity":1}]' };
+    it('should return order for valid id with matching session phone', async () => {
+      const mockData = { id: 'order-1', friendly_id: 'F001', order_status: 'placed', total_amount: 200, customer_phone: '1234567890', items: '[{"name":"Pizza","quantity":1}]' };
       mocks.mockSelect.mockReturnValue({ eq: () => ({ single: () => Promise.resolve({ data: mockData, error: null }) }) });
 
       const result = await getOrderById('order-1');
@@ -70,6 +84,37 @@ describe('trackActions', () => {
 
       const result = await getOrderById('nonexistent');
       expect(result).toBeNull();
+    });
+
+    it('should reject access when session phone does not match order customer_phone', async () => {
+      authMocks.verifyCustomerSession.mockResolvedValue({ success: true, session: { phone: '9999999999' } });
+      const mockData = { id: 'order-1', customer_phone: '1234567890', order_status: 'placed', total_amount: 200, items: '[]' };
+      mocks.mockSelect.mockReturnValue({ eq: () => ({ single: () => Promise.resolve({ data: mockData, error: null }) }) });
+
+      const result = await getOrderById('order-1');
+      expect(result).toBeNull();
+    });
+
+    it('should reject access when no customer session exists', async () => {
+      authMocks.verifyCustomerSession.mockResolvedValue({ success: false, error: 'Unauthorized' });
+
+      const result = await getOrderById('order-1');
+      expect(result).toBeNull();
+    });
+
+    it('should not expose internal columns (batch_id, deleted_at, razorpay_payment_id)', async () => {
+      const mockData = { id: 'order-1', customer_phone: '1234567890', order_status: 'placed', total_amount: 200, items: '[]' };
+      mocks.mockSelect.mockReturnValue({ eq: () => ({ single: () => Promise.resolve({ data: mockData, error: null }) }) });
+
+      await getOrderById('order-1');
+
+      // Verify select was called with explicit columns, not '*'
+      const selectCall = mocks.mockSelect.mock.calls[0]?.[0];
+      expect(selectCall).not.toBe('*');
+      expect(selectCall).toContain('id');
+      expect(selectCall).not.toContain('batch_id');
+      expect(selectCall).not.toContain('deleted_at');
+      expect(selectCall).not.toContain('razorpay_payment_id');
     });
   });
 });

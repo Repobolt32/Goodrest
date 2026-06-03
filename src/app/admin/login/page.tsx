@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login } from '@/app/actions/authActions';
 import { motion } from 'framer-motion';
-import { Lock, Loader2, ArrowRight, Pizza } from 'lucide-react';
+import { Lock, Loader2, ArrowRight, Pizza, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -25,6 +26,8 @@ export default function AdminLoginPage() {
       setLoading(false);
     }
   };
+
+  const inputType = showPassword ? 'text' : 'password';
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-6 selection:bg-primary/30">
@@ -63,13 +66,22 @@ export default function AdminLoginPage() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
                 <input
                   autoFocus
-                  type="password"
+                  type={inputType}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-4 bg-white/[0.02] border border-white/5 rounded-2xl text-white placeholder:text-gray-700 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-mono"
+                  className="w-full pl-12 pr-12 py-4 bg-white/[0.02] border border-white/5 rounded-2xl text-white placeholder:text-gray-700 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-mono"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50 focus:outline-none"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </div>
 

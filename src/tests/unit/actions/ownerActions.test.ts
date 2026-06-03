@@ -145,6 +145,25 @@ describe('ownerActions', () => {
       expect(payout.weekDeliveries).toBe(10);
       expect(payout.weekTotalDue).toBe(600);
     });
+
+    it('should deduplicate batch orders to avoid double-counting dead miles', async () => {
+      const mockOrders = [
+        { rider_id: 'rider-1', rider_earning: 53, distance_km: 3.5, delivered_at: '2026-05-31T10:00:00.000Z', batch_id: 'batch-abc' },
+        { rider_id: 'rider-1', rider_earning: 41, distance_km: 2.0, delivered_at: '2026-05-31T10:30:00.000Z', batch_id: 'batch-abc' },
+      ];
+      const mockRiders = [{ id: 'rider-1', name: 'Batch Rider', phone: '7777777777' }];
+
+      mocks.mockOrder.mockResolvedValueOnce({ data: mockOrders, error: null });
+      mocks.mockIn.mockResolvedValueOnce({ data: mockRiders, error: null });
+
+      const result = await getWeeklyRiderPayouts();
+      const payout = result.data![0];
+      // First order: full breakdown (deliveryFee + pickupPay)
+      // Second order (same batch): pickupPay=0, deliveryFee=rider_earning
+      // Total earnings = 53 + 41 = 94
+      expect(payout.weekDeliveries).toBe(2);
+      expect(payout.weekTotalDue).toBe(94);
+    });
   });
 
   describe('toggleOnlineStatus', () => {

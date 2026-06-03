@@ -1,6 +1,7 @@
 'use server';
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { verifyAdminSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function getAppSettings() {
@@ -12,7 +13,6 @@ export async function getAppSettings() {
 
   if (error) {
     console.error('Failed to fetch app settings:', error);
-    // If table doesn't exist, return defaults
     return { 
       success: true, 
       data: { 
@@ -29,6 +29,9 @@ export async function updateAppSettings(updates: {
   max_delivery_radius?: number;
   delivery_enabled?: boolean;
 }) {
+  const auth = await verifyAdminSession();
+  if (!auth.success) return { success: false, error: auth.error };
+
   if (updates.max_delivery_radius !== undefined) {
     if (typeof updates.max_delivery_radius !== 'number' || isNaN(updates.max_delivery_radius) || updates.max_delivery_radius < 1 || updates.max_delivery_radius > 50) {
       return { success: false, error: 'Delivery radius must be between 1 and 50 km.' };

@@ -51,6 +51,9 @@ export default function OrderBroadcast({
         const first = orders[0] as BroadcastOrder;
         setBroadcastOrder(first);
         audioRef.current?.play().catch((e) => console.warn('Audio play failed:', e));
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate([500, 200, 500, 200, 500]);
+        }
       } catch (err) {
         console.error('Failed to fetch unassigned orders:', err);
       }
@@ -64,7 +67,7 @@ export default function OrderBroadcast({
   useEffect(() => {
     if (!riderId) return;
 
-    const alertSound = new Audio('/audio/ringtone.mp3');
+    const alertSound = new Audio('/audio/goodrest-bill.mp3');
     alertSound.loop = true;
     audioRef.current = alertSound;
 
@@ -83,6 +86,9 @@ export default function OrderBroadcast({
             if (broadcastOrderRef.current?.id === order.id) return;
             setBroadcastOrder(order);
             alertSound.play().catch((e) => console.warn('Audio play failed:', e));
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              navigator.vibrate([500, 200, 500, 200, 500]);
+            }
           }
         },
       )
@@ -98,6 +104,9 @@ export default function OrderBroadcast({
           ) {
             setBroadcastOrder(order);
             alertSound.play().catch((e) => console.warn('Audio play failed:', e));
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              navigator.vibrate([500, 200, 500, 200, 500]);
+            }
           } else if (current && order.id === current.id && order.rider_id !== null) {
             // Someone else took it
             setBroadcastOrder(null);

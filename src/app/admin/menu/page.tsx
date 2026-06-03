@@ -19,7 +19,7 @@ export default async function AdminMenuPage() {
     const error = menuError || catError;
     return (
       <div className="p-8 bg-red-50 text-red-500 rounded-2xl border border-red-100">
-        <h1 className="font-bold mb-2">Error Loading Menu</h1>
+        <h2 className="font-bold mb-2">Error Loading Menu</h2>
         <p>{error?.message}</p>
       </div>
     );

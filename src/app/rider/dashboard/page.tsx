@@ -273,6 +273,7 @@ export default function RiderDashboardPage() {
           </button>
           <button
             onClick={handleLogout}
+            aria-label="Logout"
             className="p-3 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-colors"
           >
             <LogOut size={20} />

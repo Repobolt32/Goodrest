@@ -23,8 +23,11 @@ export function calculateDeliveryFee(distanceKm: number): number {
   return AFTER_5KM_BASE + Math.ceil(distanceKm - 5) * AFTER_5KM_PER_KM;
 }
 
-export function calculateRiderEarning(distanceKm: number): number {
+export function calculateRiderEarning(distanceKm: number, isBatchedNonFinal?: boolean): number {
   const deliveryFee = calculateDeliveryFee(distanceKm);
+  if (isBatchedNonFinal) {
+    return deliveryFee;
+  }
   const deadMiles = Math.ceil(distanceKm) * DEAD_MILES_PER_KM;
   return deliveryFee + deadMiles;
 }

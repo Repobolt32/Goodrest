@@ -34,11 +34,16 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-vi.mock('lucide-react', () => ({
-  Bike: () => null,
-  BarChart3: () => null,
-  LogOut: () => null,
-}));
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    Bike: () => null,
+    BarChart3: () => null,
+    LogOut: () => null,
+    RefreshCw: () => null,
+  };
+});
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -164,7 +169,7 @@ describe('RiderDashboardPage', () => {
     render(<RiderDashboardPage />);
 
     await screen.findByTestId('terminal-view');
-    expect(screen.getByRole('button', { name: '' })).toBeInTheDocument(); // LogOut icon renders null
+    expect(screen.getByRole('button', { name: 'Logout' })).toBeInTheDocument();
   });
 
   // ─── Logout ──────────────────────────────────────────────────────
@@ -173,10 +178,8 @@ describe('RiderDashboardPage', () => {
 
     expect(localStorage.getItem('rider_session')).not.toBeNull();
 
-    // Find the logout button — it's the one next to the header
-    const buttons = screen.getAllByRole('button');
-    // The last button in header section is the logout button
-    const logoutBtn = buttons[0];
+    await screen.findByTestId('terminal-view');
+    const logoutBtn = screen.getByRole('button', { name: 'Logout' });
     fireEvent.click(logoutBtn);
 
     expect(mockPush).toHaveBeenCalledWith('/rider/login');

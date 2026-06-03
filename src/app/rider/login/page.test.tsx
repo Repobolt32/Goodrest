@@ -24,6 +24,15 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    Eye: () => null,
+    EyeOff: () => null,
+  };
+});
+
 vi.mock('@/app/actions/riderActions', () => ({
   loginRider: vi.fn(() => Promise.resolve({ success: false, error: 'Invalid credentials' })),
 }));

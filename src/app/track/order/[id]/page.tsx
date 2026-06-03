@@ -12,6 +12,7 @@ import type { OrderRecord, OrderRow } from '@/types/orders';
 import { toOrderRecord } from '@/types/orders';
 import { ReceiptText, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
+import { calculateDeliveryFee } from '@/lib/pricing';
 
 export default function SingleOrderPage() {
   const params = useParams();
@@ -117,12 +118,17 @@ export default function SingleOrderPage() {
   }
 
   const handleCancel = async (reason?: string) => {
-    return await cancelOrder(order.id, reason, order.customer_phone);
+    return await cancelOrder(order.id, reason);
   };
 
   const handleSendHelp = async (message: string) => {
-    return await sendHelpMessage(order.id, message, order.customer_phone);
+    return await sendHelpMessage(order.id, message);
   };
+
+  const deliveryFee = order.distance_km != null 
+    ? calculateDeliveryFee(order.distance_km) 
+    : 0;
+  const itemsSubtotal = order.total_amount - deliveryFee;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-12">
@@ -190,7 +196,11 @@ export default function SingleOrderPage() {
             <div className="space-y-4 pt-4 border-t-2 border-dashed border-gray-100">
               <div className="flex justify-between items-center text-gray-400 font-bold">
                 <span>Subtotal</span>
-                <span>Rs {order.total_amount}</span>
+                <span>Rs {itemsSubtotal}</span>
+              </div>
+              <div className="flex justify-between items-center text-gray-400 font-bold">
+                <span>Delivery Fee</span>
+                <span>{order.distance_km != null ? `Rs ${deliveryFee}` : 'Included'}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-900 font-black text-lg">Total Payable</span>

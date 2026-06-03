@@ -10,6 +10,7 @@ const RESTO_LAT = parseFloat(process.env.NEXT_PUBLIC_RESTO_LAT || '0');
 const RESTO_LNG = parseFloat(process.env.NEXT_PUBLIC_RESTO_LNG || '0');
 
 import { calculateRiderEarning, calculateNightlyBonus, calculateEarningBreakdown, calculateBonusProgress } from '@/lib/pricing';
+import { randomUUID } from 'crypto';
 
 function isValidUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -66,6 +67,20 @@ export async function acceptOrder(orderId: string, riderId: string) {
   const riderCheck = await verifyRiderExists(riderId);
   if (!riderCheck.success) return riderCheck;
 
+  // Early race condition check: fetch order first to verify rider_id is null
+  const { data: existingOrder, error: existingError } = await supabaseAdmin
+    .from('orders')
+    .select('rider_id')
+    .eq('id', orderId)
+    .single();
+
+  if (existingError || !existingOrder) {
+    return { success: false, error: 'Order not found' };
+  }
+  if (existingOrder.rider_id !== null) {
+    return { success: false, error: 'Order already taken or no longer available' };
+  }
+
   let distanceKm: number | null = null;
   let durationSeconds: number | null = null;
   let earning = 41;
@@ -95,6 +110,45 @@ export async function acceptOrder(orderId: string, riderId: string) {
     .eq('id', riderId)
     .single();
 
+  // Check rider's active orders for batch support
+  const { data: activeOrders } = await supabaseAdmin
+    .from('orders')
+    .select('id')
+    .eq('rider_id', riderId)
+    .not('order_status', 'in', '("delivered","cancelled")');
+
+  const activeCount = activeOrders?.length || 0;
+
+  if (activeCount >= 2) {
+    return { success: false, error: 'Rider already has 2 active orders. Complete one first.' };
+  }
+
+  let batchId: string | null = null;
+
+  if (activeCount === 1) {
+    // Batch mode: generate batch_id and update first order's earning (no dead miles)
+    batchId = randomUUID();
+    const firstActiveOrder = activeOrders![0];
+
+    // Fetch first order's distance for recalculation
+    const { data: firstOrder } = await supabaseAdmin
+      .from('orders')
+      .select('distance_km')
+      .eq('id', firstActiveOrder.id)
+      .single();
+
+    const firstOrderEarning = firstOrder?.distance_km != null
+      ? calculateRiderEarning(firstOrder.distance_km, true)
+      : 41;
+
+    // Update first order with batch_id and recalculated earning
+    await supabaseAdmin
+      .from('orders')
+      .update({ batch_id: batchId, rider_earning: firstOrderEarning })
+      .eq('id', firstActiveOrder.id);
+  }
+
+  // Final FCFS update with double-gate
   const { data: updatedRows, error } = await supabaseAdmin
     .from('orders')
     .update({
@@ -104,6 +158,7 @@ export async function acceptOrder(orderId: string, riderId: string) {
       duration_seconds: durationSeconds,
       rider_earning: earning,
       rider_phone: rider?.phone || null,
+      batch_id: batchId,
     })
     .eq('id', orderId)
     .is('rider_id', null)

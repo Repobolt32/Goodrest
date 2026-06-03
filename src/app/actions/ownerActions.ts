@@ -343,7 +343,7 @@ export async function getWeeklyRiderPayouts() {
 
   const { data: orders } = await supabaseAdmin
     .from('orders')
-    .select('rider_id, rider_earning, distance_km, delivered_at')
+    .select('rider_id, rider_earning, distance_km, delivered_at, batch_id')
     .is('deleted_at', null)
     .eq('order_status', 'delivered')
     .not('rider_id', 'is', null)
@@ -361,6 +361,9 @@ export async function getWeeklyRiderPayouts() {
     dailyCounts: Map<string, number>;
   }>();
 
+  // Track seen batches per rider to avoid double-counting dead miles
+  const seenBatchesPerRider = new Map<string, Set<string>>();
+
   for (const order of orders) {
     if (!order.rider_id) continue;
     let rider = riderMap.get(order.rider_id);
@@ -372,7 +375,23 @@ export async function getWeeklyRiderPayouts() {
     rider.deliveries += 1;
     rider.earnings += order.rider_earning || 0;
 
-    if (order.distance_km != null) {
+    // Batch deduplication: if batch already seen, avoid double-counting dead miles
+    const isBatchedDuplicate = order.batch_id && (() => {
+      let seen = seenBatchesPerRider.get(order.rider_id);
+      if (!seen) {
+        seen = new Set();
+        seenBatchesPerRider.set(order.rider_id, seen);
+      }
+      if (seen.has(order.batch_id)) return true;
+      seen.add(order.batch_id);
+      return false;
+    })();
+
+    if (isBatchedDuplicate) {
+      // Second order in batch: pickupPay=0, deliveryFee=rider_earning (no dead miles counted)
+      rider.deliveryFees += order.rider_earning || 0;
+      rider.pickupPay += 0;
+    } else if (order.distance_km != null) {
       const bd = calculateEarningBreakdown(order.distance_km);
       rider.deliveryFees += bd.deliveryFee;
       rider.pickupPay += bd.pickupPay;

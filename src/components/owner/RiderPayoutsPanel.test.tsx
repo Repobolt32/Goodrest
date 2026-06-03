@@ -10,9 +10,13 @@ vi.mock('@/app/actions/ownerActions', () => ({
   getWeeklyRiderPayouts: mocks.getWeeklyRiderPayouts,
 }));
 
-vi.mock('lucide-react', () => ({
-  Bike: () => null,
-}));
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    Bike: () => null,
+  };
+});
 
 describe('RiderPayoutsPanel', () => {
   beforeEach(() => {

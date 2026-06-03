@@ -1,7 +1,8 @@
 "use server";
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import type { OrderRecord, OrderSummary } from '@/types/orders';
+import { verifyCustomerSession } from '@/lib/auth';
+import type { OrderRecord, OrderSummary, OrderRow } from '@/types/orders';
 import { toOrderRecord, toOrderSummary } from '@/types/orders';
 
 export async function getOrdersByPhone(phone: string): Promise<OrderSummary[]> {
@@ -38,9 +39,14 @@ export async function getOrdersByPhone(phone: string): Promise<OrderSummary[]> {
 }
 
 export async function getOrderById(id: string): Promise<OrderRecord | null> {
+  const auth = await verifyCustomerSession();
+  if (!auth.success || !auth.session) {
+    return null;
+  }
+
   const { data, error } = await supabaseAdmin
     .from('orders')
-    .select('*')
+    .select('id, friendly_id, customer_name, customer_phone, delivery_address, items, total_amount, payment_method, payment_status, order_status, lat, lng, distance_km, duration_seconds, eta_minutes, created_at, accepted_at, prep_deadline, food_ready_at, rider_id, rider_phone, rider_accepted_at, rider_started_at, delivered_at, cancelled_by, cancel_reason, customer_help_message, refund_status, tracking_url, latest_lat, latest_lng')
     .eq('id', id)
     .single();
 
@@ -49,7 +55,11 @@ export async function getOrderById(id: string): Promise<OrderRecord | null> {
     return null;
   }
 
-  return toOrderRecord(data);
+  if (data.customer_phone !== auth.session.phone) {
+    return null;
+  }
+
+  return toOrderRecord(data as OrderRow);
 }
 
 function isValidUUID(id: string): boolean {

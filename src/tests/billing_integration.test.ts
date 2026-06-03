@@ -1,6 +1,20 @@
 import { createOrder } from '@/app/actions/orderActions';
 import { supabase } from '@/lib/supabase';
 import { Category, CartItem } from '@/types/menu';
+import { vi } from 'vitest';
+
+vi.mock('@/lib/auth', () => ({
+  verifyCustomerSession: vi.fn().mockResolvedValue({ success: true, session: { phone: '9800000001' } }),
+  signCustomerSession: vi.fn().mockResolvedValue('mock-token'),
+}));
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn().mockResolvedValue({
+    set: vi.fn(),
+    get: vi.fn(),
+    delete: vi.fn(),
+  }),
+}));
 
 const isDBConfigured = 
   process.env.NEXT_PUBLIC_SUPABASE_URL && 

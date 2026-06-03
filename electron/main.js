@@ -1,6 +1,13 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification, screen, dialog } = require('electron');
 const path = require('path');
 
+// Disable hardware acceleration to prevent GPU crashes in restricted/virtual environments
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+
 // Disable autoplay policy globally in Chromium to allow audio without user interaction
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 const { spawn } = require('child_process');
@@ -173,7 +180,10 @@ ipcMain.on('show-bell-window', (event, orderData) => {
 });
 
 ipcMain.on('hide-bell-window', () => {
-  bellWindow?.hide();
+  if (bellWindow) {
+    bellWindow.webContents.send('stop-ringing-bell');
+    bellWindow.hide();
+  }
 });
 
 ipcMain.on('update-tray-badge', (event, count) => {

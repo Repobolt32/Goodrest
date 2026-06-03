@@ -10,6 +10,17 @@ import { validatePaymentVerification } from 'razorpay/dist/utils/razorpay-utils'
 import { CartItem } from '@/types/menu';
 import { Database } from '@/types/database.types';
 import { RazorpayPaymentCallback } from '@/types/payment';
+import { getGoogleMapsRouteData } from './distanceActions';
+import { calculateDeliveryFee } from '@/lib/pricing';
+import { verifyCustomerSession, signCustomerSession } from '@/lib/auth';
+
+function sanitizeString(str: string): string {
+  return str
+    .trim()
+    .replace(/</g, '＜')
+    .replace(/>/g, '＞')
+    .replace(/&/g, '＆');
+}
 
 
 export type OrderInput = {
@@ -125,11 +136,33 @@ export async function createOrder(input: OrderInput) {
       return { success: false, error: 'Restaurant is currently unavailable. Please check back later.' };
     }
 
+    // Sanitize user-supplied strings
+    const sanitizedName = sanitizeString(input.customer_name);
+    const sanitizedAddress = sanitizeString(input.delivery_address);
+
+    // Compute route and delivery fee server-side
+    let distanceKm: number | null = null;
+    let durationSeconds: number | null = null;
+    let deliveryFee = 0;
+    if (input.lat != null && input.lng != null) {
+      const RESTO_LAT = parseFloat(process.env.NEXT_PUBLIC_RESTO_LAT || '0');
+      const RESTO_LNG = parseFloat(process.env.NEXT_PUBLIC_RESTO_LNG || '0');
+      const routeData = await getGoogleMapsRouteData(RESTO_LAT, RESTO_LNG, input.lat, input.lng);
+      if (routeData) {
+        distanceKm = routeData.distanceKm;
+        durationSeconds = routeData.durationSeconds;
+        deliveryFee = calculateDeliveryFee(distanceKm);
+      }
+    }
+
+    // Include delivery fee in total
+    serverTotal += deliveryFee;
+
     // 1. Prepare atomic insert data
     const orderData = {
-      customer_name: input.customer_name,
+      customer_name: sanitizedName,
       customer_phone: input.customer_phone,
-      delivery_address: input.delivery_address,
+      delivery_address: sanitizedAddress,
       items: JSON.parse(JSON.stringify(input.items)), // Deep copy for JSONB
       total_amount: serverTotal,
       payment_method: input.payment_method,
@@ -137,6 +170,8 @@ export async function createOrder(input: OrderInput) {
       order_status: input.payment_method === 'cod' ? 'confirmed' : 'created',
       lat: input.lat || null,
       lng: input.lng || null,
+      distance_km: distanceKm,
+      duration_seconds: durationSeconds,
     };
 
     const orderItemsData = normalizeOrderItems('00000000-0000-0000-0000-000000000000', input.items, priceMap).map(item => ({
@@ -158,6 +193,17 @@ export async function createOrder(input: OrderInput) {
     }
 
     console.log(`[createOrder] SUCCESS: Order created atomically in DB with ID: ${orderId}`);
+
+    // Set customer_session cookie so tracking pages can authenticate the customer
+    const token = await signCustomerSession(input.customer_phone);
+    const cookieStore = await cookies();
+    cookieStore.set('customer_session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
 
     return { 
       success: true, 
@@ -351,9 +397,14 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
  * Feature 1: Customer cancels their own order
  * Guard: only allowed if status is NOT out_for_delivery, delivered, or already cancelled.
  */
-export async function cancelOrder(orderId: string, reason: string | undefined, customerPhone: string) {
+export async function cancelOrder(orderId: string, reason?: string) {
   console.log(`[cancelOrder] ENTRY: Cancelling order ${orderId} with reason: "${reason || 'no reason provided'}"`);
   try {
+    const auth = await verifyCustomerSession();
+    if (!auth.success || !auth.session) {
+      return { success: false, error: 'Not authorized to cancel this order' };
+    }
+
     const { data: order, error: fetchError } = await supabaseAdmin
       .from('orders')
       .select('id, order_status, customer_phone')
@@ -365,7 +416,7 @@ export async function cancelOrder(orderId: string, reason: string | undefined, c
       return { success: false, error: 'Order not found' };
     }
 
-    if (order.customer_phone !== customerPhone) {
+    if (order.customer_phone !== auth.session.phone) {
       return { success: false, error: 'Not authorized to cancel this order' };
     }
 
@@ -420,11 +471,16 @@ export async function cancelOrder(orderId: string, reason: string | undefined, c
  * Feature 2: Customer sends help message on any cancelled order
  * Guard: only allowed if order exists and order_status is 'cancelled'.
  */
-export async function sendHelpMessage(orderId: string, message: string, customerPhone: string) {
+export async function sendHelpMessage(orderId: string, message: string) {
   console.log(`[sendHelpMessage] ENTRY: Sending help message for order ${orderId}: "${message}"`);
   try {
     if (!message || message.trim() === '') {
       return { success: false, error: 'Help message cannot be empty' };
+    }
+
+    const auth = await verifyCustomerSession();
+    if (!auth.success || !auth.session) {
+      return { success: false, error: 'Not authorized to send help for this order' };
     }
 
     const { data: order, error: fetchError } = await supabaseAdmin
@@ -438,7 +494,7 @@ export async function sendHelpMessage(orderId: string, message: string, customer
       return { success: false, error: 'Order not found' };
     }
 
-    if (order.customer_phone !== customerPhone) {
+    if (order.customer_phone !== auth.session.phone) {
       return { success: false, error: 'Not authorized to send help for this order' };
     }
 

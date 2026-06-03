@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { loginRider } from '@/app/actions/riderActions';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function RiderLoginPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -28,6 +30,8 @@ export default function RiderLoginPage() {
     }
     setLoading(false);
   };
+
+  const inputType = showPassword ? 'text' : 'password';
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
@@ -62,14 +66,25 @@ export default function RiderLoginPage() {
 
           <div>
             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Password</label>
-            <input 
-              type="password" 
-              placeholder="Password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              className="w-full px-4 py-3.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white font-bold outline-none focus:ring-1 ring-red-500/50 transition-all placeholder:text-slate-700 disabled:opacity-50"
-            />
+            <div className="relative">
+              <input 
+                type={inputType} 
+                placeholder="Password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                className="w-full pl-4 pr-12 py-3.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white font-bold outline-none focus:ring-1 ring-red-500/50 transition-all placeholder:text-slate-700 disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors cursor-pointer disabled:opacity-50 focus:outline-none"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
 
           <button 

@@ -4,9 +4,20 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAdminSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
+const ALLOWED_ORDER_STATUSES = ['created', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
+const ALLOWED_PAYMENT_STATUSES = ['pending', 'paid', 'requires_refund', 'refund_processing', 'refunded'];
+
 export async function updateOrderStatus(orderId: string, status: string) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
+
+  if (!isValidUUID(orderId)) return { success: false, error: 'Invalid order ID' };
+  if (!ALLOWED_ORDER_STATUSES.includes(status)) return { success: false, error: `Invalid status: ${status}` };
 
   const { error } = await supabaseAdmin
     .from('orders')
@@ -27,6 +38,9 @@ export async function updatePaymentStatus(orderId: string, status: string) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
 
+  if (!isValidUUID(orderId)) return { success: false, error: 'Invalid order ID' };
+  if (!ALLOWED_PAYMENT_STATUSES.includes(status)) return { success: false, error: `Invalid payment status: ${status}` };
+
   const { error } = await supabaseAdmin
     .from('orders')
     .update({ payment_status: status })
@@ -45,6 +59,8 @@ export async function updatePaymentStatus(orderId: string, status: string) {
 export async function deleteOrder(orderId: string) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
+
+  if (!isValidUUID(orderId)) return { success: false, error: 'Invalid order ID' };
 
   const { error } = await supabaseAdmin
     .from('orders')
@@ -66,6 +82,8 @@ export async function toggleItemAvailability(id: string, isAvailable: boolean) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
 
+  if (!isValidUUID(id)) return { success: false, error: 'Invalid menu item ID' };
+
   const { error } = await supabaseAdmin
     .from('menu_items')
     .update({ is_available: isAvailable })
@@ -84,6 +102,8 @@ export async function toggleItemAvailability(id: string, isAvailable: boolean) {
 export async function updateItemPrice(id: string, price: number) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
+
+  if (!isValidUUID(id)) return { success: false, error: 'Invalid menu item ID' };
 
   if (typeof price !== 'number' || isNaN(price) || price <= 0) {
     return { success: false, error: 'Price must be a valid number greater than zero.' };
@@ -146,6 +166,8 @@ export async function updateMenuItem(id: string, updates: {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
 
+  if (!isValidUUID(id)) return { success: false, error: 'Invalid menu item ID' };
+
   if (updates.price !== undefined && (typeof updates.price !== 'number' || isNaN(updates.price) || updates.price <= 0)) {
     return { success: false, error: 'Price must be a valid number greater than zero.' };
   }
@@ -188,7 +210,8 @@ export async function deleteMenuItem(id: string) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
 
-  // Soft delete per user request (is_available = false)
+  if (!isValidUUID(id)) return { success: false, error: 'Invalid menu item ID' };
+
   const { error } = await supabaseAdmin
     .from('menu_items')
     .update({ is_available: false })
@@ -213,13 +236,11 @@ export async function uploadDishImage(formData: FormData) {
     return { success: false, error: 'No file provided' };
   }
 
-  // File validation
   const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
   if (!validTypes.includes(file.type)) {
     return { success: false, error: 'Invalid file type. Please upload an image (JPG, PNG, WebP).' };
   }
 
-  // Max size: 2MB for performance
   if (file.size > 2 * 1024 * 1024) {
     return { success: false, error: 'Image too large. Max size is 2MB.' };
   }

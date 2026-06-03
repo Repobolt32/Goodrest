@@ -10,7 +10,11 @@ const mocks = vi.hoisted(() => ({
   mockUpdate: vi.fn(),
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
-  mockCookies: vi.fn(),
+}));
+
+const authMocks = vi.hoisted(() => ({
+  verifyCustomerSession: vi.fn(),
+  signCustomerSession: vi.fn(),
 }));
 
 const rzpMocks = vi.hoisted(() => ({
@@ -18,11 +22,20 @@ const rzpMocks = vi.hoisted(() => ({
   validatePaymentVerification: vi.fn(() => true),
 }));
 
+const distanceMocks = vi.hoisted(() => ({
+  getGoogleMapsRouteData: vi.fn().mockResolvedValue({ distanceKm: 2.5, durationSeconds: 300 }),
+}));
+
 vi.mock('@/lib/supabaseAdmin', () => ({
   supabaseAdmin: {
     from: mocks.mockFrom,
     rpc: mocks.mockRpc,
   },
+}));
+
+vi.mock('@/lib/auth', () => ({
+  verifyCustomerSession: authMocks.verifyCustomerSession,
+  signCustomerSession: authMocks.signCustomerSession,
 }));
 
 vi.mock('jose', () => ({
@@ -46,7 +59,19 @@ vi.mock('next/cache', () => ({
 }));
 
 vi.mock('next/headers', () => ({
-  cookies: () => mocks.mockCookies(),
+  cookies: vi.fn().mockResolvedValue({
+    set: vi.fn(),
+    get: vi.fn(),
+    delete: vi.fn(),
+  }),
+}));
+
+vi.mock('@/lib/rateLimit', () => ({
+  rateLimit: vi.fn(() => ({ allowed: true, remaining: 9 })),
+}));
+
+vi.mock('@/app/actions/distanceActions', () => ({
+  getGoogleMapsRouteData: distanceMocks.getGoogleMapsRouteData,
 }));
 
 import {
@@ -88,9 +113,14 @@ describe('orderActions', () => {
     mocks.mockIn.mockReset();
     mocks.mockSingle.mockReset();
     mocks.mockRpc.mockReset();
-    mocks.mockCookies.mockReset();
     rzpMocks.razorpayOrdersCreate.mockReset();
     rzpMocks.validatePaymentVerification.mockReset();
+    distanceMocks.getGoogleMapsRouteData.mockReset();
+    distanceMocks.getGoogleMapsRouteData.mockResolvedValue({ distanceKm: 2.5, durationSeconds: 300 });
+    authMocks.verifyCustomerSession.mockReset();
+    authMocks.verifyCustomerSession.mockResolvedValue({ success: true, session: { phone: '1234567890' } });
+    authMocks.signCustomerSession.mockReset();
+    authMocks.signCustomerSession.mockResolvedValue('mock-jwt-token-customer');
 
     mocks.mockFrom.mockReturnValue(chain);
     mocks.mockSelect.mockReturnValue(chain);
@@ -114,9 +144,6 @@ describe('orderActions', () => {
     });
     mocks.mockIn.mockResolvedValue({ data: [{ id: 'item1', price: 200 }], error: null });
     mocks.mockRpc.mockResolvedValue({ data: 'order-1', error: null });
-    mocks.mockCookies.mockResolvedValue({
-      get: (name: string) => (name === 'admin_session' ? { value: 'valid-admin-jwt' } : undefined),
-    });
     rzpMocks.razorpayOrdersCreate.mockResolvedValue({ id: 'rzp_test_order_123' });
     rzpMocks.validatePaymentVerification.mockReturnValue(true);
   });
@@ -155,6 +182,36 @@ describe('orderActions', () => {
       await createOrder({ ...validInput, payment_method: 'cod' });
       const rpcCall = mocks.mockRpc.mock.calls[0][1];
       expect(rpcCall.p_order.order_status).toBe('confirmed');
+    });
+
+    it('should set customer_session cookie on successful order creation', async () => {
+      mocks.mockRpc.mockResolvedValue({ data: 'test-order-id-123', error: null });
+      const mockSet = vi.fn();
+      const { cookies } = await import('next/headers');
+      vi.mocked(cookies).mockResolvedValue({
+        set: mockSet,
+        get: vi.fn(),
+        delete: vi.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      const result = await createOrder(validInput);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.id).toBe('test-order-id-123');
+      expect(authMocks.signCustomerSession).toHaveBeenCalledWith('1234567890');
+      expect(authMocks.signCustomerSession).toHaveBeenCalledTimes(1);
+      expect(mockSet).toHaveBeenCalledWith(
+        'customer_session',
+        'mock-jwt-token-customer',
+        {
+          httpOnly: true,
+          secure: false,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        }
+      );
     });
 
     it('should set online payment orders as created (pending payment)', async () => {
@@ -383,7 +440,7 @@ describe('orderActions', () => {
 
       expect(result.success).toBe(true);
       const rpcCall = mocks.mockRpc.mock.calls[0][1];
-      expect(rpcCall.p_order.total_amount).toBe(400);
+      expect(rpcCall.p_order.total_amount).toBe(435); // 400 items + 35 delivery fee (2.5km mock)
     });
 
     it('should reject order with zero quantity item', async () => {
@@ -482,7 +539,7 @@ describe('orderActions', () => {
         error: null,
       });
 
-      const result = await cancelOrder('order-1', 'Already cancelled', '1234567890');
+      const result = await cancelOrder('order-1', 'Already cancelled');
       expect(result.success).toBe(true);
       expect(result.message).toBe('Order is already cancelled');
     });
@@ -493,14 +550,45 @@ describe('orderActions', () => {
         error: null,
       });
 
-      const result = await cancelOrder('order-1', 'Too late', '1234567890');
+      const result = await cancelOrder('order-1', 'Too late');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Cannot cancel');
+    });
+
+    it('cancelOrder rejects when session phone does not match order customer_phone', async () => {
+      authMocks.verifyCustomerSession.mockResolvedValueOnce({ success: true, session: { phone: '9999999999' } });
+      mocks.mockSingle.mockResolvedValueOnce({
+        data: { id: 'order-1', order_status: 'confirmed', customer_phone: '1234567890' },
+        error: null,
+      });
+
+      const result = await cancelOrder('order-1', 'Wrong user');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Not authorized');
+    });
+
+    it('cancelOrder rejects when no customer session exists', async () => {
+      authMocks.verifyCustomerSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+
+      const result = await cancelOrder('order-1', 'No session');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Not authorized');
     });
   });
 
   describe('updateRefundStatus', () => {
     it('should update refund_status for cancelled order', async () => {
+      const { cookies } = await import('next/headers');
+      vi.mocked(cookies).mockResolvedValue({
+        set: vi.fn(),
+        get: vi.fn().mockImplementation((name: string) => {
+          if (name === 'admin_session') return { value: 'valid-admin-token' };
+          return undefined;
+        }),
+        delete: vi.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
       mocks.mockSingle
         .mockResolvedValueOnce({ data: { id: 'order-1', order_status: 'cancelled' }, error: null })
         .mockResolvedValueOnce({ data: { id: 'order-1', refund_status: 'refunded' }, error: null });
@@ -511,6 +599,17 @@ describe('orderActions', () => {
     });
 
     it('should reject update for non-cancelled order', async () => {
+      const { cookies } = await import('next/headers');
+      vi.mocked(cookies).mockResolvedValue({
+        set: vi.fn(),
+        get: vi.fn().mockImplementation((name: string) => {
+          if (name === 'admin_session') return { value: 'valid-admin-token' };
+          return undefined;
+        }),
+        delete: vi.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
       mocks.mockSingle.mockResolvedValueOnce({
         data: { id: 'order-1', order_status: 'confirmed' },
         error: null,
@@ -522,13 +621,69 @@ describe('orderActions', () => {
     });
 
     it('should reject without admin session', async () => {
-      mocks.mockCookies.mockResolvedValueOnce({
-        get: () => undefined,
-      });
+      const { cookies } = await import('next/headers');
+      vi.mocked(cookies).mockResolvedValue({
+        set: vi.fn(),
+        get: vi.fn().mockReturnValue(undefined),
+        delete: vi.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
       const result = await updateRefundStatus('order-1', 'refunded');
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
+    });
+  });
+
+  describe('Server-side delivery fee & input sanitization', () => {
+    // Tracer bullet: input names/address with HTML are sanitized before DB insert
+    it('should sanitize script tags in customer_name and delivery_address', async () => {
+      mocks.mockIn.mockResolvedValueOnce({
+        data: [{ id: 'item1', price: 200 }],
+        error: null,
+      });
+
+      const result = await createOrder({
+        ...validInput,
+        customer_name: '<script>alert("xss")</script>Test',
+        delivery_address: '123 <img src=x onerror=alert(1)> Street',
+      });
+      expect(result.success).toBe(true);
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.customer_name).not.toContain('<');
+      expect(rpcCall.p_order.delivery_address).not.toContain('<');
+    });
+
+    it('should save distance_km and duration_seconds on order creation', async () => {
+      mocks.mockIn.mockResolvedValueOnce({
+        data: [{ id: 'item1', price: 200 }],
+        error: null,
+      });
+
+      const result = await createOrder({ ...validInput, lat: 24.79, lng: 85.01 });
+      expect(result.success).toBe(true);
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.distance_km).toBeDefined();
+      expect(rpcCall.p_order.duration_seconds).toBeDefined();
+    });
+
+    it('should add delivery fee to total_amount on order creation', async () => {
+      // Mock menu_items price fetch (terminal: .in())
+      mocks.mockIn.mockResolvedValueOnce({
+        data: [{ id: 'item1', price: 200 }],
+        error: null,
+      });
+      // Mock restaurant_settings online_status check (terminal: .single())
+      mocks.mockSingle.mockResolvedValueOnce({
+        data: { online_status: true },
+        error: null,
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      const serverTotal = rpcCall.p_order.total_amount;
+      expect(serverTotal).toBeGreaterThanOrEqual(400); // includes delivery fee
     });
   });
 });

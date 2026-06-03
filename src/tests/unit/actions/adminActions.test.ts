@@ -45,6 +45,9 @@ import {
   uploadDishImage,
 } from '@/app/actions/adminActions';
 
+const VALID_ORDER = 'a1b2c3d4-e5f6-7890-1234-567890abcdef';
+const VALID_ITEM = 'b1c2d3e4-f5a6-7890-1234-567890abcdef';
+
 describe('adminActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -68,14 +71,14 @@ describe('adminActions', () => {
   describe('auth guards', () => {
     it('should reject updateOrderStatus without session', async () => {
       mocks.mockVerifyAdminSession.mockResolvedValue({ success: false, error: 'Unauthorized' });
-      const result = await updateOrderStatus('order-1', 'preparing');
+      const result = await updateOrderStatus(VALID_ORDER, 'preparing');
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
     });
 
     it('should reject deleteOrder without session', async () => {
       mocks.mockVerifyAdminSession.mockResolvedValue({ success: false, error: 'Unauthorized' });
-      const result = await deleteOrder('order-1');
+      const result = await deleteOrder(VALID_ORDER);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
     });
@@ -101,23 +104,57 @@ describe('adminActions', () => {
   describe('updateOrderStatus', () => {
     it('should update order status', async () => {
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
-      const result = await updateOrderStatus('order-1', 'preparing');
+      const result = await updateOrderStatus(VALID_ORDER, 'preparing');
       expect(result.success).toBe(true);
     });
 
     it('should return error on DB failure', async () => {
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: { message: 'DB error' } }));
-      const result = await updateOrderStatus('order-1', 'preparing');
+      const result = await updateOrderStatus(VALID_ORDER, 'preparing');
       expect(result.success).toBe(false);
       expect(result.error).toBe('DB error');
+    });
+
+    // Tracer bullet: reject non-UUID orderId
+    it('should reject non-UUID orderId', async () => {
+      const result = await updateOrderStatus('not-a-uuid', 'confirmed');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Invalid order ID');
+    });
+
+    // Tracer bullet: reject invalid status values
+    it('should reject invalid status values', async () => {
+      const result = await updateOrderStatus(VALID_ORDER, 'hacked');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Invalid status');
+    });
+
+    it('should update with whitelisted status', async () => {
+      mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
+      const result = await updateOrderStatus(VALID_ORDER, 'confirmed');
+      expect(result.success).toBe(true);
     });
   });
 
   describe('updatePaymentStatus', () => {
     it('should update payment status', async () => {
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
-      const result = await updatePaymentStatus('order-1', 'paid');
+      const result = await updatePaymentStatus(VALID_ORDER, 'paid');
       expect(result.success).toBe(true);
+    });
+
+    // Tracer bullet: reject non-UUID orderId
+    it('should reject non-UUID orderId', async () => {
+      const result = await updatePaymentStatus('not-a-uuid', 'paid');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Invalid order ID');
+    });
+
+    // Tracer bullet: reject invalid payment status values
+    it('should reject invalid payment status values', async () => {
+      const result = await updatePaymentStatus(VALID_ORDER, 'hacked');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Invalid payment status');
     });
   });
 
@@ -125,7 +162,7 @@ describe('adminActions', () => {
     it('should soft delete order by setting deleted_at', async () => {
       const mockIs = vi.fn().mockResolvedValue({ error: null });
       mocks.mockEq.mockReturnValue({ is: mockIs });
-      const result = await deleteOrder('order-1');
+      const result = await deleteOrder(VALID_ORDER);
       expect(result.success).toBe(true);
     });
   });
@@ -133,21 +170,22 @@ describe('adminActions', () => {
   describe('toggleItemAvailability', () => {
     it('should toggle menu item availability', async () => {
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
-      const result = await toggleItemAvailability('item-1', false);
+      const result = await toggleItemAvailability(VALID_ITEM, false);
       expect(result.success).toBe(true);
     });
 
     it('should return error on DB failure', async () => {
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: { message: 'DB error' } }));
-      const result = await toggleItemAvailability('item-1', false);
+      const result = await toggleItemAvailability(VALID_ITEM, false);
       expect(result.success).toBe(false);
+      expect(result.error).toBe('DB error');
     });
   });
 
   describe('updateItemPrice', () => {
     it('should update item price', async () => {
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
-      const result = await updateItemPrice('item-1', 250);
+      const result = await updateItemPrice(VALID_ITEM, 250);
       expect(result.success).toBe(true);
     });
   });
@@ -155,17 +193,17 @@ describe('adminActions', () => {
   describe('addMenuItem', () => {
     it('should add menu item successfully', async () => {
       const newItem = { name: 'Pizza', price: 200, category: 'Main Course', is_available: true };
-      mocks.mockInsert.mockReturnValue({ select: () => ({ single: () => Promise.resolve({ data: { id: 'item-1', ...newItem }, error: null }) }) });
+      mocks.mockInsert.mockReturnValue({ select: () => ({ single: () => Promise.resolve({ data: { id: VALID_ITEM, ...newItem }, error: null }) }) });
       const result = await addMenuItem(newItem);
       expect(result.success).toBe(true);
-      expect(result.data?.id).toBe('item-1');
+      expect(result.data?.id).toBe(VALID_ITEM);
     });
   });
 
   describe('updateMenuItem', () => {
     it('should update existing menu item', async () => {
-      mocks.mockEq.mockReturnValue({ select: () => ({ single: () => Promise.resolve({ data: { id: 'item-1', name: 'Updated Pizza' }, error: null }) }) });
-      const result = await updateMenuItem('item-1', { name: 'Updated Pizza' });
+      mocks.mockEq.mockReturnValue({ select: () => ({ single: () => Promise.resolve({ data: { id: VALID_ITEM, name: 'Updated Pizza' }, error: null }) }) });
+      const result = await updateMenuItem(VALID_ITEM, { name: 'Updated Pizza' });
       expect(result.success).toBe(true);
     });
   });
@@ -183,7 +221,7 @@ describe('adminActions', () => {
   describe('deleteMenuItem', () => {
     it('should soft delete (set is_available=false)', async () => {
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
-      const result = await deleteMenuItem('item-1');
+      const result = await deleteMenuItem(VALID_ITEM);
       expect(result.success).toBe(true);
     });
   });

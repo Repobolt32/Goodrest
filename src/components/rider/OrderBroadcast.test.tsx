@@ -50,11 +50,15 @@ vi.mock('@/app/actions/riderActions', () => ({
   getUnassignedOrders: vi.fn(() => Promise.resolve([])),
 }));
 
-vi.mock('lucide-react', () => ({
-  Bell: () => null,
-  Check: () => null,
-  X: () => null,
-}));
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    Bell: () => null,
+    Check: () => null,
+    X: () => null,
+  };
+});
 
 const mockOrder = {
   id: 'order-1',
