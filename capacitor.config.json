@@ -4,7 +4,7 @@
   "webDir": "out",
   "overrideUserAgent": "cloudflared-tunnel",
   "server": {
-    "url": "https://wit-exist-thousand-viewpicture.trycloudflare.com/rider/dashboard",
+    "url": "https://blues-thou-corp-dock.trycloudflare.com/rider/dashboard",
     "cleartext": true
   }
 }
