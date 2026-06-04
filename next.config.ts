@@ -51,7 +51,22 @@ const nextConfig: NextConfig = {
     ];
 
     return [
-      // Rider routes: relaxed CSP for Capacitor WebView (WiFi IP + tunnel fallback)
+      // All other routes: strict CSP (must come first so specific routes can override)
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com; frame-ancestors 'none';",
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          ...sharedSecurityHeaders,
+        ],
+      },
+      // Rider routes: relaxed CSP overrides global for Capacitor WebView
       {
         source: '/rider/:path*',
         headers: [
@@ -89,21 +104,6 @@ const nextConfig: NextConfig = {
           {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type',
-          },
-          ...sharedSecurityHeaders,
-        ],
-      },
-      // All other routes: strict CSP
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self' http://192.168.29.229:3001; script-src 'self' 'unsafe-eval' 'unsafe-inline' http://192.168.29.229:3001; style-src 'self' 'unsafe-inline' http://192.168.29.229:3001; img-src 'self' data: blob: https: http://192.168.29.229:3001; font-src 'self' data: http://192.168.29.229:3001; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com http://192.168.29.229:3001; frame-ancestors 'none';",
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
           },
           ...sharedSecurityHeaders,
         ],
