@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AlertTriangle, 
@@ -13,7 +13,10 @@ import {
   User,
   ShoppingBag
 } from 'lucide-react';
-import type { OrderRecord } from '@/types/orders';
+import { supabase } from '@/lib/supabase';
+import { toOrderRecord } from '@/types/orders';
+import type { OrderRecord, OrderRow } from '@/types/orders';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { updateRefundStatus } from '@/app/actions/orderActions';
 
 interface CancelledOrdersClientProps {
@@ -24,6 +27,54 @@ export default function CancelledOrdersClient({ initialOrders }: CancelledOrders
   const [orders, setOrders] = useState<OrderRecord[]>(initialOrders);
   const [activeTab, setActiveTab] = useState<'pending' | 'refunded'>('pending');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Sync initialOrders prop if changed
+  useEffect(() => {
+    setOrders(initialOrders);
+  }, [initialOrders]);
+
+  // Realtime subscription
+  useEffect(() => {
+    const uniqueId = Math.random().toString(36).substring(2, 10);
+    const channel = supabase
+      .channel(`cancelled_orders_realtime_${uniqueId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload: RealtimePostgresChangesPayload<OrderRow>) => {
+          if (payload.eventType === 'INSERT') {
+            const newOrder = toOrderRecord(payload.new as OrderRow);
+            if (newOrder.order_status === 'cancelled') {
+              setOrders((prev) => {
+                if (prev.some((o) => o.id === newOrder.id)) return prev;
+                return [newOrder, ...prev];
+              });
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = toOrderRecord(payload.new as OrderRow);
+            if (updated.order_status === 'cancelled') {
+              setOrders((prev) => {
+                const exists = prev.some((o) => o.id === updated.id);
+                if (exists) {
+                  return prev.map((o) => (o.id === updated.id ? updated : o));
+                }
+                return [updated, ...prev];
+              });
+            } else {
+              // If status changed away from cancelled, remove it from this list
+              setOrders((prev) => prev.filter((o) => o.id !== updated.id));
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Filter orders based on refund_status column (defaulting null or undefined to 'pending' if order is cancelled)
   const pendingOrders = orders.filter(
