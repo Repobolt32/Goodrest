@@ -4,7 +4,7 @@
   "webDir": "out",
   "overrideUserAgent": "cloudflared-tunnel",
   "server": {
-    "url": "https://antibody-convenience-tracy-myspace.trycloudflare.com/rider/login",
+    "url": "http://192.168.29.229:3001/rider/login",
     "cleartext": true
   }
 }
