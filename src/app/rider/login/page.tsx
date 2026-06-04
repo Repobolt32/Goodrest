@@ -19,14 +19,34 @@ export default function RiderLoginPage() {
     setLoading(true);
     setError(null);
     
-    const result = await loginRider(phone, password);
-    
-    if (result.success) {
-      // In a real app, the server action would set the cookie
-      localStorage.setItem('rider_session', JSON.stringify(result.rider));
-      router.push('/rider/dashboard');
-    } else {
-      setError(result.error || 'Login failed');
+    try {
+      // REST endpoint — reliable through Cloudflare tunnel
+      const res = await fetch('/api/rider/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password }),
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        localStorage.setItem('rider_session', JSON.stringify(result.rider));
+        router.push('/rider/dashboard');
+      } else {
+        setError(result.error || 'Login failed');
+      }
+    } catch {
+      // Fallback: server action (works in local dev without tunnel)
+      try {
+        const result = await loginRider(phone, password);
+        if (result.success) {
+          localStorage.setItem('rider_session', JSON.stringify(result.rider));
+          router.push('/rider/dashboard');
+        } else {
+          setError(result.error || 'Login failed');
+        }
+      } catch {
+        setError('Connection failed. Check your network.');
+      }
     }
     setLoading(false);
   };
