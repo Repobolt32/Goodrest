@@ -35,8 +35,8 @@ export default function RiderLoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+      <motion.div
+        initial={{ y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="glass-card w-full max-w-md p-8 relative overflow-hidden"
       >
@@ -79,7 +79,7 @@ export default function RiderLoginPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={loading}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors cursor-pointer disabled:opacity-50 focus:outline-none"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors cursor-pointer disabled:opacity-50 focus:outline-none z-10"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
