@@ -51,9 +51,9 @@ const nextConfig: NextConfig = {
     ];
 
     return [
-      // All other routes: strict CSP (must come first so specific routes can override)
+      // All other routes: strict CSP (excludes rider web app and api routes)
       {
-        source: '/:path*',
+        source: '/((?!rider|api/rider).*)',
         headers: [
           {
             key: 'Content-Security-Policy',
