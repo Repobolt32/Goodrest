@@ -34,38 +34,36 @@ export default function RiderLoginPage() {
   const inputType = showPassword ? 'text' : 'password';
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#1C1C1C] flex items-center justify-center p-6">
       <motion.div
         initial={{ y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card w-full max-w-md p-8 relative overflow-hidden"
+        className="bg-[#252525] border border-[#363636] rounded-2xl w-full max-w-md p-8 relative overflow-hidden"
       >
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-red-500/10 blur-[100px] rounded-full" />
-        
-        <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Rider Access</h1>
-        <p className="text-slate-400 text-sm mb-8 font-medium">Log in to your dashboard to start deliveries.</p>
+        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Rider Access</h1>
+        <p className="text-[#9C9C9C] text-sm mb-8 font-normal">Log in to your dashboard to start deliveries.</p>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold">
+          <div className="mb-6 p-4 bg-[#E23744]/10 border border-[#E23744]/20 rounded-xl text-[#E23744] text-xs font-medium">
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-6 relative z-10">
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Phone Number</label>
+            <label className="block text-xs font-medium text-[#9C9C9C] mb-2">Phone Number</label>
             <input 
               type="text" 
               placeholder="Phone Number" 
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={loading}
-              className="w-full px-4 py-3.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white font-bold outline-none focus:ring-1 ring-red-500/50 transition-all placeholder:text-slate-700 disabled:opacity-50"
+              className="w-full px-4 py-3.5 bg-[#2C2C2C] border border-[#363636] rounded-xl text-white font-medium outline-none focus:ring-1 focus:ring-[#E23744]/50 transition-all placeholder:text-[#696969] disabled:opacity-50"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Password</label>
+            <label className="block text-xs font-medium text-[#9C9C9C] mb-2">Password</label>
             <div className="relative">
               <input 
                 type={inputType} 
@@ -73,7 +71,7 @@ export default function RiderLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                className="w-full pl-4 pr-12 py-3.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white font-bold outline-none focus:ring-1 ring-red-500/50 transition-all placeholder:text-slate-700 disabled:opacity-50"
+                className="w-full pl-4 pr-12 py-3.5 bg-[#2C2C2C] border border-[#363636] rounded-xl text-white font-medium outline-none focus:ring-1 focus:ring-[#E23744]/50 transition-all placeholder:text-[#696969] disabled:opacity-50"
               />
               <button
                 type="button"
@@ -90,7 +88,7 @@ export default function RiderLoginPage() {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-white text-slate-950 rounded-xl font-black uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5 disabled:opacity-50"
+            className="w-full py-4 bg-[#E23744] hover:bg-[#CB202D] text-white rounded-xl font-semibold uppercase tracking-wider text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-[#E23744]/10 disabled:opacity-50"
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>

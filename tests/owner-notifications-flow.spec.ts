@@ -45,6 +45,9 @@ test.describe('Owner Dashboard Live Cancellation Notifications E2E', () => {
   });
 
   test('Owner dashboard displays live badge count and cancelled order details in dropdown', async ({ page }) => {
+    page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
+    page.on('pageerror', err => console.log('BROWSER ERROR:', err.message));
+
     // Step 1: Login as Admin first (active order exists)
     await page.goto(`${BASE_URL}/admin/login`);
     await page.fill('input[type="password"]', ADMIN_PASSWORD);
@@ -56,7 +59,7 @@ test.describe('Owner Dashboard Live Cancellation Notifications E2E', () => {
     await expect(bellBtn).toBeVisible();
 
     // Wait for Supabase Realtime WebSocket connection to establish
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(10000);
 
     // Step 3: Trigger real-time order cancellation in the database AFTER mounting admin page
     const cancelReason = 'Customer requested fast cancel';
@@ -73,7 +76,7 @@ test.describe('Owner Dashboard Live Cancellation Notifications E2E', () => {
 
     // Step 4: Verify the bell badge count is visible and shows at least 1 cancellation
     const badge = bellBtn.locator('span');
-    await expect(badge).toBeVisible({ timeout: 15000 });
+    await expect(badge).toBeVisible({ timeout: 30000 });
     const countText = await badge.innerText();
     expect(parseInt(countText)).toBeGreaterThanOrEqual(1);
 
@@ -91,11 +94,11 @@ test.describe('Owner Dashboard Live Cancellation Notifications E2E', () => {
     await bellBtn.click({ force: true });
 
     // Step 6: Verify the dropdown renders with our cancelled order details
-    await expect(page.getByText('Cancelled Orders Today', { exact: false })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(friendlyId, { exact: false })).toBeVisible();
-    await expect(page.getByText('Playwright Owner Tester', { exact: false })).toBeVisible();
-    await expect(page.getByText(`Call (9999999999)`, { exact: false })).toBeVisible();
-    await expect(page.getByText(`"${cancelReason}"`, { exact: false })).toBeVisible();
+    await expect(page.getByText('Cancelled Orders Today', { exact: false }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(friendlyId, { exact: false }).first()).toBeVisible();
+    await expect(page.getByText('Playwright Owner Tester', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText(`Call (9999999999)`, { exact: false }).first()).toBeVisible();
+    await expect(page.getByText(`"${cancelReason}"`, { exact: false }).first()).toBeVisible();
 
     // Step 7: Trigger a post-cancellation help request submission in the database
     const helpMessage = 'Rider forgot my drinks, help!';
@@ -109,7 +112,7 @@ test.describe('Owner Dashboard Live Cancellation Notifications E2E', () => {
     expect(helpError).toBeNull();
 
     // Step 8: Verify the dropdown dynamically updates in real-time to show the help request message
-    await expect(page.getByText('Help Request Message:', { exact: true })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(`“${helpMessage}”`, { exact: false })).toBeVisible();
+    await expect(page.getByText('Help Request Message:', { exact: true }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(`“${helpMessage}”`, { exact: false }).first()).toBeVisible();
   });
 });

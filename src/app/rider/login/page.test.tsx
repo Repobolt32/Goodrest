@@ -25,7 +25,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 vi.mock('lucide-react', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal() as Record<string, unknown>;
   return {
     ...actual,
     Eye: () => null,

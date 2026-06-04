@@ -35,7 +35,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 vi.mock('lucide-react', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal() as Record<string, unknown>;
   return {
     ...actual,
     Bike: () => null,
@@ -196,7 +196,7 @@ describe('RiderDashboardPage', () => {
   });
 
   // ─── Tab Bar Styling ────────────────────────────────────────────
-  it('should highlight active tab with emerald color', async () => {
+  it('should highlight active tab with Zomato red color', async () => {
     render(<RiderDashboardPage />);
 
     await screen.findByTestId('terminal-view');
@@ -204,9 +204,9 @@ describe('RiderDashboardPage', () => {
     const terminalBtn = screen.getByText('Terminal').closest('button');
     const earningsBtn = screen.getByText('Earnings').closest('button');
 
-    // Terminal should be active (emerald)
-    expect(terminalBtn!.className).toContain('text-emerald-400');
-    expect(earningsBtn!.className).toContain('text-slate-500');
+    // Terminal should be active (red)
+    expect(terminalBtn!.className).toContain('text-[#E23744]');
+    expect(earningsBtn!.className).toContain('text-[#696969]');
 
     // Click Earnings
     fireEvent.click(screen.getByText('Earnings'));
@@ -215,7 +215,7 @@ describe('RiderDashboardPage', () => {
     const newEarningsBtn = screen.getByText('Earnings').closest('button');
     const newTerminalBtn = screen.getByText('Terminal').closest('button');
 
-    expect(newEarningsBtn!.className).toContain('text-emerald-400');
-    expect(newTerminalBtn!.className).toContain('text-slate-500');
+    expect(newEarningsBtn!.className).toContain('text-[#E23744]');
+    expect(newTerminalBtn!.className).toContain('text-[#696969]');
   });
 });

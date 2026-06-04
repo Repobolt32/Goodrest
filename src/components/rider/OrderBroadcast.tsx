@@ -152,16 +152,16 @@ export default function OrderBroadcast({
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/85"
         >
-          <div className="glass-card w-full max-w-sm p-8 text-center border-red-500/30">
-            <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce shadow-2xl shadow-red-500/20">
+          <div className="bg-[#252525] border border-[#363636] rounded-2xl w-full max-w-sm p-8 text-center">
+            <div className="w-20 h-20 bg-[#E23744] rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce shadow-2xl shadow-[#E23744]/20">
               <Bell size={40} className="text-white" />
             </div>
 
-            <h2 className="text-2xl font-black text-white mb-2">New Delivery!</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">New Delivery!</h2>
             <p className="text-white text-base font-bold mb-1">{broadcastOrder.customer_name}</p>
-            <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2">
+            <p className="text-[#9C9C9C] text-xs font-medium tracking-wide mb-2">
               Distance: {broadcastOrder.distance_km ?? '?'} km
             </p>
             {(() => {
@@ -170,11 +170,11 @@ export default function OrderBroadcast({
                 : null;
               return (
                 <div className="mb-8">
-                  <p className="text-emerald-400 text-2xl font-black">
+                  <p className="text-[#3AB757] text-2xl font-bold">
                     ₹{broadcastOrder.rider_earning ?? (bd?.total ?? 0)}
                   </p>
                   {bd && (
-                    <p className="text-slate-400 text-xs font-bold mt-1">
+                    <p className="text-[#9C9C9C] text-xs font-medium mt-1">
                       Delivery ₹{bd.deliveryFee} + Pickup Pay ₹{bd.pickupPay}
                     </p>
                   )}
@@ -185,13 +185,13 @@ export default function OrderBroadcast({
             <div className="flex gap-4">
               <button
                 onClick={handleAccept}
-                className="flex-1 py-4 bg-emerald-500 text-white rounded-xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
+                className="flex-1 py-4 bg-[#3AB757] hover:bg-[#2b9241] text-white rounded-xl font-semibold uppercase tracking-wider text-xs flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#3AB757]/20"
               >
                 <Check size={18} /> Accept
               </button>
               <button
                 onClick={handleReject}
-                className="flex-1 py-4 bg-slate-900 text-slate-400 rounded-xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all"
+                className="flex-1 py-4 bg-[#2C2C2C] border border-[#363636] text-[#9C9C9C] rounded-xl font-semibold uppercase tracking-wider text-xs flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all"
               >
                 <X size={18} /> Reject
               </button>

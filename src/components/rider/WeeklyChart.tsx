@@ -36,8 +36,8 @@ export default function WeeklyChart({ data }: WeeklyChartProps) {
   const svgHeight = chartHeight + paddingTop + paddingBottom;
 
   return (
-    <div className="glass-card p-5 border-slate-800/50 mb-6">
-      <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4">
+    <div className="bg-[#252525] border border-[#363636] rounded-2xl p-5 mb-6">
+      <h3 className="text-sm font-semibold text-[#9C9C9C] normal-case tracking-wide mb-4">
         📊 This Week
       </h3>
 
@@ -64,7 +64,7 @@ export default function WeeklyChart({ data }: WeeklyChartProps) {
                   width={barWidth}
                   height={Math.max(barHeight, 2)}
                   rx={6}
-                  fill={day.total > 0 ? (isToday ? 'url(#barGradientToday)' : 'url(#barGradient)') : '#1e293b'}
+                  fill={day.total > 0 ? (isToday ? 'url(#barGradientToday)' : 'url(#barGradient)') : '#2C2C2C'}
                   className="transition-all duration-300"
                   opacity={isActive ? 1 : 0.85}
                 />
@@ -74,7 +74,7 @@ export default function WeeklyChart({ data }: WeeklyChartProps) {
                   x={x + barWidth / 2}
                   y={svgHeight - 4}
                   textAnchor="middle"
-                  className="fill-slate-500 text-[10px] font-bold"
+                  className="fill-[#9C9C9C] text-xs font-medium"
                 >
                   {DAY_LABELS[i]}
                 </text>
@@ -85,7 +85,7 @@ export default function WeeklyChart({ data }: WeeklyChartProps) {
                     x={x + barWidth / 2}
                     y={y - 6}
                     textAnchor="middle"
-                    className={`text-[9px] font-black ${isActive ? 'fill-white' : 'fill-slate-500'}`}
+                    className={`text-xs font-medium ${isActive ? 'fill-white' : 'fill-[#9C9C9C]'}`}
                   >
                     ₹{day.total}
                   </text>
@@ -93,11 +93,11 @@ export default function WeeklyChart({ data }: WeeklyChartProps) {
 
                 {/* Tooltip on hover */}
                 {isActive && day.total > 0 && (
-                  <foreignObject x={x - 40} y={y - 52} width={110} height={40}>
-                    <div className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-center shadow-xl">
-                      <p className="text-[9px] text-white font-bold">{formatCurrency(day.total)} · {day.deliveries} orders</p>
+                  <foreignObject x={x - 40} y={y - 58} width={110} height={48}>
+                    <div className="bg-[#2C2C2C] border border-[#363636] rounded-xl px-2 py-1 text-center shadow-xl">
+                      <p className="text-xs text-white font-medium">{formatCurrency(day.total)} · {day.deliveries} orders</p>
                       {day.bonus > 0 && (
-                        <p className="text-[8px] text-emerald-400 font-bold">+₹{day.bonus} bonus</p>
+                        <p className="text-xs text-[#3AB757] font-medium">+₹{day.bonus} bonus</p>
                       )}
                     </div>
                   </foreignObject>
@@ -109,12 +109,12 @@ export default function WeeklyChart({ data }: WeeklyChartProps) {
           {/* Gradients */}
           <defs>
             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#34d399" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#059669" stopOpacity={0.7} />
+              <stop offset="0%" stopColor="#3AB757" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#2b9241" stopOpacity={0.7} />
             </linearGradient>
             <linearGradient id="barGradientToday" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6ee7b7" />
-              <stop offset="100%" stopColor="#10b981" />
+              <stop offset="0%" stopColor="#4edb6c" />
+              <stop offset="100%" stopColor="#3AB757" />
             </linearGradient>
           </defs>
         </svg>

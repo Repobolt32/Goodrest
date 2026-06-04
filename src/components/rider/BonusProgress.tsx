@@ -19,14 +19,14 @@ export default function BonusProgress({
   const maxed = nextMilestone === null;
   const tier2 = currentBonus >= 100 && !maxed;
 
-  // Bar color states: amber (tier1) → gold (tier2) → emerald (maxed)
+  // Bar color states: Zomato green (maxed) → Zomato gold (tier2)
   const barColor = maxed
-    ? 'bg-emerald-500 shadow-emerald-500/40'
+    ? 'bg-[#3AB757] shadow-[#3AB757]/40'
     : tier2
-      ? 'bg-amber-400 shadow-amber-400/40'
-      : 'bg-amber-500/80 shadow-amber-500/20';
+      ? 'bg-[#F3C117] shadow-[#F3C117]/40'
+      : 'bg-[#F3C117]/80 shadow-[#F3C117]/20';
 
-  const trackColor = 'bg-slate-800';
+  const trackColor = 'bg-[#1C1C1C]';
   const target = maxed ? 10 : nextMilestone!;
   const filled = maxed
     ? 10
@@ -36,12 +36,12 @@ export default function BonusProgress({
   const displayProgress = Math.min(progress, 1);
 
   return (
-    <div className="glass-card p-4 border-slate-800/50 mb-8">
+    <div className="bg-[#252525] border border-[#363636] rounded-2xl p-4 mb-8">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+        <span className="text-xs font-medium text-[#9C9C9C] normal-case tracking-wide">
           🏆 Nightly Bonus
         </span>
-        <span className="text-[10px] font-black text-slate-400">
+        <span className="text-xs font-medium text-[#9C9C9C]">
           {filled}/{target} deliveries
         </span>
       </div>
@@ -55,14 +55,14 @@ export default function BonusProgress({
       </div>
 
       {/* Label */}
-      <p className={`text-xs font-bold mt-2 ${maxed ? 'text-emerald-400' : 'text-slate-400'}`}>
+      <p className={`text-xs font-medium mt-2 ${maxed ? 'text-[#3AB757]' : 'text-[#9C9C9C]'}`}>
         {label}
       </p>
 
       {/* Show earned badge if tier 2+ */}
       {currentBonus > 0 && (
-        <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+        <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#3AB757]/10 border border-[#3AB757]/20">
+          <span className="text-xs font-medium text-[#3AB757] normal-case tracking-wide">
             ₹{currentBonus} earned
           </span>
         </div>

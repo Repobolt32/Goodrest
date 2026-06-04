@@ -138,7 +138,7 @@ describe('WeeklyChart', () => {
     expect(rects.length).toBe(7);
     // All bars should have fill for zero data
     rects.forEach(rect => {
-      expect(rect.getAttribute('fill')).toBe('#1e293b');
+      expect(rect.getAttribute('fill')).toBe('#2C2C2C');
     });
   });
 

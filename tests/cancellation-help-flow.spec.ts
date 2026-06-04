@@ -1,11 +1,23 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { SignJWT } from 'jose';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
+
+// Helper: generate a customer_session JWT cookie
+async function generateCustomerSessionToken(phone: string): Promise<string> {
+  const secret = new TextEncoder().encode(
+    process.env.JWT_SECRET || 'placeholder-jwt-secret-key-at-least-32-chars-long'
+  );
+  return new SignJWT({ phone })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('7d')
+    .sign(secret);
+}
 
 test.describe('Customer Cancellation & Help Flow E2E', () => {
   const BASE_URL = 'http://localhost:3005';
@@ -41,7 +53,19 @@ test.describe('Customer Cancellation & Help Flow E2E', () => {
     }
   });
 
-  test('Customer cancels order successfully and sends post-cancellation help message', async ({ page }) => {
+  test('Customer cancels order successfully and sends post-cancellation help message', async ({ page, context }) => {
+    // Inject customer_session cookie BEFORE navigating
+    const token = await generateCustomerSessionToken('9999999990');
+    await context.addCookies([{
+      name: 'customer_session',
+      value: token,
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Lax',
+    }]);
+
     // Step 1: Navigate to customer order tracking page
     await page.goto(`${BASE_URL}/track/order/${orderId}`);
 

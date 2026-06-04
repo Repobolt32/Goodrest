@@ -62,27 +62,27 @@ export default function EarningsView({
   return (
     <div className="space-y-6">
       {/* Today Summary Card */}
-      <div className="glass-card p-5 border-slate-800/50 border-l-4 border-l-emerald-500">
+      <div className="bg-[#252525] border border-[#363636] rounded-2xl p-5 border-l-4 border-l-[#3AB757]">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center">
-            <TrendingUp size={20} className="text-emerald-500" />
+          <div className="w-10 h-10 bg-[#3AB757]/10 rounded-xl flex items-center justify-center">
+            <TrendingUp size={20} className="text-[#3AB757]" />
           </div>
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Today&apos;s Earnings</span>
+          <span className="text-xs font-medium text-[#9C9C9C] normal-case tracking-wide">Today&apos;s Earnings</span>
         </div>
-        <p className="text-3xl font-black text-white">{formatCurrency(todayEarnings)}</p>
-        <p className="text-xs text-slate-400 font-bold mt-1">
+        <p className="text-3xl font-bold text-white">{formatCurrency(todayEarnings)}</p>
+        <p className="text-xs text-[#9C9C9C] font-medium mt-1">
           {todayDeliveries} deliveries · {todayDistanceKm} km · Bonus: {formatCurrency(todayBonus)}
         </p>
-        <p className="text-[10px] text-slate-500 font-bold mt-1">
+        <p className="text-xs text-[#9C9C9C] font-medium mt-1">
           Delivery: {formatCurrency(todayDeliveryFees)} + Pickup Pay: {formatCurrency(todayPickupPay)}
         </p>
       </div>
 
       {/* Weekly Chart */}
       {loading ? (
-        <div className="glass-card p-5 border-slate-800/50 animate-pulse">
-          <div className="h-4 w-24 bg-slate-800 rounded mb-4" />
-          <div className="h-40 bg-slate-800/50 rounded-xl" />
+        <div className="bg-[#252525] border border-[#363636] rounded-2xl p-5 animate-pulse">
+          <div className="h-4 w-24 bg-[#2C2C2C] rounded mb-4" />
+          <div className="h-40 bg-[#2C2C2C]/50 rounded-xl" />
         </div>
       ) : (
         <WeeklyChart data={weekly.map(d => ({ date: d.date, deliveries: d.deliveries, total: d.total, bonus: d.bonus }))} />
@@ -90,26 +90,26 @@ export default function EarningsView({
 
       {/* Daily Breakdown Accordion */}
       {!loading && (
-        <div className="glass-card border-slate-800/50 overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-800/50">
-            <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+        <div className="bg-[#252525] border border-[#363636] rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#363636]">
+            <h3 className="text-sm font-semibold text-[#9C9C9C] normal-case tracking-wide">
               Daily Breakdown
             </h3>
           </div>
 
           {weekly.filter(d => d.deliveries > 0).reverse().map((day) => (
-            <div key={day.date} className="border-b border-slate-800/30 last:border-0">
+            <div key={day.date} className="border-b border-[#363636]/30 last:border-0">
               <button
                 onClick={() => setExpandedDay(expandedDay === day.date ? null : day.date)}
-                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-800/30 transition-colors"
+                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#2C2C2C]/30 transition-colors"
               >
-                <span className="text-xs font-bold text-slate-300">&#128197; {formatDate(day.date)}</span>
+                <span className="text-xs font-medium text-white">&#128197; {formatDate(day.date)}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold text-slate-500">{day.deliveries} orders</span>
-                  <span className="text-xs font-black text-white">{formatCurrency(day.total)}</span>
+                  <span className="text-xs font-medium text-[#9C9C9C]">{day.deliveries} orders</span>
+                  <span className="text-xs font-bold text-white">{formatCurrency(day.total)}</span>
                   <ChevronDown
                     size={14}
-                    className={`text-slate-500 transition-transform duration-200 ${expandedDay === day.date ? 'rotate-180' : ''}`}
+                    className={`text-[#9C9C9C] transition-transform duration-200 ${expandedDay === day.date ? 'rotate-180' : ''}`}
                   />
                 </div>
               </button>
@@ -123,19 +123,19 @@ export default function EarningsView({
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="px-5 pb-4 space-y-1.5 bg-slate-800/10">
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="text-slate-500">Delivery Pay</span>
-                        <span className="text-slate-300">{formatCurrency(day.deliveryFees)}</span>
+                    <div className="px-5 pb-4 space-y-1.5 bg-[#2C2C2C]/10">
+                      <div className="flex justify-between text-xs font-medium">
+                        <span className="text-[#9C9C9C]">Delivery Pay</span>
+                        <span className="text-white">{formatCurrency(day.deliveryFees)}</span>
                       </div>
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="text-slate-500">Pickup Pay</span>
-                        <span className="text-slate-300">{formatCurrency(day.pickupPay)}</span>
+                      <div className="flex justify-between text-xs font-medium">
+                        <span className="text-[#9C9C9C]">Pickup Pay</span>
+                        <span className="text-white">{formatCurrency(day.pickupPay)}</span>
                       </div>
                       {day.bonus > 0 && (
-                        <div className="flex justify-between text-[10px] font-bold">
-                          <span className="text-emerald-500">Nightly Bonus</span>
-                          <span className="text-emerald-400">{formatCurrency(day.bonus)}</span>
+                        <div className="flex justify-between text-xs font-medium">
+                          <span className="text-[#3AB757]">Nightly Bonus</span>
+                          <span className="text-[#3AB757]">{formatCurrency(day.bonus)}</span>
                         </div>
                       )}
                     </div>
@@ -147,7 +147,7 @@ export default function EarningsView({
 
           {weekly.every(d => d.deliveries === 0) && (
             <div className="px-5 py-8 text-center">
-              <p className="text-xs text-slate-500 font-bold">No deliveries this week yet</p>
+              <p className="text-xs text-[#9C9C9C] font-medium">No deliveries this week yet</p>
             </div>
           )}
         </div>
@@ -155,12 +155,12 @@ export default function EarningsView({
 
       {/* Week Total Footer */}
       {!loading && weekTotal.total > 0 && (
-        <div className="glass-card p-4 border-slate-800/50 bg-emerald-500/5 border-emerald-500/20">
+        <div className="bg-[#252525] border border-[#363636] rounded-2xl p-4">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">This Week</span>
-            <span className="text-lg font-black text-emerald-400">{formatCurrency(weekTotal.total)}</span>
+            <span className="text-xs font-medium text-[#9C9C9C] normal-case tracking-wide">This Week</span>
+            <span className="text-lg font-bold text-[#3AB757]">{formatCurrency(weekTotal.total)}</span>
           </div>
-          <p className="text-[10px] text-slate-400 font-bold mt-1">
+          <p className="text-xs text-[#9C9C9C] font-medium mt-1">
             {weekTotal.deliveries} deliveries · Bonus: {formatCurrency(weekTotal.bonus)}
           </p>
         </div>

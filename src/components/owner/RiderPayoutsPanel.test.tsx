@@ -11,7 +11,7 @@ vi.mock('@/app/actions/ownerActions', () => ({
 }));
 
 vi.mock('lucide-react', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal() as Record<string, unknown>;
   return {
     ...actual,
     Bike: () => null,

@@ -62,28 +62,28 @@ describe('settingsActions', () => {
   describe('updateAppSettings', () => {
     // Tracer bullet: must reject unauthenticated requests
     it('should reject update without admin session', async () => {
-      (verifyAdminSession as any).mockResolvedValue({ success: false, error: 'Unauthorized: admin session required' });
+      vi.mocked(verifyAdminSession).mockResolvedValue({ success: false, error: 'Unauthorized: admin session required' });
       const result = await updateAppSettings({ max_delivery_radius: 20 });
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized: admin session required');
     });
 
     it('should update delivery radius with valid admin session', async () => {
-      (verifyAdminSession as any).mockResolvedValue({ success: true });
+      vi.mocked(verifyAdminSession).mockResolvedValue({ success: true });
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
       const result = await updateAppSettings({ max_delivery_radius: 20 });
       expect(result.success).toBe(true);
     });
 
     it('should toggle delivery enabled', async () => {
-      (verifyAdminSession as any).mockResolvedValue({ success: true });
+      vi.mocked(verifyAdminSession).mockResolvedValue({ success: true });
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
       const result = await updateAppSettings({ delivery_enabled: false });
       expect(result.success).toBe(true);
     });
 
     it('should return error on DB failure', async () => {
-      (verifyAdminSession as any).mockResolvedValue({ success: true });
+      vi.mocked(verifyAdminSession).mockResolvedValue({ success: true });
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: { message: 'DB error' } }));
       const result = await updateAppSettings({ max_delivery_radius: 20 });
       expect(result.success).toBe(false);
@@ -91,7 +91,7 @@ describe('settingsActions', () => {
     });
 
     it('should set updated_at timestamp', async () => {
-      (verifyAdminSession as any).mockResolvedValue({ success: true });
+      vi.mocked(verifyAdminSession).mockResolvedValue({ success: true });
       mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
       await updateAppSettings({ max_delivery_radius: 15 });
       const updateData = mocks.mockUpdate.mock.calls[0][0];

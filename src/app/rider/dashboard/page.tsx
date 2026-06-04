@@ -253,12 +253,12 @@ export default function RiderDashboardPage() {
   if (!rider) return null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6 pb-24">
+    <div className="min-h-screen bg-[#1C1C1C] text-white p-6 pb-24">
       {/* Header */}
       <header className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-black tracking-tight">Hi, {rider.name}</h1>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
+          <h1 className="text-2xl font-bold tracking-tight">Hi, {rider.name}</h1>
+          <p className="text-[#9C9C9C] text-xs font-medium tracking-wide mt-1">
             {isOnline ? '● Online & Ready' : '○ Currently Offline'}
           </p>
         </div>
@@ -266,7 +266,7 @@ export default function RiderDashboardPage() {
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="p-3 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            className="p-3 bg-[#252525] border border-[#363636] rounded-xl text-[#9C9C9C] hover:text-white transition-colors disabled:opacity-50"
             title="Refresh"
           >
             <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
@@ -274,7 +274,7 @@ export default function RiderDashboardPage() {
           <button
             onClick={handleLogout}
             aria-label="Logout"
-            className="p-3 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-colors"
+            className="p-3 bg-[#252525] border border-[#363636] rounded-xl text-[#9C9C9C] hover:text-white transition-colors"
           >
             <LogOut size={20} />
           </button>
@@ -307,32 +307,26 @@ export default function RiderDashboardPage() {
         />
       )}
 
-      {/* Background Decorator */}
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-500/5 blur-[120px] rounded-full" />
-        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-red-500/5 blur-[120px] rounded-full" />
-      </div>
-
       {/* Bottom Tab Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-800/50 z-40">
+      <div className="fixed bottom-0 left-0 right-0 bg-[#1C1C1C] border-t border-[#363636] z-40">
         <div className="flex max-w-lg mx-auto">
           <button
             onClick={() => setActiveTab('terminal')}
             className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors ${
-              activeTab === 'terminal' ? 'text-emerald-400' : 'text-slate-500'
+              activeTab === 'terminal' ? 'text-[#E23744]' : 'text-[#696969]'
             }`}
           >
             <Bike size={20} />
-            <span className="text-[9px] font-black uppercase tracking-widest">Terminal</span>
+            <span className="text-xs font-medium tracking-wide normal-case">Terminal</span>
           </button>
           <button
             onClick={() => setActiveTab('earnings')}
             className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors ${
-              activeTab === 'earnings' ? 'text-emerald-400' : 'text-slate-500'
+              activeTab === 'earnings' ? 'text-[#E23744]' : 'text-[#696969]'
             }`}
           >
             <BarChart3 size={20} />
-            <span className="text-[9px] font-black uppercase tracking-widest">Earnings</span>
+            <span className="text-xs font-medium tracking-wide normal-case">Earnings</span>
           </button>
         </div>
       </div>
