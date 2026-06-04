@@ -65,6 +65,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' data:",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://maps.googleapis.com",
               "frame-ancestors 'none'",
+              "frame-src 'self' https://www.google.com",
             ].join('; ') + ';',
           },
           {
