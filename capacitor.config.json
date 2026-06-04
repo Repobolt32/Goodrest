@@ -4,7 +4,7 @@
   "webDir": "out",
   "overrideUserAgent": "cloudflared-tunnel",
   "server": {
-    "url": "http://192.168.29.229:3001/rider/login",
+    "url": "https://pix-yrs-color-walking.trycloudflare.com/rider/login",
     "cleartext": true
   }
 }
