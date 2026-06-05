@@ -31,6 +31,7 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      autoplayPolicy: 'no-user-gesture-required',
     },
     title: 'Goodrest — Owner Dashboard',
     icon: path.join(__dirname, 'assets', 'icon.png'),
@@ -59,10 +60,15 @@ function createBellWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      autoplayPolicy: 'no-user-gesture-required',
     },
   });
 
   bellWindow.loadFile(path.join(__dirname, 'bell.html'));
+
+  if (isDev) {
+    bellWindow.webContents.openDevTools({ mode: 'detach' });
+  }
 
   bellWindow.on('closed', () => {
     bellWindow = null;

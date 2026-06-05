@@ -68,15 +68,19 @@ export default function OwnerDashboardClient({
               
               if (delay > 0) {
                 setTimeout(() => {
+                  let shouldTrigger = false;
                   setOrders((prev) => {
                     const existing = prev.find(o => o.id === newOrder.id);
                     if (existing) {
                       if (existing.order_status !== 'confirmed') return prev;
                       return prev;
                     }
-                    triggerBell(newOrder);
+                    shouldTrigger = true;
                     return [newOrder, ...prev];
                   });
+                  if (shouldTrigger) {
+                    triggerBell(newOrder);
+                  }
                 }, delay);
                 return;
               }
@@ -107,18 +111,22 @@ export default function OwnerDashboardClient({
 
                 if (delay > 0) {
                   setTimeout(() => {
+                    let shouldTrigger = false;
                     setOrders((current) => {
                       const currExisting = current.find(o => o.id === updated.id);
                       if (currExisting && currExisting.order_status !== 'confirmed' && currExisting.order_status !== 'created') {
                         return current;
                       }
-                      triggerBell(updated);
+                      shouldTrigger = true;
                       const exists = current.some(o => o.id === updated.id);
                       if (exists) {
                         return current.map((o) => (o.id === updated.id ? updated : o));
                       }
                       return [updated, ...current];
                     });
+                    if (shouldTrigger) {
+                      triggerBell(updated);
+                    }
                   }, delay);
                   return prev;
                 } else {
