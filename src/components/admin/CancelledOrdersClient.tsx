@@ -76,9 +76,9 @@ export default function CancelledOrdersClient({ initialOrders }: CancelledOrders
     };
   }, []);
 
-  // Filter orders based on refund_status column (defaulting null or undefined to 'pending' if order is cancelled)
+  // Filter orders based on refund_status column (defaulting null, undefined, or 'none' to 'pending' if order is cancelled)
   const pendingOrders = orders.filter(
-    (o) => !o.refund_status || o.refund_status === 'pending'
+    (o) => !o.refund_status || o.refund_status === 'pending' || o.refund_status === 'none'
   );
   const refundedOrders = orders.filter(
     (o) => o.refund_status === 'refunded'
@@ -89,7 +89,7 @@ export default function CancelledOrdersClient({ initialOrders }: CancelledOrders
   const handleToggleRefund = async (orderId: string, currentStatus: string | null) => {
     setUpdatingId(orderId);
     const nextStatus: 'pending' | 'refunded' = 
-      !currentStatus || currentStatus === 'pending' ? 'refunded' : 'pending';
+      currentStatus === 'refunded' ? 'pending' : 'refunded';
 
     const result = await updateRefundStatus(orderId, nextStatus);
     
