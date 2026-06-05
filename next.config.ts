@@ -35,30 +35,86 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    return [
+    const sharedSecurityHeaders = [
       {
-        source: '/:path*',
+        key: 'Strict-Transport-Security',
+        value: 'max-age=63072000; includeSubDomains; preload',
+      },
+      {
+        key: 'X-Content-Type-Options',
+        value: 'nosniff',
+      },
+      {
+        key: 'Referrer-Policy',
+        value: 'strict-origin-when-cross-origin',
+      },
+    ];
+
+    return [
+      // All other routes: strict CSP (excludes rider web app and api routes)
+      {
+        source: '/((?!rider|api/rider).*)',
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com; frame-ancestors 'none';",
-          },
-          {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "img-src 'self' data: blob: https: https://maps.googleapis.com https://maps.gstatic.com",
+              "font-src 'self' data: https://fonts.gstatic.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://maps.googleapis.com",
+              "frame-ancestors 'none'",
+              "frame-src 'self' https://www.google.com",
+            ].join('; ') + ';',
           },
           {
             key: 'X-Frame-Options',
             value: 'DENY',
           },
+          ...sharedSecurityHeaders,
+        ],
+      },
+      // Rider routes: relaxed CSP overrides global for Capacitor WebView
+      {
+        source: '/rider/:path*',
+        headers: [
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self' http://192.168.29.229:3001 https://*.trycloudflare.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://192.168.29.229:3001 https://*.trycloudflare.com",
+              "style-src 'self' 'unsafe-inline' http://192.168.29.229:3001 https://*.trycloudflare.com",
+              "img-src 'self' data: blob: https: http://192.168.29.229:3001",
+              "font-src 'self' data: http://192.168.29.229:3001",
+              "connect-src 'self' http://192.168.29.229:3001 https://*.trycloudflare.com https://*.supabase.co wss://*.supabase.co https://api.razorpay.com",
+              "frame-ancestors 'self' capacitor://localhost http://localhost http://192.168.29.229:3001 https://*.trycloudflare.com",
+            ].join('; ') + ';',
+          },
+          ...sharedSecurityHeaders,
+        ],
+      },
+      // API routes for rider: no frame restrictions, permissive connect
+      {
+        source: '/api/rider/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'none'; frame-ancestors 'none';",
           },
           {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
           },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'POST, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type',
+          },
+          ...sharedSecurityHeaders,
         ],
       },
     ];

@@ -49,6 +49,11 @@ export default function CheckoutForm() {
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [showMap, setShowMap] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isMapScriptLoaded, setIsMapScriptLoaded] = useState(
+    typeof window !== 'undefined' &&
+    typeof (window as unknown as { google?: { maps?: unknown } }).google !== 'undefined' &&
+    typeof (window as unknown as { google?: { maps?: unknown } }).google?.maps !== 'undefined'
+  );
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<GoogleMapInstance | null>(null);
   const markerInstanceRef = useRef<GoogleMarkerInstance | null>(null);
@@ -132,7 +137,7 @@ export default function CheckoutForm() {
       mapInstanceRef.current?.setCenter(latLng);
       markerInstanceRef.current?.setPosition(latLng);
     }
-  }, [showMap, formData.lat, formData.lng]);
+  }, [showMap, formData.lat, formData.lng, isMapScriptLoaded]);
 
 
   const detectLocation = async () => {
@@ -635,8 +640,13 @@ export default function CheckoutForm() {
       />
 
       <Script
+        id="google-maps-js"
         src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}`}
         strategy="lazyOnload"
+        onLoad={() => {
+          console.log('[GoogleMap] script loaded successfully');
+          setIsMapScriptLoaded(true);
+        }}
       />
 
 
