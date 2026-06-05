@@ -11,8 +11,8 @@ This registry consolidates all issues, edge cases, vulnerabilities, and workflow
 | **CRITICAL** | 1 | 1 | 0 |
 | **HIGH** | 5 | 5 | 0 |
 | **MEDIUM** | 2 | 1 | 1 |
-| **RUNTIME / WORKFLOW** | 3 | 2 | 1 |
-| **Total** | **11** | **9** | **2** |
+| **RUNTIME / WORKFLOW** | 3 | 3 | 0 |
+| **Total** | **11** | **10** | **1** |
 
 ---
 
@@ -110,10 +110,10 @@ This registry consolidates all issues, edge cases, vulnerabilities, and workflow
 
 ### FLOW-01 — Lack of Handover Control (Dispatch Workflow Mismatch)
 * **Severity:** **HIGH / WORKFLOW**
-* **Status:** ⚠️ **OPEN / DESIGN APPROVED**
+* **Status:** ✅ **SOLVED** (Fixed on 2026-06-05)
 * **Issue:** Currently, as soon as a rider accepts an order, they can click "Start Riding" directly from their app. Practically, if the restaurant owner hasn't finished preparing the food or clicked "Dispatch", this causes synchronization issues, false customer alerts, and metric manipulation.
-* **Proposed Fix:** Update `dispatchOrder` in `ownerActions.ts` to set `manual_dispatch = true`. Disable the rider's "Start Riding" button until `manual_dispatch` is true, displaying `⏳ Waiting for Restaurant Handover...` to prevent pre-handover dispatches.
+* **Resolution:** Updated `dispatchOrder` in `ownerActions.ts` to set `manual_dispatch = true`. Disabled the rider's "Start Riding" button until `manual_dispatch` is true, displaying `⏳ Waiting for Restaurant Handover...` to prevent pre-handover dispatches.
 
 ---
 
-*Registry updated: 2026-06-02*
+*Registry updated: 2026-06-05*
