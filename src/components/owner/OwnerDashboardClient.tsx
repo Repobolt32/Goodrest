@@ -91,13 +91,56 @@ export default function OwnerDashboardClient({
             }
           } else if (payload.eventType === 'UPDATE') {
             const updated = toOrderRecord(payload.new as OrderRow);
-            setOrders((prev) => {
-              const exists = prev.some(o => o.id === updated.id);
-              if (exists) {
-                return prev.map((o) => (o.id === updated.id ? updated : o));
-              }
-              return [updated, ...prev];
-            });
+            const ageMs = updated.created_at
+              ? Date.now() - new Date(updated.created_at).getTime()
+              : 0;
+            const delay = 30000 - ageMs;
+
+            if (updated.order_status === 'confirmed') {
+              setOrders((prev) => {
+                const existing = prev.find(o => o.id === updated.id);
+                const wasConfirmed = existing?.order_status === 'confirmed';
+
+                if (wasConfirmed) {
+                  return prev.map((o) => (o.id === updated.id ? updated : o));
+                }
+
+                if (delay > 0) {
+                  setTimeout(() => {
+                    setOrders((current) => {
+                      const currExisting = current.find(o => o.id === updated.id);
+                      if (currExisting && currExisting.order_status !== 'confirmed' && currExisting.order_status !== 'created') {
+                        return current;
+                      }
+                      triggerBell(updated);
+                      const exists = current.some(o => o.id === updated.id);
+                      if (exists) {
+                        return current.map((o) => (o.id === updated.id ? updated : o));
+                      }
+                      return [updated, ...current];
+                    });
+                  }, delay);
+                  return prev;
+                } else {
+                  setTimeout(() => {
+                    triggerBell(updated);
+                  }, 0);
+                  const exists = prev.some(o => o.id === updated.id);
+                  if (exists) {
+                    return prev.map((o) => (o.id === updated.id ? updated : o));
+                  }
+                  return [updated, ...prev];
+                }
+              });
+            } else {
+              setOrders((prev) => {
+                const exists = prev.some(o => o.id === updated.id);
+                if (exists) {
+                  return prev.map((o) => (o.id === updated.id ? updated : o));
+                }
+                return [updated, ...prev];
+              });
+            }
           } else if (payload.eventType === 'DELETE') {
             setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
           }

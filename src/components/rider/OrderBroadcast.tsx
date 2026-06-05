@@ -67,9 +67,25 @@ export default function OrderBroadcast({
   useEffect(() => {
     if (!riderId) return;
 
-    const alertSound = new Audio('/audio/goodrest-bill.mp3');
+    const soundUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/audio/goodrest-bill.mp3`
+      : '/audio/goodrest-bill.mp3';
+    const alertSound = new Audio(soundUrl);
     alertSound.loop = true;
     audioRef.current = alertSound;
+
+    const unlockAudio = () => {
+      alertSound.play()
+        .then(() => {
+          alertSound.pause();
+          alertSound.currentTime = 0;
+        })
+        .catch((e) => console.warn('Audio unlock failed:', e));
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
 
     const channel = supabase
       .channel(`order_broadcast_${Math.random().toString(36).slice(2, 7)}`)
@@ -119,6 +135,8 @@ export default function OrderBroadcast({
     return () => {
       supabase.removeChannel(channel);
       alertSound.pause();
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
     };
   }, [riderId]);
 
