@@ -113,7 +113,5 @@ This registry consolidates all issues, edge cases, vulnerabilities, and workflow
 * **Status:** ✅ **SOLVED** (Fixed on 2026-06-05)
 * **Issue:** Currently, as soon as a rider accepts an order, they can click "Start Riding" directly from their app. Practically, if the restaurant owner hasn't finished preparing the food or clicked "Dispatch", this causes synchronization issues, false customer alerts, and metric manipulation.
 * **Resolution:** Updated `dispatchOrder` in `ownerActions.ts` to set `manual_dispatch = true`. Disabled the rider's "Start Riding" button until `manual_dispatch` is true, displaying `⏳ Waiting for Restaurant Handover...` to prevent pre-handover dispatches.
-
 ---
-
 *Registry updated: 2026-06-05*
