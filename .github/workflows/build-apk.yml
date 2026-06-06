@@ -43,10 +43,14 @@ jobs:
       - name: Create empty web assets directory for Capacitor
         run: mkdir -p out
 
-      - name: Add Android Platform Overlay
+      - name: Sync Android Platform
         run: |
-          npx cap add android
-          npx cap sync android
+          if [ -d "android" ]; then
+            npx cap sync android
+          else
+            npx cap add android
+            npx cap sync android
+          fi
 
       - name: Add Location Permission to AndroidManifest
         run: |
