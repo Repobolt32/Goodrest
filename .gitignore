@@ -35,14 +35,17 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# specific image exclusions
 public/hero-dish-*.png
 public/hero-dish-user-*.jpg
 public/hero-feast-*.jpg
-nul
-.agent/
-.kilo/
+!public/*.png
+!android/app/src/main/res/**/*.png
+!android/app/src/main/res/**/*.jpg
+
+# miscellaneous
 *.txt
-*.json
 *.log
 !package.json
 !package-lock.json
@@ -59,10 +62,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 lint_report.txt
-
-# miscellaneous
-*.png
-!public/*.png
 
 .vercel
 .env*.local
@@ -108,3 +107,8 @@ graphify-out/
 .chrome-profile-headful/
 
 scripts/bin/
+
+# android assets
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/assets/public
