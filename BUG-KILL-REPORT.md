@@ -9,7 +9,7 @@
 
 ## Process Summary
 
-1. Read the full issue registry (`issued.md`) — 73 total issues across CRITICAL/HIGH/MEDIUM/LOW/RUNTIME categories
+1. Read the full issue registry — 73 total issues across CRITICAL/HIGH/MEDIUM/LOW/RUNTIME categories
 2. Loaded `systematic-debugging` skill per BUG-KILL workflow
 3. Ran baseline: `npm run test` → 408/408 passing
 4. Read ALL source files mentioned in every CRITICAL and HIGH issue

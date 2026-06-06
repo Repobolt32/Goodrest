@@ -408,7 +408,7 @@ export default function OrderTracker({
                     height="100%"
                     style={{ border: 0 }}
                     referrerPolicy="no-referrer-when-downgrade"
-                    src={`https://www.google.com/maps/embed/v1/directions?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&origin=${riderLocation.lat},${riderLocation.lng}&destination=${orderLat},${orderLng}&mode=driving`}
+                    src={`https://www.google.com/maps/embed/v1/directions?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&origin=${process.env.NEXT_PUBLIC_RESTO_LAT || '24.797471691999753'},${process.env.NEXT_PUBLIC_RESTO_LNG || '85.0100327655486'}&destination=${orderLat},${orderLng}&waypoints=${riderLocation.lat},${riderLocation.lng}&mode=driving`}
                     allowFullScreen
                   />
                 ) : (

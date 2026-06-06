@@ -119,13 +119,22 @@
 
     let currentOrderId = null;
 
-    const ringAudio = new Audio('assets/goodrest-bill.mp3');
-    ringAudio.loop = true;
+    let ringAudio = null;
+
+    // Create a single persistent Audio instance — prevents Chromium audio backend leaks
+    function ensureAudio() {
+      if (!ringAudio) {
+        ringAudio = new Audio('assets/goodrest-bill.mp3');
+        ringAudio.loop = true;
+      }
+      return ringAudio;
+    }
 
     function startRinging() {
       try {
-        ringAudio.currentTime = 0;
-        ringAudio.play().catch(e => console.warn('Audio play failed:', e));
+        const audio = ensureAudio();
+        audio.currentTime = 0;
+        audio.play().catch(e => console.warn('Audio play failed:', e));
       } catch (e) {
         console.warn('Audio play error:', e);
       }
@@ -133,8 +142,10 @@
 
     function stopRinging() {
       try {
-        ringAudio.pause();
-        ringAudio.currentTime = 0;
+        if (ringAudio) {
+          ringAudio.pause();
+          ringAudio.currentTime = 0;
+        }
       } catch (e) {
         console.warn('Audio pause error:', e);
       }
@@ -172,7 +183,10 @@
         acceptBtn.disabled = true;
         acceptBtn.textContent = 'Rejected';
         acceptBtn.style.background = '#94a3b8';
-        // Hide window after 3 seconds
+        // Notify dashboard of auto-reject and hide window after 3 seconds
+        if (window.electronAPI && currentOrderId) {
+          window.electronAPI.dismissOrder({ id: currentOrderId });
+        }
         setTimeout(() => {
           if (window.electronAPI) window.electronAPI.hideBellWindow();
         }, 3000);
@@ -222,10 +236,14 @@
       }, 300);
     });
 
-    // Dismiss handler
+    // Dismiss handler — send dismiss-order event so dashboard can track it
     dismissBtn.addEventListener('click', () => {
       stopRinging();
-      if (window.electronAPI) window.electronAPI.hideBellWindow();
+      if (countdownInterval) clearInterval(countdownInterval);
+      if (window.electronAPI && currentOrderId) {
+        window.electronAPI.dismissOrder({ id: currentOrderId });
+      }
+      window.electronAPI.hideBellWindow();
     });
 
     // Listen for new order data

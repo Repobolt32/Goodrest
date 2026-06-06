@@ -74,6 +74,7 @@ describe('OrderBroadcast', () => {
   beforeEach(() => {
     insertCallback = undefined;
     updateCallback = undefined;
+    vi.clearAllMocks();
   });
 
   it('should render nothing when there is no new order', () => {
@@ -163,6 +164,31 @@ describe('OrderBroadcast', () => {
 
     expect(getUnassignedOrders).not.toHaveBeenCalled();
     expect(screen.queryByText(/New Delivery/i)).not.toBeInTheDocument();
+  });
+
+  it('does not subscribe to realtime when rider has active order', async () => {
+    const { supabase } = await import('@/lib/supabase');
+    await act(async () => {
+      render(<OrderBroadcast riderId="rider-1" hasActiveOrder={true} />);
+    });
+
+    expect(supabase.channel).not.toHaveBeenCalled();
+  });
+
+  it('unsubscribes from realtime when hasActiveOrder changes from false to true', async () => {
+    const { supabase } = await import('@/lib/supabase');
+    const { rerender } = await act(async () => {
+      return render(<OrderBroadcast riderId="rider-1" hasActiveOrder={false} />);
+    });
+
+    expect(supabase.channel).toHaveBeenCalledTimes(1);
+    expect(supabase.removeChannel).not.toHaveBeenCalled();
+
+    await act(async () => {
+      rerender(<OrderBroadcast riderId="rider-1" hasActiveOrder={true} />);
+    });
+
+    expect(supabase.removeChannel).toHaveBeenCalledTimes(1);
   });
 
   it('fetches unassigned orders when hasActiveOrder changes from true to false', async () => {

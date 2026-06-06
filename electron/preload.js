@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTrayBadge: (count) => ipcRenderer.send('update-tray-badge', count),
   playNotificationSound: () => ipcRenderer.send('play-notification-sound'),
   acceptOrder: (orderData) => ipcRenderer.send('accept-order', orderData),
+  dismissOrder: (orderData) => ipcRenderer.send('dismiss-order', orderData),
   onNewOrder: (callback) => {
     const handler = (event, data) => callback(data);
     ipcRenderer.on('new-order', handler);
@@ -16,6 +17,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (event, data) => callback(data);
     ipcRenderer.on('accept-order-from-bell', handler);
     return () => ipcRenderer.removeListener('accept-order-from-bell', handler);
+  },
+  onDismissOrderFromBell: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('dismiss-order-from-bell', handler);
+    return () => ipcRenderer.removeListener('dismiss-order-from-bell', handler);
   },
   onStopRinging: (callback) => {
     const handler = () => callback();

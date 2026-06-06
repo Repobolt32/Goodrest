@@ -145,7 +145,7 @@ describe('riderActions', () => {
   // ─── loginRider ───────────────────────────────────────────────────
   describe('loginRider', () => {
     it('should return rider data on valid credentials', async () => {
-      const mockRider = { id: VALID_RIDER_ID, phone: '9999999999', name: 'Test Rider' };
+      const mockRider = { id: VALID_RIDER_ID, phone: '9999999999', name: 'Test Rider', password_hash: 'hashed_pw_123' };
       mocks.mockSingle.mockResolvedValueOnce({ data: mockRider, error: null });
 
       const result = await loginRider('9999999999', 'hashed_pw_123');
@@ -164,10 +164,31 @@ describe('riderActions', () => {
       expect(result.error).toBe('Invalid phone or password');
     });
 
-    it('should return error when data is null (no error but no row)', async () => {
-      mocks.mockSingle.mockResolvedValueOnce({ data: null, error: null });
+    it('should handle unexpected bcrypt errors gracefully', async () => {
+      const mockRider = { id: VALID_RIDER_ID, phone: '9999999999', name: 'Test Rider', password_hash: 'some_hash' };
+      mocks.mockSingle.mockResolvedValueOnce({ data: mockRider, error: null });
+      vi.spyOn(bcrypt, 'compare').mockRejectedValueOnce(new Error('bcrypt internal error') as never);
 
-      const result = await loginRider('9999999999', 'hashed_pw');
+      const result = await loginRider('9999999999', 'test123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid phone or password');
+    });
+
+    it('should handle unexpected supabase query rejection gracefully', async () => {
+      mocks.mockSingle.mockRejectedValueOnce(new Error('connection failed'));
+
+      const result = await loginRider('9999999999', 'test123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should return error when rider has no password_hash field', async () => {
+      const mockRider = { id: VALID_RIDER_ID, phone: '9999999999', name: 'Test Rider' };
+      mocks.mockSingle.mockResolvedValueOnce({ data: mockRider, error: null });
+
+      const result = await loginRider('9999999999', 'test123');
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid phone or password');

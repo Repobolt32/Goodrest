@@ -40,7 +40,7 @@ When testing the customer storefront and rider portal in very close proximity (e
 
 As of June 2, 2026, the complete platform issue registries have been audited and cross-verified directly against the active codebase. 
 
-### 🔴 Remaining Open Issues (2)
+### 🔴 Remaining Open Issues (5)
 
 1. **FLOW-01 — Lack of Handover Control (Dispatch Workflow Mismatch)**
    - **Status:** **OPEN** (Design Approved)
@@ -49,6 +49,18 @@ As of June 2, 2026, the complete platform issue registries have been audited and
 2. **QOL-20 — Client-Side Direct Supabase Queries**
    - **Status:** **OPEN** (Deferred by Architectural Design)
    - **Description:** The `OrderTracker.tsx` component connects directly to the Supabase client in the browser to establish real-time WebSocket subscriptions on `orders` and `riders` tables to listen to updates. While this uses PostgreSQL Row Level Security (RLS) policies for isolation, a fully secure alternative would route all updates through server-sent events or a backend-brokered relay.
+
+3. **BUG-22 — Default Distance Fallback Loop (Always 3.75 km)**
+   - **Status:** **OPEN**
+   - **Description:** When detecting location or dropping the pin on checkout, the calculated delivery distance consistently resolves to approximately 3.75 km. This indicates a potential calculation loop or fallback logic issue where Google Maps Route API call failures or configuration parameters result in a static fallback value instead of updating to the actual dropped pin coordinates distance.
+
+4. **FLOW-02 — Premature Rider Notification / Accept Flow Mismatch**
+   - **Status:** **OPEN**
+   - **Description:** A business logic mismatch exists in the order acceptance flow. Currently, a new unassigned order triggers audio broadcasts and becomes accept-eligible for active riders immediately upon creation. However, the owner should first explicitly accept/confirm the order at the POS before it is broadcasted to riders. 
+
+5. **BUG-23 — POS Electron Audio/Bell Notification Failure**
+   - **Status:** **OPEN**
+   - **Description:** The POS Electron application's ring/bell audio notification does not sound or trigger properly when a new order is received at the owner/POS dashboard. This needs layout, event binding, and audio asset file checking.
 
 ### 🧪 Test Coverage Gap (1)
 

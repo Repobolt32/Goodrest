@@ -110,9 +110,8 @@ export default function CheckoutForm() {
             const maxRadius = settings?.max_delivery_radius || 10;
 
             if (distance === null) {
-              const fallbackFee = calculateDeliveryFee(maxRadius / 2);
-              setDeliveryFee(fallbackFee);
-              setLocationStatus('✅ Location Adjusted (Fallback Fee Applied)');
+              setDeliveryFee(0);
+              setLocationStatus('📍 Location detected. Delivery fee will be confirmed at checkout.');
               return;
             }
 
@@ -181,14 +180,13 @@ export default function CheckoutForm() {
                   // Route check unavailable (no API key, or client-side call cannot
                   // reach the server-side key). Accept the detected location with a
                   // soft warning so the customer is never blocked from ordering.
-                  const fallbackFee = calculateDeliveryFee(maxRadius / 2);
                   setFormData((prev) => ({
                     ...prev,
                     lat: userLat,
                     lng: userLng,
                   }));
-                  setDeliveryFee(fallbackFee); // Fallback delivery fee
-                  setLocationStatus('✅ Location Verified (Test Mode)');
+                  setDeliveryFee(0);
+                  setLocationStatus('📍 Location detected. Delivery fee will be confirmed at checkout.');
                   setShowMap(true);
                   setIsLocating(false);
                   return;
@@ -230,8 +228,7 @@ export default function CheckoutForm() {
                 try {
                   const { lat: restoLat, lng: restoLng } = getRestoCoordinates();
                   setFormData(prev => ({ ...prev, lat: restoLat, lng: restoLng }));
-                  const maxRadius = settings?.max_delivery_radius || 10;
-                  setDeliveryFee(calculateDeliveryFee(maxRadius / 2));
+                  setDeliveryFee(0);
                   setLocationStatus('📍 Geolocation failed. Please manually drag the map pin to your delivery address.');
                   setShowMap(true);
                   setIsLocating(false);
@@ -586,7 +583,13 @@ export default function CheckoutForm() {
         </div>
         <div className="flex justify-between text-sm font-bold text-slate-600">
           <span>Delivery Fee</span>
-          <span>{deliveryFee > 0 ? `₹${deliveryFee}` : 'Free / Calculated at detection'}</span>
+          <span>
+            {deliveryFee > 0
+              ? `₹${deliveryFee}`
+              : locationStatus.includes('confirmed at checkout')
+                ? 'Will be calculated at checkout'
+                : 'Free / Calculated at detection'}
+          </span>
         </div>
         <div className="border-t-2 border-slate-100 pt-3 flex justify-between text-lg font-black text-gray-900">
           <span>Grand Total</span>

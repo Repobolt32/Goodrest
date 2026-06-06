@@ -38,25 +38,33 @@ export async function getRiderByPhone(phone: string) {
 }
 
 export async function loginRider(phone: string, password_hash: string) {
-  const cleanPhone = phone.trim();
-  const cleanPassword = password_hash.trim();
+  try {
+    const cleanPhone = phone.trim();
+    const cleanPassword = password_hash.trim();
 
-  const { data: rider, error } = await supabaseAdmin
-    .from('riders')
-    .select('*')
-    .eq('phone', cleanPhone)
-    .single();
+    const { data: rider, error } = await supabaseAdmin
+      .from('riders')
+      .select('*')
+      .eq('phone', cleanPhone)
+      .single();
 
-  if (error || !rider) {
+    if (error || !rider) {
+      return { success: false, error: 'Invalid phone or password' };
+    }
+
+    if (!rider.password_hash) {
+      return { success: false, error: 'Invalid phone or password' };
+    }
+
+    const valid = await bcrypt.compare(cleanPassword, rider.password_hash);
+    if (!valid) {
+      return { success: false, error: 'Invalid phone or password' };
+    }
+
+    return { success: true, rider };
+  } catch {
     return { success: false, error: 'Invalid phone or password' };
   }
-
-  const valid = await bcrypt.compare(cleanPassword, rider.password_hash);
-  if (!valid) {
-    return { success: false, error: 'Invalid phone or password' };
-  }
-
-  return { success: true, rider };
 }
 
 export async function acceptOrder(orderId: string, riderId: string) {

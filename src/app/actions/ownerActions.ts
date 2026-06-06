@@ -60,7 +60,7 @@ export async function acceptOrder(orderId: string) {
   // Fetch order
   const { data: order, error: fetchError } = await supabaseAdmin
     .from('orders')
-    .select('id, order_status, lat, lng, total_amount')
+    .select('id, order_status, lat, lng, total_amount, distance_km, duration_seconds')
     .eq('id', orderId)
     .single();
 
@@ -81,10 +81,10 @@ export async function acceptOrder(orderId: string) {
   const prepDeadline = new Date(now.getTime() + prepTimeMinutes * 60 * 1000);
 
   // Calculate distance/ETA for riders
-  let distanceKm: number | null = null;
-  let durationSeconds: number | null = null;
+  let distanceKm: number | null = order.distance_km;
+  let durationSeconds: number | null = order.duration_seconds;
 
-  if (order.lat != null && order.lng != null) {
+  if ((distanceKm === null || durationSeconds === null) && order.lat != null && order.lng != null) {
     const routeData = await getGoogleMapsRouteData(RESTO_LAT, RESTO_LNG, order.lat, order.lng);
     if (routeData) {
       distanceKm = routeData.distanceKm;

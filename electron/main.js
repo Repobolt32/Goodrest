@@ -45,6 +45,7 @@ function createMainWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    app.quit();
   });
 }
 
@@ -56,6 +57,7 @@ function createBellWindow() {
     frame: false,
     resizable: false,
     skipTaskbar: true,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -70,8 +72,10 @@ function createBellWindow() {
     bellWindow.webContents.openDevTools({ mode: 'detach' });
   }
 
-  bellWindow.on('closed', () => {
-    bellWindow = null;
+  // Prevent null reference — just hide instead of destroying
+  bellWindow.on('close', (e) => {
+    e.preventDefault();
+    bellWindow.hide();
   });
 }
 
@@ -181,8 +185,15 @@ ipcMain.on('show-bell-window', (event, orderData) => {
   const { width, height } = primaryDisplay.workAreaSize;
   bellWindow.setPosition(width - 420, height - 320);
   bellWindow.show();
+  bellWindow.focus();
 
-  bellWindow.webContents.send('new-order', orderData);
+  if (bellWindow.webContents.isLoading()) {
+    bellWindow.webContents.once('did-finish-load', () => {
+      bellWindow.webContents.send('new-order', orderData);
+    });
+  } else {
+    bellWindow.webContents.send('new-order', orderData);
+  }
 });
 
 ipcMain.on('hide-bell-window', () => {
@@ -190,6 +201,10 @@ ipcMain.on('hide-bell-window', () => {
     bellWindow.webContents.send('stop-ringing-bell');
     bellWindow.hide();
   }
+});
+
+ipcMain.on('dismiss-order', (event, orderData) => {
+  mainWindow?.webContents.send('dismiss-order-from-bell', orderData);
 });
 
 ipcMain.on('update-tray-badge', (event, count) => {
@@ -225,25 +240,31 @@ app.whenReady().then(async () => {
   }
 
   createMainWindow();
+  createBellWindow();
   createTray();
 
   // Test sequence: Automatically trigger the bell window with sound 5 seconds after launch to verify audio
   setTimeout(() => {
-    console.log('🔔 Dev Trigger: Simulating incoming order for audio/UI test...');
+    console.log('Dev Trigger: Simulating incoming order for audio/UI test...');
     const testOrder = {
       customer_name: 'Direct Audio Test',
       items_summary: '2x Double Cheese Margherita, 1x Stuffed Garlic Bread, 1x Choco Lava Cake',
       total_amount: 580
     };
     
-    if (!bellWindow) createBellWindow();
-
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
     bellWindow.setPosition(width - 420, height - 320);
     bellWindow.show();
+    bellWindow.focus();
 
-    bellWindow.webContents.send('new-order', testOrder);
+    if (bellWindow.webContents.isLoading()) {
+      bellWindow.webContents.once('did-finish-load', () => {
+        bellWindow.webContents.send('new-order', testOrder);
+      });
+    } else {
+      bellWindow.webContents.send('new-order', testOrder);
+    }
   }, 5000);
 
   app.on('activate', () => {
