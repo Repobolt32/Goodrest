@@ -12,6 +12,7 @@ app.commandLine.appendSwitch('disable-gpu-sandbox');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 const { spawn } = require('child_process');
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const dotenv = require('dotenv');
 
@@ -20,6 +21,14 @@ let bellWindow = null;
 let tray = null;
 let serverProcess = null;
 const isDev = !app.isPackaged;
+
+// Load environment variables in development or production
+const envPath = isDev 
+  ? path.join(__dirname, '..', '.env') 
+  : path.join(process.resourcesPath, '.env');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -37,7 +46,8 @@ function createMainWindow() {
     icon: path.join(__dirname, 'assets', 'icon.png'),
   });
 
-  mainWindow.loadURL('http://localhost:3000/admin/orders');
+  const serverUrl = process.env.ELECTRON_SERVER_URL || 'http://localhost:3000';
+  mainWindow.loadURL(`${serverUrl}/admin/orders`);
 
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -147,8 +157,10 @@ function startServer() {
 function waitForReady(port = 3000, timeout = 30000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
+    const targetUrl = process.env.ELECTRON_SERVER_URL || `http://127.0.0.1:${port}`;
+    const client = targetUrl.startsWith('https') ? https : http;
     const check = () => {
-      const req = http.get(`http://127.0.0.1:${port}`, (res) => {
+      const req = client.get(targetUrl, (res) => {
         res.resume();
         if (res.statusCode && res.statusCode < 500) resolve();
         else retry();
@@ -158,7 +170,7 @@ function waitForReady(port = 3000, timeout = 30000) {
     };
     const retry = () => {
       if (Date.now() - start > timeout) {
-        reject(new Error(`Server did not start within ${timeout / 1000}s`));
+        reject(new Error(`Server at ${targetUrl} did not start within ${timeout / 1000}s`));
       } else {
         setTimeout(check, 500);
       }

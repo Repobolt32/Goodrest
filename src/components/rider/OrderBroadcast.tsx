@@ -65,7 +65,7 @@ export default function OrderBroadcast({
   }, [riderId, hasActiveOrder]);
 
   useEffect(() => {
-    if (!riderId) return;
+    if (!riderId || hasActiveOrder) return;
 
     const soundUrl = typeof window !== 'undefined'
       ? `${window.location.origin}/audio/goodrest-bill.mp3`
@@ -138,7 +138,7 @@ export default function OrderBroadcast({
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('click', unlockAudio);
     };
-  }, [riderId]);
+  }, [riderId, hasActiveOrder]);
 
   // Don't show broadcast if rider has an active order
   if (hasActiveOrder) return null;

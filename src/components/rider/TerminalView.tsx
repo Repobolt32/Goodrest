@@ -70,11 +70,11 @@ export default function TerminalView({
     <>
       {/* Geolocation Error */}
       {geoError && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3">
-          <AlertCircle size={20} className="text-red-400 shrink-0 mt-0.5" />
+        <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
+          <AlertCircle size={20} className="text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-red-400">{geoError}</p>
-            <p className="text-xs text-red-400/60 mt-1">Enable GPS/location permissions to go online.</p>
+            <p className="text-sm font-bold text-amber-400">{geoError}</p>
+            <p className="text-xs text-amber-400/60 mt-1">Location tracking is disabled. You can still accept orders.</p>
           </div>
         </div>
       )}

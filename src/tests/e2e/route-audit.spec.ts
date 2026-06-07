@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+// NOTE: This is a smoke test, NOT a trusted gate. COD proof-of-safety lives in
+// cod-happy-path.spec.ts and cod-cancel-window.spec.ts.
 test.describe('Application Route Audit', () => {
   const routes = [
     { path: '/', name: 'Home' },

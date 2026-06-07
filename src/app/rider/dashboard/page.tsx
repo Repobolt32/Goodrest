@@ -226,24 +226,18 @@ export default function RiderDashboardPage() {
   const toggleOnline = useCallback(async () => {
     if (!rider) return;
 
-    if (!isOnline) {
-      if (geoUnsupported.current) {
-        setGeoError('Location required to go online. Please enable location services.');
-        return;
-      }
-
+    if (!isOnline && !geoUnsupported.current) {
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: false, timeout: 10000, maximumAge: 60000,
+            enableHighAccuracy: false, timeout: 5000, maximumAge: 60000,
           });
         });
         lastLat.current = pos.coords.latitude;
         lastLng.current = pos.coords.longitude;
         setGeoError(null);
       } catch {
-        setGeoError('Location required to go online. Please enable location services.');
-        return;
+        setGeoError('Location unavailable. Going online without tracking.');
       }
     }
 

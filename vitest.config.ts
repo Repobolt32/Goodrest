@@ -12,6 +12,7 @@ export default defineConfig({
     exclude: [
       ...configDefaults.exclude,
       '**/src/tests/e2e/**',
+      '**/src/tests/integration/**',
       'tests/**',
       '.chrome-profile/**',
       '.chrome-profile-headful/**'

@@ -30,8 +30,10 @@ const localStorageMock = (function () {
   };
 })();
 
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+  });
+}
 
 // Storage mocks are now handled by individual test setups or global vitest mocks.

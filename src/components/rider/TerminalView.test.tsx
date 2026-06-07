@@ -136,7 +136,7 @@ describe('TerminalView', () => {
     );
 
     expect(screen.getByText('Location access denied')).toBeInTheDocument();
-    expect(screen.getByText(/Enable GPS/)).toBeInTheDocument();
+    expect(screen.getByText(/Location tracking is disabled/)).toBeInTheDocument();
   });
 
   it('should not show geo error when null', () => {
