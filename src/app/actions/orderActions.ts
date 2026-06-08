@@ -23,6 +23,7 @@ function sanitizeString(str: string): string {
 }
 
 
+
 export type OrderInput = {
   customer_name: string;
   customer_phone: string;
@@ -59,7 +60,7 @@ function normalizeOrderItems(
  * Saves the order in Supabase BEFORE any payment is initialized.
  */
 export async function createOrder(input: OrderInput) {
-  console.log(`[createOrder] ENTRY: Starting for customer ${input.customer_name}, total: ${input.total_amount}`);
+  console.log(`[createOrder] ENTRY: Starting order, total: ${input.total_amount}`);
   try {
     if (!input.customer_name || input.customer_name.trim().length < 2) {
       console.warn('[createOrder] FAILURE: Name must be at least 2 characters.');
@@ -90,37 +91,26 @@ export async function createOrder(input: OrderInput) {
     let priceMap = new Map<string, number>();
     let serverTotal = 0;
 
-    const isE2EMode = process.env.E2E_MODE === 'true' && process.env.NODE_ENV !== 'production';
-    const hasIntegrationTestIds = input.items.some(
-      item => item.id === '1' || item.id === '2' || item.id === 'invalid-id-1' || item.id === 'invalid-id-2'
-    );
+    const { data: menuItems, error: menuError } = await supabaseAdmin
+      .from('menu_items')
+      .select('id, price')
+      .in('id', menuItemIds);
 
-    if (isE2EMode && hasIntegrationTestIds) {
-      console.log('[createOrder] E2E_MODE: Bypassing menu_items price fetch for integration test items');
-      priceMap = new Map(input.items.map(item => [item.id, item.price]));
-      serverTotal = input.total_amount;
-    } else {
-      const { data: menuItems, error: menuError } = await supabaseAdmin
-        .from('menu_items')
-        .select('id, price')
-        .in('id', menuItemIds);
+    if (menuError || !menuItems || menuItems.length !== menuItemIds.length) {
+      console.warn('[createOrder] FAILURE: Invalid menu items or price fetch failed');
+      return { success: false, error: 'Invalid menu items' };
+    }
 
-      if (menuError || !menuItems || menuItems.length !== menuItemIds.length) {
-        console.warn('[createOrder] FAILURE: Invalid menu items or price fetch failed');
-        return { success: false, error: 'Invalid menu items' };
+    // Build price lookup
+    priceMap = new Map(menuItems.map(m => [m.id, m.price]));
+
+    // Recalculate total server-side
+    for (const item of input.items) {
+      const dbPrice = priceMap.get(item.id);
+      if (dbPrice == null) {
+        return { success: false, error: `Item ${item.id} not found in menu` };
       }
-
-      // Build price lookup
-      priceMap = new Map(menuItems.map(m => [m.id, m.price]));
-
-      // Recalculate total server-side
-      for (const item of input.items) {
-        const dbPrice = priceMap.get(item.id);
-        if (dbPrice == null) {
-          return { success: false, error: `Item ${item.id} not found in menu` };
-        }
-        serverTotal += Number(dbPrice) * item.quantity;
-      }
+      serverTotal += Number(dbPrice) * item.quantity;
     }
 
     console.log(`[createOrder] Price validation: client total=${input.total_amount}, server total=${serverTotal}`);
@@ -310,34 +300,25 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
     
     console.log(`[verifyPaymentSignature] Starting verification for payment_id: ${razorpay_payment_id}, order_id: ${razorpay_order_id}`);
 
-    // E2E Test Bypass Case: Explicit E2E_MODE check
-    const isE2EMode = process.env.E2E_MODE === 'true' && process.env.NODE_ENV !== 'production';
-    const isTestBypass = isE2EMode && razorpay_payment_id?.startsWith('pay_test_');
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    if (isTestBypass) {
-      console.log(`[verifyPaymentSignature] BRANCH: E2E BYPASS ON. Bypassing signature for test payment: ${razorpay_payment_id}`);
-    } else {
-      console.log(`[verifyPaymentSignature] BRANCH: NORMAL VERIFICATION. Evaluating HMAC for: ${razorpay_payment_id}`);
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-      if (!keySecret) {
-        console.error('[verifyPaymentSignature] CRITICAL FAILURE: RAZORPAY_KEY_SECRET is not configured in .env');
-        return { success: false, error: 'Server configuration error' };
-      }
-
-      // Standard Razorpay Payment Verification (Context7: validatePaymentVerification)
-      const isValid = validatePaymentVerification(
-        { order_id: razorpay_order_id, payment_id: razorpay_payment_id },
-        razorpay_signature,
-        keySecret
-      );
-
-      if (!isValid) {
-        console.warn(`[verifyPaymentSignature] FAILURE: Invalid signature for order: ${razorpay_order_id}. Signature mismatch reported by SDK.`);
-        return { success: false, error: 'Signature verification failed.' };
-      }
-      console.log(`[verifyPaymentSignature] SUCCESS: SDK verified signature for: ${razorpay_payment_id}`);
+    if (!keySecret) {
+      console.error('[verifyPaymentSignature] CRITICAL FAILURE: RAZORPAY_KEY_SECRET is not configured in .env');
+      return { success: false, error: 'Server configuration error' };
     }
+
+    // Standard Razorpay Payment Verification (Context7: validatePaymentVerification)
+    const isValid = validatePaymentVerification(
+      { order_id: razorpay_order_id, payment_id: razorpay_payment_id },
+      razorpay_signature,
+      keySecret
+    );
+
+    if (!isValid) {
+      console.warn(`[verifyPaymentSignature] FAILURE: Invalid signature for order: ${razorpay_order_id}. Signature mismatch reported by SDK.`);
+      return { success: false, error: 'Signature verification failed.' };
+    }
+    console.log(`[verifyPaymentSignature] SUCCESS: SDK verified signature for: ${razorpay_payment_id}`);
 
     console.log(`[verifyPaymentSignature] Looking up order in DB by razorpay_order_id: ${razorpay_order_id}`);
 

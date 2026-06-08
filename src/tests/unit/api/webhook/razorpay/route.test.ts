@@ -17,8 +17,13 @@ vi.mock('@/lib/supabaseAdmin', () => ({
   },
 }));
 
+vi.mock('@/lib/rateLimit', () => ({
+  rateLimit: vi.fn(() => ({ allowed: true, remaining: 29 })),
+}));
+
 import { POST } from '@/app/api/webhook/razorpay/route';
 import { NextRequest } from 'next/server';
+import { rateLimit } from '@/lib/rateLimit';
 
 describe('razorpay webhook', () => {
   beforeEach(() => {
@@ -47,14 +52,15 @@ describe('razorpay webhook', () => {
     const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
 
-    const mockEqUpdate = vi.fn().mockResolvedValue(updateResult);
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate });
+    const mockEq2 = vi.fn().mockResolvedValue(updateResult);
+    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
 
     mocks.mockFrom
       .mockReturnValueOnce({ select: mockSelect })  // first call: select
       .mockReturnValueOnce({ update: mockUpdate });  // second call: update
 
-    return { mockSingle, mockSelect, mockEqSelect, mockUpdate, mockEqUpdate };
+    return { mockSingle, mockSelect, mockEqSelect, mockUpdate, mockEq1, mockEq2 };
   };
 
   it('should return 500 if webhook secret not configured', async () => {
@@ -80,6 +86,16 @@ describe('razorpay webhook', () => {
 
     const res = await POST(createRequest({ event: 'payment.captured' }, 'bad-sig'));
     expect(res.status).toBe(400);
+  });
+
+  it('should return 429 when rate limit exceeded', async () => {
+    (rateLimit as ReturnType<typeof vi.fn>).mockReturnValueOnce({ allowed: false, remaining: 0 });
+
+    const res = await POST(createRequest({ event: 'payment.captured' }, 'valid-sig'));
+    const body = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(body.error).toBe('Too many requests');
   });
 
   it('should handle payment.captured event', async () => {
@@ -120,6 +136,40 @@ describe('razorpay webhook', () => {
     const updateCall = mockUpdate.mock.calls[0][0];
     expect(updateCall.payment_status).toBe('paid');
     expect(updateCall.order_status).toBe('confirmed');
+  });
+
+  it('should guard update with payment_status=pending to prevent race conditions', async () => {
+    mocks.mockValidateWebhookSignature.mockReturnValue(true);
+
+    const mockEq2 = vi.fn().mockResolvedValue({ error: null });
+    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'order-1', payment_status: 'pending' },
+      error: null,
+    });
+    const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
+
+    mocks.mockFrom
+      .mockReturnValueOnce({ select: mockSelect })
+      .mockReturnValueOnce({ update: mockUpdate });
+
+    const payload = {
+      event: 'payment.captured',
+      payload: {
+        payment: {
+          entity: { id: 'pay_test_123', order_id: 'rzp_order_123' },
+        },
+      },
+    };
+
+    await POST(createRequest(payload, 'valid-sig'));
+
+    // Must chain .eq('id', ...).eq('payment_status', 'pending')
+    expect(mockEq1).toHaveBeenCalledWith('id', 'order-1');
+    expect(mockEq2).toHaveBeenCalledWith('payment_status', 'pending');
   });
 
   it('should handle payment.failed event', async () => {
@@ -263,8 +313,9 @@ describe('razorpay webhook', () => {
       .mockResolvedValueOnce({ data: { id: 'order-1', payment_status: 'paid' }, error: null });
     const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
-    const mockEqUpdate = vi.fn().mockResolvedValue({ error: null });
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate });
+    const mockEq2 = vi.fn().mockResolvedValue({ error: null });
+    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
 
     mocks.mockFrom
       .mockReturnValueOnce({ select: mockSelect })  // first call: select

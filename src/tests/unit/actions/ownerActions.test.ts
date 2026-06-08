@@ -28,7 +28,11 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
-import { getWeeklyRiderPayouts, toggleOnlineStatus } from '@/app/actions/ownerActions';
+vi.mock('@/lib/validation', () => ({
+  getRestoCoordinates: vi.fn().mockReturnValue({ lat: 24.79, lng: 85.01 }),
+}));
+
+import { getWeeklyRiderPayouts, toggleOnlineStatus, updatePrepTime } from '@/app/actions/ownerActions';
 
 describe('ownerActions', () => {
   beforeEach(() => {
@@ -173,6 +177,9 @@ describe('ownerActions', () => {
       const result = await toggleOnlineStatus(true);
       expect(result.success).toBe(true);
       expect(mocks.mockFrom).toHaveBeenCalledWith('restaurant_settings');
+      expect(mocks.mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ online_status: true })
+      );
     });
 
     it('should update online status to false', async () => {
@@ -180,6 +187,9 @@ describe('ownerActions', () => {
 
       const result = await toggleOnlineStatus(false);
       expect(result.success).toBe(true);
+      expect(mocks.mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ online_status: false })
+      );
     });
 
     it('should return error on DB failure', async () => {
@@ -188,6 +198,62 @@ describe('ownerActions', () => {
       const result = await toggleOnlineStatus(true);
       expect(result.success).toBe(false);
       expect(result.error).toBe('DB error');
+    });
+  });
+
+  describe('updatePrepTime', () => {
+    it('should update prep time with valid value', async () => {
+      mocks.mockEq.mockResolvedValueOnce({ error: null });
+
+      const result = await updatePrepTime(25);
+      expect(result.success).toBe(true);
+      expect(mocks.mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ prep_time_minutes: 25 })
+      );
+    });
+
+    it('should reject without admin session', async () => {
+      mocks.mockVerifyAdminSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+
+      const result = await updatePrepTime(25);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized');
+    });
+
+    it('should reject negative prep time', async () => {
+      const result = await updatePrepTime(-5);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Prep time must be between 5 and 120 minutes.');
+    });
+
+    it('should reject prep time of zero', async () => {
+      const result = await updatePrepTime(0);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Prep time must be between 5 and 120 minutes.');
+    });
+
+    it('should reject prep time exceeding 120 minutes', async () => {
+      const result = await updatePrepTime(999);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Prep time must be between 5 and 120 minutes.');
+    });
+
+    it('should accept boundary values (5 and 120)', async () => {
+      mocks.mockEq.mockResolvedValueOnce({ error: null });
+      const result5 = await updatePrepTime(5);
+      expect(result5.success).toBe(true);
+
+      mocks.mockEq.mockResolvedValueOnce({ error: null });
+      const result120 = await updatePrepTime(120);
+      expect(result120.success).toBe(true);
+    });
+
+    it('should return error on DB failure', async () => {
+      mocks.mockEq.mockResolvedValueOnce({ error: { message: 'Update failed' } });
+
+      const result = await updatePrepTime(25);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Update failed');
     });
   });
 });

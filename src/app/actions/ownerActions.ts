@@ -7,9 +7,9 @@ import { getGoogleMapsRouteData } from './distanceActions';
 import { calculateETA } from '@/lib/distance';
 import { calculateEarningBreakdown, calculateNightlyBonus } from '@/lib/pricing';
 import { revalidatePath } from 'next/cache';
+import { getRestoCoordinates } from '@/lib/validation';
 
-const RESTO_LAT = parseFloat(process.env.NEXT_PUBLIC_RESTO_LAT || '0');
-const RESTO_LNG = parseFloat(process.env.NEXT_PUBLIC_RESTO_LNG || '0');
+const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
 
 function isValidUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -270,6 +270,10 @@ export async function initiateRefund(orderId: string) {
 export async function updatePrepTime(minutes: number) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
+
+  if (typeof minutes !== 'number' || isNaN(minutes) || minutes < 5 || minutes > 120) {
+    return { success: false, error: 'Prep time must be between 5 and 120 minutes.' };
+  }
 
   const { error } = await supabaseAdmin
     .from('restaurant_settings')

@@ -23,6 +23,7 @@
     "tunnel": "node scripts/start-tunnel.mjs"
   },
   "dependencies": {
+    "@capacitor-community/background-geolocation": "^1.2.26",
     "@capacitor/core": "^6.0.0",
     "@playwright/test": "^1.59.1",
     "@supabase/supabase-js": "^2.101.1",

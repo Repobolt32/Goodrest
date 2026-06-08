@@ -348,7 +348,7 @@ export default function CheckoutForm() {
             setLoading(false);
           }
         },
-        config: {
+        config: isTestMode ? {
           display: {
             // Force UPI ID field to show so user can type success@razorpay
             blocks: {
@@ -369,7 +369,7 @@ export default function CheckoutForm() {
               show_default_blocks: true
             }
           }
-        }
+        } : undefined
       } satisfies RazorpayOptions;
 
       // Diagnostic check: Ensure key is present

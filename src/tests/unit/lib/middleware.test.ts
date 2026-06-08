@@ -76,4 +76,14 @@ describe('middleware', () => {
     await middleware(req);
     expect(nextSpy).toHaveBeenCalled();
   });
+
+  it('should throw at module load if JWT_SECRET is missing', async () => {
+    const originalSecret = process.env.JWT_SECRET;
+    delete process.env.JWT_SECRET;
+    vi.resetModules();
+
+    await expect(import('@/middleware')).rejects.toThrow('JWT_SECRET is not configured');
+
+    if (originalSecret) process.env.JWT_SECRET = originalSecret;
+  });
 });

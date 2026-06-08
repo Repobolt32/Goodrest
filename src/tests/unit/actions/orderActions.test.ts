@@ -79,8 +79,9 @@ import {
   generateRazorpayOrder,
   verifyPaymentSignature,
   cancelOrder,
-  updateRefundStatus
+  updateRefundStatus,
 } from '@/app/actions/orderActions';
+import { redactPhone } from '@/lib/redaction';
 
 describe('orderActions', () => {
   const validInput = {
@@ -166,6 +167,22 @@ describe('orderActions', () => {
 
     it('should reject order with empty items', async () => {
       const result = await createOrder({ ...validInput, items: [] });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid menu items');
+    });
+
+    it('should always validate prices from DB even with test item IDs', async () => {
+      // CRITICAL: E2E_MODE must not bypass DB price validation
+      process.env.E2E_MODE = 'true';
+      mocks.mockIn.mockResolvedValueOnce({
+        data: [], // DB returns empty — test item ID '1' not found in real menu
+        error: null,
+      });
+
+      const result = await createOrder({
+        ...validInput,
+        items: [{ id: '1', name: 'Test Burger', price: 1, quantity: 2 }],
+      });
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid menu items');
     });
@@ -331,6 +348,24 @@ describe('orderActions', () => {
       process.env.RAZORPAY_KEY_SECRET = 'test_secret';
 
       const result = await verifyPaymentSignature(mockCallback);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Signature verification failed.');
+    });
+
+    it('should never bypass signature verification for pay_test_ IDs', async () => {
+      // CRITICAL: E2E_MODE must not bypass real signature verification
+      process.env.E2E_MODE = 'true';
+      process.env.NODE_ENV = 'development'; // not production
+      process.env.RAZORPAY_KEY_SECRET = 'test_secret';
+      rzpMocks.validatePaymentVerification.mockReturnValue(false);
+
+      const testCallback = {
+        razorpay_order_id: 'rzp_order_123',
+        razorpay_payment_id: 'pay_test_abc',
+        razorpay_signature: 'invalid_sig',
+      };
+
+      const result = await verifyPaymentSignature(testCallback);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Signature verification failed.');
     });
@@ -685,5 +720,28 @@ describe('orderActions', () => {
       const serverTotal = rpcCall.p_order.total_amount;
       expect(serverTotal).toBeGreaterThanOrEqual(400); // includes delivery fee
     });
+  });
+});
+
+describe('redactPhone', () => {
+  it('should redact phone in production', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(redactPhone('9876543210')).toBe('****3210');
+      expect(redactPhone('1234')).toBe('****');
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+    }
+  });
+
+  it('should return full phone in non-production', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    try {
+      expect(redactPhone('9876543210')).toBe('9876543210');
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+    }
   });
 });

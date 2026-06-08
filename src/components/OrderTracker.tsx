@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion } from 'framer-motion';
 import { CheckCircle2, ChefHat, Truck, Package, AlertCircle, Wifi, Phone, Map, Clock, UtensilsCrossed } from 'lucide-react';
@@ -160,6 +160,21 @@ export default function OrderTracker({
     }
   }, [durationSeconds, status, riderStartedAt]);
 
+  // Throttle realtime updates to prevent render thrashing (SEC-08)
+  const lastUpdateRef = useRef(0);
+  const THROTTLE_MS = 500;
+
+  const throttledUpdate = useCallback((payload: Record<string, unknown>) => {
+    const now = Date.now();
+    if (now - lastUpdateRef.current < THROTTLE_MS) return;
+    lastUpdateRef.current = now;
+    if (payload.order_status) setStatus(payload.order_status as string);
+    if (payload.rider_phone) setRiderPhone(payload.rider_phone as string);
+    if ('cancelled_by' in payload) setCancelledBy(payload.cancelled_by as string | null);
+    if ('cancel_reason' in payload) setCancelReason(payload.cancel_reason as string | null);
+    if ('customer_help_message' in payload) setCustomerHelpMessage(payload.customer_help_message as string | null);
+  }, []);
+
   // Realtime subscription
   useEffect(() => {
     const uniqueId = Math.random().toString(36).substring(2, 10);
@@ -175,11 +190,7 @@ export default function OrderTracker({
         },
         (payload) => {
           if (payload.new) {
-            if (payload.new.order_status) setStatus(payload.new.order_status);
-            if (payload.new.rider_phone) setRiderPhone(payload.new.rider_phone);
-            if ('cancelled_by' in payload.new) setCancelledBy(payload.new.cancelled_by);
-            if ('cancel_reason' in payload.new) setCancelReason(payload.new.cancel_reason);
-            if ('customer_help_message' in payload.new) setCustomerHelpMessage(payload.new.customer_help_message);
+            throttledUpdate(payload.new);
           }
         },
       )
@@ -188,7 +199,7 @@ export default function OrderTracker({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [orderId]);
+  }, [orderId, throttledUpdate]);
 
   // Rider location tracking
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);

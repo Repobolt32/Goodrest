@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import {
   getRiderStats,
   getRiderActiveOrder,
-  updateLocation,
   startRiding,
   markOrderAsDeliveredRider,
   setRiderOnline,
@@ -14,6 +13,7 @@ import {
 import TerminalView from '@/components/rider/TerminalView';
 import EarningsView from '@/components/rider/EarningsView';
 import { Bike, BarChart3, LogOut, RefreshCw } from 'lucide-react';
+import { useBackgroundLocation } from '@/hooks/useBackgroundLocation';
 
 interface RiderSession {
   id: string;
@@ -52,18 +52,29 @@ interface ActiveOrder {
 export default function RiderDashboardPage() {
   const [rider, setRider] = useState<RiderSession | null>(null);
   const [isOnline, setIsOnline] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null);
   const [stats, setStats] = useState<RiderStats | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'terminal' | 'earnings'>('terminal');
   const [refreshing, setRefreshing] = useState(false);
-  const lastLat = useRef<number | null>(null);
-  const lastLng = useRef<number | null>(null);
-  const geoUnsupported = useRef(false);
   const skipPersist = useRef(true);
-  const consecutiveErrorsRef = useRef(0);
   const router = useRouter();
+
+  const handleLocationError = useCallback(() => {
+    setIsOnline(false);
+  }, []);
+
+  const {
+    geoError,
+    setGeoError,
+    lastLat,
+    lastLng,
+    getCurrentPosition,
+  } = useBackgroundLocation(
+    rider?.id ?? '',
+    isOnline,
+    handleLocationError
+  );
 
   // Load rider session
   useEffect(() => {
@@ -126,15 +137,6 @@ export default function RiderDashboardPage() {
     };
   }, [rider?.id]);
 
-  // Check geolocation support once
-  useEffect(() => {
-    if (!('geolocation' in navigator)) {
-      geoUnsupported.current = true;
-      setGeoError('Geolocation not supported by this browser.');
-      setIsOnline(false);
-    }
-  }, []);
-
   // Persist online state to DB (skip on initial load)
   useEffect(() => {
     if (skipPersist.current || !rider) return;
@@ -146,38 +148,6 @@ export default function RiderDashboardPage() {
         console.warn('Failed to persist rider online state:', res.error);
       }
     });
-  }, [isOnline, rider]);
-
-  // Geolocation watch
-  useEffect(() => {
-    if (!isOnline || !rider || geoUnsupported.current) {
-      consecutiveErrorsRef.current = 0;
-      return;
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setGeoError(null);
-        consecutiveErrorsRef.current = 0;
-        lastLat.current = latitude;
-        lastLng.current = longitude;
-        updateLocation(rider.id, latitude, longitude);
-      },
-      (err) => {
-        console.warn('Geolocation error:', err);
-        consecutiveErrorsRef.current += 1;
-        if (consecutiveErrorsRef.current >= 3) {
-          setGeoError(err.message || 'Location access denied. Enable GPS to go online.');
-          setIsOnline(false);
-        }
-      },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 },
-    );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
   }, [isOnline, rider]);
 
   const handleRefresh = async () => {
@@ -195,8 +165,8 @@ export default function RiderDashboardPage() {
   const handleStartRiding = async () => {
     if (!activeOrder || !rider) return;
     setActionLoading(true);
-    const lat = lastLat.current ?? undefined;
-    const lng = lastLng.current ?? undefined;
+    const lat = lastLat ?? undefined;
+    const lng = lastLng ?? undefined;
     const result = await startRiding(activeOrder.id, rider.id, lat, lng);
     if (result.success) {
       await refreshData();
@@ -226,23 +196,16 @@ export default function RiderDashboardPage() {
   const toggleOnline = useCallback(async () => {
     if (!rider) return;
 
-    if (!isOnline && !geoUnsupported.current) {
+    if (!isOnline) {
       try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: false, timeout: 5000, maximumAge: 60000,
-          });
-        });
-        lastLat.current = pos.coords.latitude;
-        lastLng.current = pos.coords.longitude;
-        setGeoError(null);
+        await getCurrentPosition();
       } catch {
         setGeoError('Location unavailable. Going online without tracking.');
       }
     }
 
     setIsOnline((prev) => !prev);
-  }, [rider, isOnline]);
+  }, [rider, isOnline, getCurrentPosition, setGeoError]);
 
   if (!rider) return null;
 

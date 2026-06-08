@@ -10,13 +10,13 @@ interface FloatingCartProps {
 }
 
 export default function FloatingCart({ totalItems, totalPrice }: FloatingCartProps) {
-  if (totalItems === 0) return null;
-
   return (
     <div className="fixed bottom-6 left-0 right-0 z-50 px-4">
       <motion.div
         initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+        animate={{ y: 0, opacity: totalItems > 0 ? 1 : 0 }}
+        exit={{ y: 100, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
         className="max-w-md mx-auto bg-primary rounded-2xl shadow-2xl overflow-hidden shadow-primary/40 border border-white/20 backdrop-blur-lg"
       >
         <Link href="/checkout" className="flex items-center justify-between p-4 px-4 sm:px-6 text-white active:scale-x-95 transition-transform duration-150">

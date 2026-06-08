@@ -5,12 +5,13 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { rateLimit } from '@/lib/rateLimit';
 import { getGoogleMapsRouteData } from './distanceActions';
 import { revalidatePath } from 'next/cache';
-
-const RESTO_LAT = parseFloat(process.env.NEXT_PUBLIC_RESTO_LAT || '0');
-const RESTO_LNG = parseFloat(process.env.NEXT_PUBLIC_RESTO_LNG || '0');
+import { verifyRiderSession } from '@/lib/auth';
 
 import { calculateRiderEarning, calculateNightlyBonus, calculateEarningBreakdown, calculateBonusProgress } from '@/lib/pricing';
 import { randomUUID } from 'crypto';
+import { getRestoCoordinates } from '@/lib/validation';
+
+const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
 
 function isValidUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -70,6 +71,12 @@ export async function loginRider(phone: string, password_hash: string) {
 export async function acceptOrder(orderId: string, riderId: string) {
   if (!isValidUUID(orderId) || !isValidUUID(riderId)) {
     return { success: false, error: 'Invalid order or rider ID' };
+  }
+
+  const session = await verifyRiderSession();
+  if (!session.success) return { success: false, error: session.error };
+  if (!session.session || session.session.id !== riderId) {
+    return { success: false, error: 'Unauthorized: rider session does not match' };
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -189,6 +196,12 @@ export async function startRiding(orderId: string, riderId: string, latitude?: n
     return { success: false, error: 'Invalid order or rider ID' };
   }
 
+  const session = await verifyRiderSession();
+  if (!session.success) return { success: false, error: session.error };
+  if (!session.session || session.session.id !== riderId) {
+    return { success: false, error: 'Unauthorized: rider session does not match' };
+  }
+
   const riderCheck = await verifyRiderExists(riderId);
   if (!riderCheck.success) return riderCheck;
 
@@ -243,6 +256,12 @@ export async function startRiding(orderId: string, riderId: string, latitude?: n
 export async function markOrderAsDeliveredRider(orderId: string, riderId: string) {
   if (!isValidUUID(orderId) || !isValidUUID(riderId)) {
     return { success: false, error: 'Invalid order or rider ID' };
+  }
+
+  const session = await verifyRiderSession();
+  if (!session.success) return { success: false, error: session.error };
+  if (!session.session || session.session.id !== riderId) {
+    return { success: false, error: 'Unauthorized: rider session does not match' };
   }
 
   const riderCheck = await verifyRiderExists(riderId);

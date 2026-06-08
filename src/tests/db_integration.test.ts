@@ -30,66 +30,81 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
   const testOrderIds: string[] = [];
   const testCustomerPhones: string[] = [];
   let originalE2E: string | undefined;
+  let testMenuItems: { id: string; name: string; price: number; category: string | null; tags: string[] | null; is_available: boolean | null }[] = [];
 
-  beforeAll(() => {
+  beforeAll(async () => {
     originalE2E = process.env.E2E_MODE;
     process.env.E2E_MODE = 'true';
+
+    // Fetch real menu items from DB for testing
+    const { data: menuItems, error } = await supabase
+      .from('menu_items')
+      .select('*')
+      .limit(2);
+
+    if (error || !menuItems || menuItems.length < 2) {
+      throw new Error(`Failed to fetch menu items for integration test: ${error?.message || 'Not enough items'}`);
+    }
+    testMenuItems = menuItems;
   });
 
   it('successfully populates 8 diverse orders and ensures customer records are upserted', async () => {
+    const item1 = testMenuItems[0];
+    const item2 = testMenuItems[1];
+
     for (let i = 1; i <= 8; i++) {
        const phone = `${TEST_PHONE_PREFIX}${i.toString().padStart(4, '0')}`;
        const name = `${TEST_PREFIX}${i}`;
        const address = `${i*100}, Integration Street, Test City`;
-       
+
        const input = {
          customer_name: name,
          customer_phone: phone,
          delivery_address: address,
          payment_method: (i % 2 === 0 ? 'cod' : 'online') as 'cod' | 'online',
          items: [
-           { 
-             id: 'butter-chicken', 
-             name: 'Butter Chicken', 
-             price: 450, 
-             quantity: i, 
-             category: 'Main Course' as Category, 
-             tags: [], 
-             is_available: true 
+           {
+             id: item1.id,
+             name: item1.name,
+             price: Number(item1.price),
+             quantity: i,
+             category: (item1.category || 'Other') as Category,
+             tags: Array.isArray(item1.tags) ? item1.tags : [],
+             is_available: !!item1.is_available
            },
-           { 
-             id: 'garlic-naan', 
-             name: 'Garlic Naan', 
-             price: 60, 
-             quantity: 1, 
-             category: 'Breads' as Category, 
-             tags: [], 
-             is_available: true 
+           {
+             id: item2.id,
+             name: item2.name,
+             price: Number(item2.price),
+             quantity: 1,
+             category: (item2.category || 'Other') as Category,
+             tags: Array.isArray(item2.tags) ? item2.tags : [],
+             is_available: !!item2.is_available
            }
          ],
-         total_amount: (450 * i + 60)
+         total_amount: (Number(item1.price) * i + Number(item2.price))
        };
 
        const result = await createOrder(input);
-       
+
        if (!result.success) {
          console.error(`Order ${i} failure:`, result.error);
        }
-       
+
        expect(result.success).toBe(true);
        if (result.data?.id) testOrderIds.push(result.data.id);
        testCustomerPhones.push(phone);
     }
 
     expect(testOrderIds).toHaveLength(8);
-    
+
     // Verify one of the records in the DB to ensure trigger fired
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*')
       .eq('id', testOrderIds[0])
       .single();
-      
+
     expect(orderError).toBeNull();
     expect(order).not.toBeNull();
     if (order) {
@@ -106,14 +121,14 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
 
     expect(codOrderError).toBeNull();
     expect(codOrder?.payment_method).toBe('cod');
-    
+
     // Verify customer record was created/updated and count incremented via trigger
     const { data: customer, error: customerError } = await supabase
       .from('customers')
       .select('*')
       .eq('phone', testCustomerPhones[0])
       .single();
-      
+
     expect(customerError).toBeNull();
     expect(customer).not.toBeNull();
     if (customer) {
@@ -123,7 +138,9 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
     }
   }, 60000); // Higher timeout for real DB network calls
 
-  it('persists audit-safe order_items rows even when cart item ids are not UUIDs', async () => {
+  it('persists audit-safe order_items rows with real menu item IDs', async () => {
+    const item1 = testMenuItems[0];
+    const item2 = testMenuItems[1];
     const phone = `${TEST_PHONE_PREFIX}9999`;
     const input = {
       customer_name: `${TEST_PREFIX}AUDIT`,
@@ -132,25 +149,25 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
       payment_method: 'online' as const,
       items: [
         {
-          id: '1',
-          name: 'Test Burger',
-          price: 100,
+          id: item1.id,
+          name: item1.name,
+          price: Number(item1.price),
           quantity: 2,
-          category: 'Main Course' as Category,
-          tags: ['Test'],
-          is_available: true,
+          category: (item1.category || 'Other') as Category,
+          tags: Array.isArray(item1.tags) ? item1.tags : [],
+          is_available: !!item1.is_available,
         },
         {
-          id: '2',
-          name: 'Test Drink',
-          price: 50,
+          id: item2.id,
+          name: item2.name,
+          price: Number(item2.price),
           quantity: 1,
-          category: 'Beverages' as Category,
-          tags: ['Test'],
-          is_available: true,
+          category: (item2.category || 'Other') as Category,
+          tags: Array.isArray(item2.tags) ? item2.tags : [],
+          is_available: !!item2.is_available,
         },
       ],
-      total_amount: 250,
+      total_amount: Number(item1.price) * 2 + Number(item2.price),
     };
 
     const result = await createOrder(input);
@@ -172,8 +189,12 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
     expect(itemsError).toBeNull();
     expect(items).not.toBeNull();
     expect(items).toHaveLength(2);
-    expect(items?.map((item) => item.menu_item_id)).toEqual([null, null]);
-    expect(items?.map((item) => Number(item.price_at_order))).toEqual([100, 50]);
+    // Non-UUID item IDs result in menu_item_id = null; UUID IDs would be stored
+    const expectedMenuIds = [item1.id, item2.id].map(id =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : null
+    );
+    expect(items?.map((item) => item.menu_item_id)).toEqual(expectedMenuIds);
+    expect(items?.map((item) => Number(item.price_at_order))).toEqual([Number(item1.price), Number(item2.price)]);
   }, 15000);
 
   afterAll(async () => {

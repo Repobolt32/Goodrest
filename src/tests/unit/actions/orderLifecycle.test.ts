@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   mockRpc: vi.fn(),
   mockVerifyAdminSession: vi.fn(),
   mockVerifyCustomerSession: vi.fn(),
+  mockVerifyRiderSession: vi.fn(),
 }));
 
 const distanceMocks = vi.hoisted(() => ({
@@ -30,6 +31,7 @@ const cacheMocks = vi.hoisted(() => ({
 vi.mock('@/lib/auth', () => ({
   verifyAdminSession: mocks.mockVerifyAdminSession,
   verifyCustomerSession: mocks.mockVerifyCustomerSession,
+  verifyRiderSession: mocks.mockVerifyRiderSession,
 }));
 
 vi.mock('@/lib/supabaseAdmin', () => ({
@@ -45,6 +47,10 @@ vi.mock('@/app/actions/distanceActions', () => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: cacheMocks.revalidatePath,
+}));
+
+vi.mock('@/lib/validation', () => ({
+  getRestoCoordinates: vi.fn().mockReturnValue({ lat: 24.79, lng: 85.01 }),
 }));
 
 import { cancelOrder } from '@/app/actions/orderActions';
@@ -77,6 +83,10 @@ describe('Order Lifecycle State Machine Tests', () => {
     // Default admin session is valid
     mocks.mockVerifyAdminSession.mockResolvedValue({ success: true, session: { role: 'admin' } });
     mocks.mockVerifyCustomerSession.mockResolvedValue({ success: true, session: { phone: CUSTOMER_PHONE } });
+    mocks.mockVerifyRiderSession.mockResolvedValue({
+      success: true,
+      session: { id: VALID_RIDER_ID, name: 'Test Rider', phone: '9999999999' },
+    });
 
     // Setup default chain return values
     mocks.mockFrom.mockReturnValue(chain);

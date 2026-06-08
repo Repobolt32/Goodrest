@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { rateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit by IP to prevent webhook flooding
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const limitResult = rateLimit(`webhook_razorpay_${ip}`, 30);
+    if (!limitResult.allowed) {
+      console.warn(`[Webhook] Rate limit exceeded for IP: ${ip}`);
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const body = await req.text();
     const signature = req.headers.get("x-razorpay-signature");
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
@@ -95,7 +104,8 @@ async function handlePaymentCaptured(razorpay_order_id: string, razorpay_payment
       order_status: "confirmed",
       razorpay_payment_id,
     })
-    .eq("id", order.id);
+    .eq("id", order.id)
+    .eq("payment_status", "pending");
 
   if (updateError) {
     console.error(`[Webhook] payment.captured: Failed to update order ${order.id}:`, updateError);
@@ -133,7 +143,8 @@ async function handlePaymentFailed(
       order_status: "created",
       ...(razorpay_payment_id && { razorpay_payment_id }),
     })
-    .eq("id", order.id);
+    .eq("id", order.id)
+    .eq("payment_status", "pending");
 
   if (updateError) {
     console.error(`[Webhook] payment.failed: Failed to update order ${order.id}:`, updateError);
