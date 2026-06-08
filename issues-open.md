@@ -2,7 +2,7 @@
 
 **Merged from:** `issued.md` (2026-05-29) + `issues2.md` (2026-06-02)
 **Last verified:** 2026-06-06 against commit `0cddb53`
-**Total open:** 31 issues
+**Total open:** 30 issues
 
 ---
 
@@ -169,10 +169,10 @@
 * **Issue:** `dispatchOrder` sets `manual_dispatch = true`, but `startRiding` does NOT validate `manual_dispatch === true` before transitioning to `out_for_delivery`. Rider can start riding before owner explicitly dispatches.
 * **Fix:** Add `manual_dispatch` gate in `startRiding`. Return error if false.
 
-### FLOW-02 — Premature Rider Notification / Accept Flow Mismatch
+### FLOW-02 — Premature Rider Notification / Accept Flow Mismatch ✅ NOT A BUG
 * **File:** Order creation flow
 * **Issue:** Unassigned orders trigger audio broadcasts immediately upon creation. Owner should accept/confirm at POS first before riders see it.
-* **Fix:** Only broadcast to riders when `order_status = 'preparing'` (after owner accepts), not `'confirmed'`.
+* **Resolution:** Verified not a bug. Rider broadcast (`OrderBroadcast.tsx:99`) already filters `preparing`/`ready` — riders never see `confirmed` orders. 30-second owner dashboard delay works as intended. System functions correctly.
 
 ---
 
