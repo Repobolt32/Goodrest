@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getRiderActiveOrder: vi.fn(),
   getRiderStats: vi.fn(),
   setRiderOnline: vi.fn(),
+  getRider24HHistory: vi.fn(),
 }));
 
 const mockPush = vi.fn();
@@ -70,6 +71,7 @@ vi.mock('@/app/actions/riderActions', () => ({
   startRiding: vi.fn(),
   markOrderAsDeliveredRider: vi.fn(),
   setRiderOnline: mocks.setRiderOnline,
+  getRider24HHistory: mocks.getRider24HHistory,
 }));
 
 vi.mock('@/components/rider/TerminalView', () => ({
@@ -106,6 +108,7 @@ describe('RiderDashboardPage', () => {
     });
     mocks.getRiderActiveOrder.mockResolvedValue(null);
     mocks.setRiderOnline.mockResolvedValue({ success: true });
+    mocks.getRider24HHistory.mockResolvedValue({ success: true, data: [] });
   });
 
   afterEach(() => {

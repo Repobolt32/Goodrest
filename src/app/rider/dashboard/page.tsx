@@ -9,10 +9,12 @@ import {
   startRiding,
   markOrderAsDeliveredRider,
   setRiderOnline,
+  getRider24HHistory,
 } from '@/app/actions/riderActions';
 import TerminalView from '@/components/rider/TerminalView';
 import EarningsView from '@/components/rider/EarningsView';
-import { Bike, BarChart3, LogOut, RefreshCw } from 'lucide-react';
+import HistoryView from '@/components/rider/HistoryView';
+import { Bike, BarChart3, LogOut, RefreshCw, Clock } from 'lucide-react';
 import { useBackgroundLocation } from '@/hooks/useBackgroundLocation';
 
 interface RiderSession {
@@ -49,13 +51,25 @@ interface ActiveOrder {
   manual_dispatch: boolean | null;
 }
 
+interface HistoryOrder {
+  id: string;
+  friendly_id: string | null;
+  customer_name: string;
+  delivery_address: string;
+  distance_km: number | null;
+  rider_earning: number | null;
+  delivered_at: string | null;
+}
+
 export default function RiderDashboardPage() {
   const [rider, setRider] = useState<RiderSession | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null);
   const [stats, setStats] = useState<RiderStats | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'terminal' | 'earnings'>('terminal');
+  const [activeTab, setActiveTab] = useState<'terminal' | 'earnings' | 'history'>('terminal');
+  const [historyOrders, setHistoryOrders] = useState<HistoryOrder[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const skipPersist = useRef(true);
   const router = useRouter();
@@ -97,13 +111,20 @@ export default function RiderDashboardPage() {
   // Load stats + active order on mount
   const refreshData = useCallback(async () => {
     if (!rider) return;
-    const [statsData, orderData] = await Promise.all([
+    setHistoryLoading(true);
+    const [statsData, orderData, historyRes] = await Promise.all([
       getRiderStats(rider.id),
       getRiderActiveOrder(rider.id),
+      getRider24HHistory(rider.id),
     ]);
     if (statsData) setStats(statsData as RiderStats);
     if (orderData) setActiveOrder(orderData as ActiveOrder);
     else setActiveOrder(null);
+
+    if (historyRes && historyRes.success) {
+      setHistoryOrders(historyRes.data || []);
+    }
+    setHistoryLoading(false);
   }, [rider]);
 
   useEffect(() => {
@@ -176,17 +197,16 @@ export default function RiderDashboardPage() {
     setActionLoading(false);
   };
 
-  const handleDelivered = async () => {
-    if (!activeOrder || !rider) return;
+  const handleDelivered = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!activeOrder || !rider) return { success: false, error: 'No active order found' };
     setActionLoading(true);
     const result = await markOrderAsDeliveredRider(activeOrder.id, rider.id);
     if (result.success) {
       setActiveOrder(null);
       await refreshData();
-    } else {
-      alert(result.error || 'Failed to mark delivered');
     }
     setActionLoading(false);
+    return result;
   };
 
   const handleAcceptBroadcast = async () => {
@@ -252,7 +272,7 @@ export default function RiderDashboardPage() {
           onDelivered={handleDelivered}
           onAcceptBroadcast={handleAcceptBroadcast}
         />
-      ) : (
+      ) : activeTab === 'earnings' ? (
         <EarningsView
           riderId={rider.id}
           todayEarnings={stats?.todayEarnings ?? 0}
@@ -261,6 +281,11 @@ export default function RiderDashboardPage() {
           todayBonus={stats?.todayNightlyBonus ?? 0}
           todayDeliveryFees={stats?.todayDeliveryFees ?? 0}
           todayPickupPay={stats?.todayPickupPay ?? 0}
+        />
+      ) : (
+        <HistoryView
+          orders={historyOrders}
+          loading={historyLoading}
         />
       )}
 
@@ -275,6 +300,18 @@ export default function RiderDashboardPage() {
           >
             <Bike size={20} />
             <span className="text-xs font-medium tracking-wide normal-case">Terminal</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('history');
+              refreshData();
+            }}
+            className={`flex-1 py-4 flex flex-col items-center gap-1 transition-colors ${
+              activeTab === 'history' ? 'text-[#E23744]' : 'text-[#696969]'
+            }`}
+          >
+            <Clock size={20} />
+            <span className="text-xs font-medium tracking-wide normal-case">History</span>
           </button>
           <button
             onClick={() => setActiveTab('earnings')}

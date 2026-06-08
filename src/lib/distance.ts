@@ -9,5 +9,5 @@ export interface RouteData {
  */
 export function calculateETA(durationSeconds: number, prepTimeMinutes = 20): number {
   const travelMinutes = durationSeconds / 60;
-  return Math.ceil(prepTimeMinutes + travelMinutes);
+  return Math.ceil(prepTimeMinutes + travelMinutes + 5); // 5min buffer
 }

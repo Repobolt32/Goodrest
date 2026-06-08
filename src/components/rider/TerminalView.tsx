@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Power, TrendingUp, ShoppingBag, Route, Navigation, CheckCircle, AlertCircle, Sparkles,
 } from 'lucide-react';
 import OrderBroadcast from './OrderBroadcast';
 import BonusProgress from './BonusProgress';
+import DeliveryConfirmationModal from './DeliveryConfirmationModal';
 import { calculateEarningBreakdown } from '@/lib/pricing';
 
 const RESTO_LAT = process.env.NEXT_PUBLIC_RESTO_LAT || '24.797471691999753';
@@ -48,7 +50,7 @@ interface TerminalViewProps {
   actionLoading: boolean;
   onToggleOnline: () => void;
   onStartRiding: () => void;
-  onDelivered: () => void;
+  onDelivered: () => Promise<{ success: boolean; error?: string }>;
   onAcceptBroadcast: () => void;
 }
 
@@ -56,6 +58,7 @@ export default function TerminalView({
   riderId, isOnline, geoError, stats, activeOrder, actionLoading,
   onToggleOnline, onStartRiding, onDelivered, onAcceptBroadcast,
 }: TerminalViewProps) {
+  const [isConfirming, setIsConfirming] = useState(false);
   const todayEarnings = stats?.todayEarnings ?? 0;
   const todayOrders = stats?.todayDeliveries ?? 0;
   const todayDistance = stats?.todayDistanceKm ?? 0;
@@ -218,15 +221,11 @@ export default function TerminalView({
                   <Navigation size={16} /> Navigate
                 </a>
                 <button
-                  onClick={onDelivered}
+                  onClick={() => setIsConfirming(true)}
                   disabled={actionLoading}
                   className="flex-1 py-4 bg-[#3AB757] hover:bg-[#2b9241] text-white rounded-xl font-semibold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                 >
-                  {actionLoading ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <><CheckCircle size={16} /> Delivered</>
-                  )}
+                  <CheckCircle size={16} /> Delivered
                 </button>
               </div>
             )}
@@ -240,6 +239,16 @@ export default function TerminalView({
         hasActiveOrder={!!activeOrder}
         onAccept={onAcceptBroadcast}
       />
+
+      {/* Delivery Confirmation Modal */}
+      {activeOrder && (
+        <DeliveryConfirmationModal
+          order={activeOrder}
+          isOpen={isConfirming}
+          onClose={() => setIsConfirming(false)}
+          onConfirm={onDelivered}
+        />
+      )}
     </>
   );
 }

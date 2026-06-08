@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   mockGte: vi.fn(),
   mockLte: vi.fn(),
   mockOrder: vi.fn(),
+  mockLimit: vi.fn(),
   mockInsert: vi.fn(),
   mockUpdate: vi.fn(),
   mockFrom: vi.fn(),
@@ -71,6 +72,7 @@ import {
   getRiderStats,
   getRiderActiveOrder,
   getUnassignedOrders,
+  getRider24HHistory,
 } from '@/app/actions/riderActions';
 
 import bcrypt from 'bcryptjs';
@@ -99,6 +101,7 @@ describe('riderActions', () => {
     mocks.mockGte.mockReset();
     mocks.mockLte.mockReset();
     mocks.mockOrder.mockReset();
+    mocks.mockLimit.mockReset();
     mocks.mockInsert.mockReset();
     mocks.mockUpdate.mockReset();
     mocks.mockFrom.mockReset();
@@ -132,6 +135,7 @@ describe('riderActions', () => {
       gte: mocks.mockGte,
       lte: mocks.mockLte,
       order: mocks.mockOrder,
+      limit: mocks.mockLimit,
       single: mocks.mockSingle,
       maybeSingle: mocks.mockMaybeSingle,
     };
@@ -147,6 +151,7 @@ describe('riderActions', () => {
     mocks.mockGte.mockReturnValue(chain);
     mocks.mockLte.mockReturnValue(chain);
     mocks.mockOrder.mockReturnValue(chain);
+    mocks.mockLimit.mockReturnValue(chain);
     // Default single: resolve with a valid rider for verifyRiderExists
     mocks.mockSingle.mockResolvedValue({ data: { id: VALID_RIDER_ID }, error: null });
     mocks.mockMaybeSingle.mockResolvedValue({ data: null, error: null });
@@ -378,7 +383,7 @@ describe('riderActions', () => {
       expect(result.error).toBe('DB failure');
     });
 
-    it('should default earning to 500 when distance cannot be computed', async () => {
+    it('should default earning to 41 when distance cannot be computed', async () => {
       const mockOrder = { distance_km: null, lat: null, lng: null };
       const mockRider = { phone: '8888888888' };
       const mockUpdatedRows = [{ id: VALID_ORDER_ID }];
@@ -907,6 +912,59 @@ describe('riderActions', () => {
       const result = await getUnassignedOrders();
 
       expect(result).toEqual([]);
+    });
+  });
+
+  // ─── getRider24HHistory ───────────────────────────────────────────
+  describe('getRider24HHistory', () => {
+    it('should reject when rider session is invalid', async () => {
+      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+
+      const result = await getRider24HHistory(VALID_RIDER_ID);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized');
+    });
+
+    it('should reject when rider session ID does not match riderId param', async () => {
+      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+        success: true,
+        session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
+      });
+
+      const result = await getRider24HHistory(VALID_RIDER_ID);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized: rider session does not match');
+    });
+
+    it('should reject invalid UUID', async () => {
+      const result = await getRider24HHistory('bad-id');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid rider ID');
+    });
+
+    it('should fetch delivered orders from last 24 hours', async () => {
+      mockRiderExists();
+      const mockOrders = [
+        { id: 'order-1', friendly_id: 'F1', customer_name: 'John', delivery_address: 'Addr 1', distance_km: 1.5, rider_earning: 41, delivered_at: new Date().toISOString() }
+      ];
+      mocks.mockLimit.mockResolvedValueOnce({ data: mockOrders, error: null });
+
+      const result = await getRider24HHistory(VALID_RIDER_ID);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockOrders);
+    });
+
+    it('should return error on query failure', async () => {
+      mockRiderExists();
+      mocks.mockLimit.mockResolvedValueOnce({ data: null, error: { message: 'Database error' } });
+
+      const result = await getRider24HHistory(VALID_RIDER_ID);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Database error');
     });
   });
 });

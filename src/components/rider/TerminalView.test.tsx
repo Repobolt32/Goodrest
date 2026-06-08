@@ -483,8 +483,8 @@ describe('TerminalView', () => {
     expect(screen.getByText('Delivered')).toBeInTheDocument();
   });
 
-  it('should call onDelivered when Delivered is clicked', () => {
-    const onDelivered = vi.fn();
+  it('should call onDelivered when Delivered is clicked and confirmed', async () => {
+    const onDelivered = vi.fn().mockResolvedValue({ success: true });
     render(
       <TerminalView
         riderId="rider-1"
@@ -500,8 +500,40 @@ describe('TerminalView', () => {
       />
     );
 
+    // 1. Click "Delivered" to open confirmation modal
     fireEvent.click(screen.getByText('Delivered'));
+    
+    // 2. Click "Yes, Delivered" in the modal
+    fireEvent.click(screen.getByText('Yes, Delivered'));
+    
     expect(onDelivered).toHaveBeenCalledOnce();
+  });
+
+  it('should not call onDelivered when Cancel is clicked in modal', () => {
+    const onDelivered = vi.fn().mockResolvedValue({ success: true });
+    render(
+      <TerminalView
+        riderId="rider-1"
+        isOnline={true}
+        geoError={null}
+        stats={defaultStats}
+        activeOrder={{ ...mockActiveOrder, order_status: 'out_for_delivery' }}
+        actionLoading={false}
+        onToggleOnline={vi.fn()}
+        onStartRiding={vi.fn()}
+        onDelivered={onDelivered}
+        onAcceptBroadcast={vi.fn()}
+      />
+    );
+
+    // 1. Click "Delivered" to open modal
+    fireEvent.click(screen.getByText('Delivered'));
+    
+    // 2. Click "Cancel" in the modal
+    fireEvent.click(screen.getByText('Cancel'));
+    
+    expect(onDelivered).not.toHaveBeenCalled();
+    expect(screen.queryByText('Confirm Delivery')).not.toBeInTheDocument();
   });
 
   it('should show earning breakdown when distance_km is set', () => {

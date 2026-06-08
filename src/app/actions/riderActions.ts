@@ -547,3 +547,35 @@ export async function getRiderEarningHistory(riderId: string) {
     },
   };
 }
+
+export async function getRider24HHistory(riderId: string) {
+  if (!isValidUUID(riderId)) {
+    return { success: false, error: 'Invalid rider ID', data: [] };
+  }
+
+  const session = await verifyRiderSession();
+  if (!session.success) return { success: false, error: session.error, data: [] };
+  if (!session.session || session.session.id !== riderId) {
+    return { success: false, error: 'Unauthorized: rider session does not match', data: [] };
+  }
+
+  const riderCheck = await verifyRiderExists(riderId);
+  if (!riderCheck.success) return { success: false, error: riderCheck.error, data: [] };
+
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('orders')
+    .select('id, friendly_id, customer_name, delivery_address, distance_km, rider_earning, delivered_at')
+    .eq('rider_id', riderId)
+    .eq('order_status', 'delivered')
+    .gte('delivered_at', twentyFourHoursAgo)
+    .order('delivered_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    return { success: false, error: error.message, data: [] };
+  }
+
+  return { success: true, data: data || [] };
+}
