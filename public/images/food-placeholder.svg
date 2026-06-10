@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none">
+  <rect width="400" height="300" fill="#f8fafc"/>
+  <circle cx="200" cy="120" r="60" fill="#e2e8f0"/>
+  <path d="M170 110 C170 90 230 90 230 110 L230 130 C230 150 170 150 170 130 Z" fill="#cbd5e1"/>
+  <path d="M180 120 Q200 100 220 120" stroke="#94a3b8" stroke-width="2" fill="none"/>
+  <path d="M185 130 Q200 145 215 130" stroke="#94a3b8" stroke-width="2" fill="none"/>
+  <text x="200" y="210" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" fill="#64748b" font-weight="500">Food Image</text>
+  <text x="200" y="230" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">Add to /public/images/</text>
+</svg>

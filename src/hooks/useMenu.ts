@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { MenuItem, Category } from '@/types/menu';
+import { Category, MenuItem } from '@/types/menu';
+import { validateMenuItems, validateCategories } from '@/lib/menuValidation';
 
 export const useMenu = (category: Category | 'All') => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [categoryMap, setCategoryMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
 
+  // Fetch categories once on mount
   useEffect(() => {
     let cancelled = false;
 
-    const fetchMenu = async () => {
-      setLoading(true);
-      
-      // Fetch categories
+    const fetchCategories = async () => {
       const { data: catData, error: catError } = await supabase
         .from('categories')
         .select('id, name')
@@ -24,19 +24,38 @@ export const useMenu = (category: Category | 'All') => {
       
       if (cancelled) return;
       
-      let categoryId: string | null = null;
-      const categoryMap = new Map<string, string>();
-      
       if (catError) {
         console.error('[useMenu] Error fetching categories:', catError);
       } else if (catData) {
-        setCategories(catData.map(c => c.name));
-        catData.forEach(c => categoryMap.set(c.id, c.name));
-        
-        if (category !== 'All') {
-          const matched = catData.find(c => c.name === category);
-          categoryId = matched ? matched.id : 'non-existent';
+        const validated = validateCategories(catData);
+        if (validated.success) {
+          setCategories(validated.data.map(c => c.name));
+          const map = new Map<string, string>();
+          validated.data.forEach(c => map.set(c.id, c.name));
+          setCategoryMap(map);
+        } else {
+          console.error('[useMenu] Invalid category data:', validated.error);
         }
+      }
+    };
+
+    fetchCategories();
+
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch menu items when category changes
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchMenuItems = async () => {
+      setLoading(true);
+      
+      let categoryId: string | null = null;
+      if (category !== 'All') {
+        const entries = Array.from(categoryMap.entries());
+        const matched = entries.find(([, name]) => name === category);
+        categoryId = matched ? matched[0] : 'non-existent';
       }
 
       let query = supabase
@@ -59,15 +78,22 @@ export const useMenu = (category: Category | 'All') => {
           ...item,
           category: item.category || (item.category_id ? (categoryMap.get(item.category_id) || 'Other') : 'Other')
         }));
-        setMenuItems(mapped as MenuItem[]);
+        
+        const validated = validateMenuItems(mapped);
+        if (validated.success) {
+          setMenuItems(validated.data);
+        } else {
+          console.error('[useMenu] Invalid menu data:', validated.error);
+          setMenuItems([]);
+        }
       }
       setLoading(false);
     };
 
-    fetchMenu();
+    fetchMenuItems();
 
     return () => { cancelled = true; };
-  }, [category]);
+  }, [category, categoryMap]);
 
   return { menuItems, categories, loading };
 };

@@ -7,7 +7,17 @@ const mockSupabaseQuery = {
   order: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
   async then(resolve: (value: unknown) => void) {
-    resolve({ data: [{ id: '1', name: 'Test Food', category: 'Main Course' }], error: null });
+    resolve({ 
+      data: [{ 
+        id: '1', 
+        name: 'Test Food', 
+        price: 250,
+        category: 'Main Course',
+        tags: [],
+        is_available: true
+      }], 
+      error: null 
+    });
   },
 };
 

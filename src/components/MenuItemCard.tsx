@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { MenuItem } from '@/types/menu';
-import { Plus, Minus, Star, ImageOff } from 'lucide-react';
+import { Plus, Minus, ImageOff } from 'lucide-react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+
+const DEFAULT_FOOD_IMAGE = '/images/food-placeholder.svg';
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -20,6 +22,9 @@ export default function MenuItemCard({ item, quantity, onAdd, onRemove }: MenuIt
   const showOrderCount = isChicken; // Example: only show for chicken items as per feedback
 
   const [imgError, setImgError] = useState(false);
+  
+  const isExternalUrl = item.image_url?.startsWith('http') || false;
+  const imageSrc = imgError || isExternalUrl ? DEFAULT_FOOD_IMAGE : (item.image_url || DEFAULT_FOOD_IMAGE);
   
   // Simple Veg/Non-Veg logic with safety guard
   const isVeg = (item.category || '').toLowerCase().includes('veg') || 
@@ -41,7 +46,7 @@ export default function MenuItemCard({ item, quantity, onAdd, onRemove }: MenuIt
         <div className="relative aspect-[4/3] w-full bg-gray-50 overflow-hidden">
           {!imgError ? (
             <Image
-              src={item.image_url}
+              src={imageSrc}
               alt={item.name}
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-110"
@@ -56,21 +61,15 @@ export default function MenuItemCard({ item, quantity, onAdd, onRemove }: MenuIt
             </div>
           )}
           
-          {/* Rating Badge (Top Left) - No transparency/Solid background */}
-          <div className="absolute top-4 left-4 flex flex-col gap-2">
-            <div className="bg-white text-gray-900 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-xl border-2 border-slate-100">
-              <Star size={12} className="text-yellow-500 fill-yellow-500" aria-hidden="true" />
-              4.1
-            </div>
-            
-            {/* Bestseller Tag (Replacing Featured) */}
-            {isBestseller && (
+          {/* Bestseller Tag (Replacing Featured) */}
+          {isBestseller && (
+            <div className="absolute top-4 left-4">
               <div className="bg-primary text-white px-3 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.1em] flex items-center gap-1.5 shadow-xl">
                 <span role="img" aria-label="Bestseller Logo">🔥</span>
                 Bestseller
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
