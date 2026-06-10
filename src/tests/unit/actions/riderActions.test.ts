@@ -33,9 +33,23 @@ const validationMocks = vi.hoisted(() => ({
   getRestoCoordinates: vi.fn().mockReturnValue({ lat: 24.79, lng: 85.01 }),
 }));
 
+const cookiesMocks = vi.hoisted(() => ({
+  set: vi.fn(),
+  get: vi.fn(),
+}));
+
+vi.mock('next/headers', () => ({
+  cookies: () => cookiesMocks,
+}));
+
+const authMocks = vi.hoisted(() => ({
+  signRiderSession: vi.fn().mockResolvedValue('signed_token_123'),
+}));
+
 vi.mock('@/lib/auth', () => ({
   verifyAdminSession: mocks.mockVerifyAdminSession,
   verifyRiderSession: mocks.mockVerifyRiderSession,
+  signRiderSession: authMocks.signRiderSession,
 }));
 
 vi.mock('@/lib/supabaseAdmin', () => ({
@@ -110,6 +124,10 @@ describe('riderActions', () => {
     mocks.mockVerifyRiderSession.mockReset();
     distanceMocks.getGoogleMapsRouteData.mockReset();
     revalidateMocks.revalidatePath.mockReset();
+    cookiesMocks.set.mockReset();
+    cookiesMocks.get.mockReset();
+    authMocks.signRiderSession.mockReset();
+    authMocks.signRiderSession.mockResolvedValue('signed_token_123');
 
     // Default: admin session valid
     mocks.mockVerifyAdminSession.mockResolvedValue({ success: true, session: { role: 'admin' } });
@@ -171,10 +189,19 @@ describe('riderActions', () => {
       mocks.mockSingle.mockResolvedValueOnce({ data: mockRider, error: null });
 
       const result = await loginRider('9999999999', 'hashed_pw_123');
-
+      
       expect(result.success).toBe(true);
       expect(result.rider).toEqual(mockRider);
       expect(mocks.mockFrom).toHaveBeenCalledWith('riders');
+      expect(authMocks.signRiderSession).toHaveBeenCalledWith({
+        id: VALID_RIDER_ID,
+        name: 'Test Rider',
+        phone: '9999999999',
+      });
+      expect(cookiesMocks.set).toHaveBeenCalledWith('rider_session', 'signed_token_123', expect.objectContaining({
+        httpOnly: true,
+        path: '/',
+      }));
     });
 
     it('should return error on invalid credentials', async () => {
@@ -226,6 +253,23 @@ describe('riderActions', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
+    });
+
+    it('should reject when the rider_session cookie is missing', async () => {
+      mocks.mockVerifyRiderSession.mockImplementationOnce(async () => {
+        const val = cookiesMocks.get('rider_session')?.value;
+        if (!val) {
+          return { success: false, error: 'Unauthorized' };
+        }
+        return { success: true, session: { id: VALID_RIDER_ID, name: 'Test Rider', phone: '9999999999' } };
+      });
+      cookiesMocks.get.mockReturnValueOnce(undefined);
+
+      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized');
+      expect(cookiesMocks.get).toHaveBeenCalledWith('rider_session');
     });
 
     it('should reject when rider session ID does not match riderId param', async () => {

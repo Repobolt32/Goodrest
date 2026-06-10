@@ -10,5 +10,6 @@ updated: 2026-05-25
 - Always create a new dedicated branch for major code changes.
 - Branch name format should follow: `feature/[task-slug]` or `fix/[bug-slug]`.
 
-
-
+## Testing & Bug Verification
+- NEVER report or claim a bug exists without reproducing or testing it first.
+- Every bug must be verified through execution and tests, not just source code review.

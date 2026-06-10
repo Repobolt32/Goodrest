@@ -236,6 +236,177 @@ describe('orderActions', () => {
       const rpcCall = mocks.mockRpc.mock.calls[0][1];
       expect(rpcCall.p_order.order_status).toBe('created');
     });
+
+    it('should apply discount_percent offer to order total', async () => {
+      let eqCallCount = 0;
+      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+        eqCallCount++;
+        if (eqCallCount === 1) {
+          // offers.eq('active', true) → resolve with offer data
+          return Promise.resolve({
+            data: [{ id: 'offer-d1', type: 'discount_percent', config: { percent: 10, max_amount: 50 }, active: true, start_time: null, end_time: null }],
+            error: null,
+          });
+        }
+        // restaurant_settings.eq('id', 1) → return chain for .single()
+        return chain;
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.discount_amount).toBe(40);
+      expect(rpcCall.p_order.applied_offers).toEqual([
+        { id: 'offer-d1', type: 'discount_percent', config: { percent: 10, max_amount: 50 } },
+      ]);
+    });
+
+    it('should cap discount at max_amount', async () => {
+      let eqCallCount = 0;
+      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+        eqCallCount++;
+        if (eqCallCount === 1) {
+          return Promise.resolve({
+            data: [{ id: 'offer-d2', type: 'discount_percent', config: { percent: 20, max_amount: 50 }, active: true, start_time: null, end_time: null }],
+            error: null,
+          });
+        }
+        return chain;
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.discount_amount).toBe(50);
+    });
+
+    it('should cap discount at subtotal (cannot exceed order total)', async () => {
+      let eqCallCount = 0;
+      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+        eqCallCount++;
+        if (eqCallCount === 1) {
+          return Promise.resolve({
+            data: [{ id: 'offer-d3', type: 'discount_percent', config: { percent: 50, max_amount: 999 }, active: true, start_time: null, end_time: null }],
+            error: null,
+          });
+        }
+        return chain;
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.discount_amount).toBe(200);
+    });
+
+    it('should apply free_delivery offer when order meets threshold', async () => {
+      let eqCallCount = 0;
+      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+        eqCallCount++;
+        if (eqCallCount === 1) {
+          return Promise.resolve({
+            data: [{ id: 'offer-f1', type: 'free_delivery', config: { threshold: 200 }, active: true, start_time: null, end_time: null }],
+            error: null,
+          });
+        }
+        return chain;
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.delivery_fee).toBe(0);
+    });
+
+    it('should not apply free_delivery when order below threshold', async () => {
+      let eqCallCount = 0;
+      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+        eqCallCount++;
+        if (eqCallCount === 1) {
+          return Promise.resolve({
+            data: [{ id: 'offer-f2', type: 'free_delivery', config: { threshold: 500 }, active: true, start_time: null, end_time: null }],
+            error: null,
+          });
+        }
+        return chain;
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      // 2.5km → delivery fee = 35 (UPTO_3KM slab)
+      expect(rpcCall.p_order.delivery_fee).toBe(35);
+    });
+
+    it('should not apply expired offers', async () => {
+      let eqCallCount = 0;
+      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+        eqCallCount++;
+        if (eqCallCount === 1) {
+          return Promise.resolve({
+            data: [{ id: 'offer-exp', type: 'discount_percent', config: { percent: 50 }, active: true, start_time: '2020-01-01T00:00:00Z', end_time: '2020-12-31T23:59:59Z' }],
+            error: null,
+          });
+        }
+        return chain;
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.discount_amount).toBe(0);
+      expect(rpcCall.p_order.applied_offers).toBeNull();
+    });
+
+    it('should handle no active offers gracefully', async () => {
+      let eqCallCount = 0;
+      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+        eqCallCount++;
+        if (eqCallCount === 1) {
+          return Promise.resolve({ data: [], error: null });
+        }
+        return chain;
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.discount_amount).toBe(0);
+      expect(rpcCall.p_order.delivery_fee).toBe(35);
+      expect(rpcCall.p_order.applied_offers).toBeNull();
+    });
+
+    it('should apply both discount and free_delivery simultaneously', async () => {
+      let eqCallCount = 0;
+      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+        eqCallCount++;
+        if (eqCallCount === 1) {
+          return Promise.resolve({
+            data: [
+              { id: 'offer-d', type: 'discount_percent', config: { percent: 10 }, active: true, start_time: null, end_time: null },
+              { id: 'offer-f', type: 'free_delivery', config: { threshold: 200 }, active: true, start_time: null, end_time: null },
+            ],
+            error: null,
+          });
+        }
+        return chain;
+      });
+
+      const result = await createOrder(validInput);
+      expect(result.success).toBe(true);
+
+      const rpcCall = mocks.mockRpc.mock.calls[0][1];
+      expect(rpcCall.p_order.discount_amount).toBe(40);
+      expect(rpcCall.p_order.delivery_fee).toBe(0);
+      expect(rpcCall.p_order.applied_offers).toHaveLength(2);
+    });
   });
 
   describe('generateRazorpayOrder', () => {

@@ -31,7 +31,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen pb-32">
+    <div className="min-h-screen pb-40">
       <Header />
       <Hero />
 
@@ -79,6 +79,9 @@ export default function Home() {
             <p className="text-xl font-bold text-gray-400">No dishes found in this category.</p>
           </div>
         )}
+        
+        {/* Spacer for FloatingCart overlap prevention */}
+        <div className="h-24" aria-hidden="true" />
       </main>
 
       {/* Floating Cart (Only shown after scrolling) */}

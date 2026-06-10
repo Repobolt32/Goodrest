@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
 
@@ -28,6 +28,59 @@ export default function DeliveryConfirmationModal({
 }: DeliveryConfirmationModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousActiveElement = document.activeElement;
+    
+    // Find all focusable elements within the modal container
+    const focusableElements = modalRef.current?.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements?.[0] as HTMLElement;
+    const lastElement = focusableElements?.[focusableElements.length - 1] as HTMLElement;
+
+    if (firstElement) {
+      // Small timeout to guarantee DOM is updated and visible for browser focus
+      setTimeout(() => firstElement.focus(), 50);
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        if (!focusableElements || focusableElements.length === 0) return;
+
+        if (e.shiftKey) {
+          // Shift + Tab (backward)
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab (forward)
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previousActiveElement instanceof HTMLElement) {
+        previousActiveElement.focus();
+      }
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -57,6 +110,10 @@ export default function DeliveryConfirmationModal({
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-[#3AB757]/10 rounded-full blur-[100px] pointer-events-none" />
 
       <motion.div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -69,7 +126,7 @@ export default function DeliveryConfirmationModal({
             <div className="w-8 h-8 bg-[#3AB757]/10 rounded-lg flex items-center justify-center text-[#3AB757]">
               <ShieldCheck size={18} />
             </div>
-            <h3 className="text-base font-bold text-white tracking-wide">Confirm Delivery</h3>
+            <h3 id="modal-title" className="text-base font-bold text-white tracking-wide">Confirm Delivery</h3>
           </div>
           <button
             onClick={onClose}

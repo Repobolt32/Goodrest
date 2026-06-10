@@ -115,6 +115,31 @@ export async function createOrder(input: OrderInput) {
 
     console.log(`[createOrder] Price validation: client total=${input.total_amount}, server total=${serverTotal}`);
 
+    // Fetch active offers and filter by time window
+    const { data: activeOffers } = await supabaseAdmin
+      .from('offers')
+      .select('*')
+      .eq('active', true);
+
+    const now = new Date();
+    const validOffers = (activeOffers || []).filter(offer => {
+      if (offer.start_time && now < new Date(offer.start_time)) return false;
+      if (offer.end_time && now > new Date(offer.end_time)) return false;
+      return true;
+    });
+
+    // Apply discount_percent offer (only one active per type)
+    let discountAmount = 0;
+    const discountOffer = validOffers.find(o => o.type === 'discount_percent');
+    if (discountOffer) {
+      const { percent, max_amount } = discountOffer.config as { percent: number; max_amount?: number };
+      discountAmount = Math.min(
+        serverTotal * (percent / 100),
+        max_amount ?? Infinity
+      );
+      discountAmount = Math.min(discountAmount, serverTotal); // Clamp to subtotal
+    }
+
     // Check restaurant online status before creating order
     const { data: settings } = await supabaseAdmin
       .from('restaurant_settings')
@@ -145,7 +170,14 @@ export async function createOrder(input: OrderInput) {
       }
     }
 
-    // Include delivery fee in total
+    // Check free_delivery offer after delivery fee calculation
+    const freeDeliveryOffer = validOffers.find(o => o.type === 'free_delivery');
+    if (freeDeliveryOffer && serverTotal >= (freeDeliveryOffer.config as { threshold: number }).threshold) {
+      deliveryFee = 0;
+    }
+
+    // Apply discount and delivery fee to total
+    serverTotal = Math.max(0, serverTotal - discountAmount);
     serverTotal += deliveryFee;
 
     // 1. Prepare atomic insert data
@@ -162,6 +194,11 @@ export async function createOrder(input: OrderInput) {
       lng: input.lng || null,
       distance_km: distanceKm,
       duration_seconds: durationSeconds,
+      discount_amount: discountAmount,
+      delivery_fee: deliveryFee,
+      applied_offers: validOffers.length > 0 ? validOffers.map(o => ({
+        id: o.id, type: o.type, config: o.config
+      })) : null,
     };
 
     const orderItemsData = normalizeOrderItems('00000000-0000-0000-0000-000000000000', input.items, priceMap).map(item => ({

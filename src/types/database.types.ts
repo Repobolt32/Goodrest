@@ -402,9 +402,46 @@ export type Database = {
           },
         ]
       }
+      offers: {
+        Row: {
+          active: boolean
+          config: Json
+          created_at: string | null
+          end_time: string | null
+          id: string
+          label: string | null
+          start_time: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean
+          config?: Json
+          created_at?: string | null
+          end_time?: string | null
+          id?: string
+          label?: string | null
+          start_time?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean
+          config?: Json
+          created_at?: string | null
+          end_time?: string | null
+          id?: string
+          label?: string | null
+          start_time?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           accepted_at: string | null
+          applied_offers: Json | null
           batch_id: string | null
           created_at: string | null
           customer_name: string
@@ -412,6 +449,8 @@ export type Database = {
           delivered_at: string | null
           delivery_address: string
           delivery_coordinates: Json | null
+          delivery_fee: number | null
+          discount_amount: number | null
           distance_km: number | null
           duration_seconds: number | null
           eta_last_updated: string | null
@@ -449,6 +488,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          applied_offers?: Json | null
           batch_id?: string | null
           created_at?: string | null
           customer_name: string
@@ -456,6 +496,8 @@ export type Database = {
           delivered_at?: string | null
           delivery_address: string
           delivery_coordinates?: Json | null
+          delivery_fee?: number | null
+          discount_amount?: number | null
           distance_km?: number | null
           duration_seconds?: number | null
           eta_last_updated?: string | null
@@ -493,6 +535,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          applied_offers?: Json | null
           batch_id?: string | null
           created_at?: string | null
           customer_name?: string
@@ -500,6 +543,8 @@ export type Database = {
           delivered_at?: string | null
           delivery_address?: string
           delivery_coordinates?: Json | null
+          delivery_fee?: number | null
+          discount_amount?: number | null
           distance_km?: number | null
           duration_seconds?: number | null
           eta_last_updated?: string | null

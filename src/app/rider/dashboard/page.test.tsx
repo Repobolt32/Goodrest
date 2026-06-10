@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import RiderDashboardPage from './page';
 
@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 const mockPush = vi.fn();
-const mockRouter = { push: mockPush, replace: vi.fn(), refresh: vi.fn() };
+const mockRouter = { push: mockPush };
 
 vi.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
@@ -72,6 +72,7 @@ vi.mock('@/app/actions/riderActions', () => ({
   markOrderAsDeliveredRider: vi.fn(),
   setRiderOnline: mocks.setRiderOnline,
   getRider24HHistory: mocks.getRider24HHistory,
+  logoutRider: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 vi.mock('@/components/rider/TerminalView', () => ({
@@ -80,6 +81,10 @@ vi.mock('@/components/rider/TerminalView', () => ({
 
 vi.mock('@/components/rider/EarningsView', () => ({
   default: () => <div data-testid="earnings-view">EarningsView Mock</div>,
+}));
+
+vi.mock('@/components/rider/HistoryView', () => ({
+  default: () => <div data-testid="history-view">HistoryView Mock</div>,
 }));
 
 const riderSession = {
@@ -183,7 +188,9 @@ describe('RiderDashboardPage', () => {
 
     await screen.findByTestId('terminal-view');
     const logoutBtn = screen.getByRole('button', { name: 'Logout' });
-    fireEvent.click(logoutBtn);
+    await act(async () => {
+      fireEvent.click(logoutBtn);
+    });
 
     expect(mockPush).toHaveBeenCalledWith('/rider/login');
     expect(localStorage.getItem('rider_session')).toBeNull();

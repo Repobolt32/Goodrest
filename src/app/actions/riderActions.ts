@@ -5,7 +5,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { rateLimit } from '@/lib/rateLimit';
 import { getGoogleMapsRouteData } from './distanceActions';
 import { revalidatePath } from 'next/cache';
-import { verifyRiderSession } from '@/lib/auth';
+import { verifyRiderSession, signRiderSession } from '@/lib/auth';
+import { cookies } from 'next/headers';
 
 import { calculateRiderEarning, calculateNightlyBonus, calculateEarningBreakdown, calculateBonusProgress } from '@/lib/pricing';
 import { randomUUID } from 'crypto';
@@ -62,10 +63,32 @@ export async function loginRider(phone: string, password_hash: string) {
       return { success: false, error: 'Invalid phone or password' };
     }
 
+    const sessionToken = await signRiderSession({
+      id: rider.id,
+      name: rider.name || '',
+      phone: rider.phone || '',
+    });
+
+    const cookieStore = await cookies();
+    cookieStore.set('rider_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
     return { success: true, rider };
-  } catch {
+  } catch (err) {
+    console.error('Error logging in rider:', err);
     return { success: false, error: 'Invalid phone or password' };
   }
+}
+
+export async function logoutRider() {
+  const cookieStore = await cookies();
+  cookieStore.delete('rider_session');
+  return { success: true };
 }
 
 export async function acceptOrder(orderId: string, riderId: string) {

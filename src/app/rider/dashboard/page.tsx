@@ -10,6 +10,7 @@ import {
   markOrderAsDeliveredRider,
   setRiderOnline,
   getRider24HHistory,
+  logoutRider,
 } from '@/app/actions/riderActions';
 import TerminalView from '@/components/rider/TerminalView';
 import EarningsView from '@/components/rider/EarningsView';
@@ -177,7 +178,8 @@ export default function RiderDashboardPage() {
     setRefreshing(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutRider();
     localStorage.removeItem('rider_session');
     localStorage.removeItem('rider_isOnline');
     router.push('/rider/login');
