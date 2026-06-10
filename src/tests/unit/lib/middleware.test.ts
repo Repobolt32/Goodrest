@@ -5,11 +5,11 @@ vi.mock('jose', () => ({
 }));
 
 import { jwtVerify } from 'jose';
-import { middleware } from '@/middleware';
+import { proxy } from '@/proxy';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-describe('middleware', () => {
+describe('proxy (formerly middleware)', () => {
   const createRequest = (pathname: string, cookie?: string) => ({
     nextUrl: { pathname, search: '' },
     cookies: {
@@ -25,13 +25,13 @@ describe('middleware', () => {
 
   it('should allow non-admin routes through', async () => {
     const req = createRequest('/');
-    const result = await middleware(req);
+    const result = await proxy(req);
     expect(result).toBeDefined();
   });
 
   it('should allow /admin/login without auth', async () => {
     const req = createRequest('/admin/login');
-    const result = await middleware(req);
+    const result = await proxy(req);
     expect(result).toBeDefined();
   });
 
@@ -39,7 +39,7 @@ describe('middleware', () => {
     const req = createRequest('/admin/orders');
     const redirectSpy = vi.spyOn(NextResponse, 'redirect');
 
-    await middleware(req);
+    await proxy(req);
     expect(redirectSpy).toHaveBeenCalled();
   });
 
@@ -51,7 +51,7 @@ describe('middleware', () => {
     const req = createRequest('/admin/orders', 'valid-jwt-token');
     const nextSpy = vi.spyOn(NextResponse, 'next');
 
-    await middleware(req);
+    await proxy(req);
     expect(nextSpy).toHaveBeenCalled();
   });
 
@@ -63,7 +63,7 @@ describe('middleware', () => {
     const req = createRequest('/admin/orders', 'expired-jwt-token');
     const redirectSpy = vi.spyOn(NextResponse, 'redirect');
 
-    await middleware(req);
+    await proxy(req);
     expect(redirectSpy).toHaveBeenCalled();
   });
 
@@ -73,7 +73,7 @@ describe('middleware', () => {
     const req = createRequest('/admin/orders');
     const nextSpy = vi.spyOn(NextResponse, 'next');
 
-    await middleware(req);
+    await proxy(req);
     expect(nextSpy).toHaveBeenCalled();
   });
 
@@ -82,7 +82,7 @@ describe('middleware', () => {
     delete process.env.JWT_SECRET;
     vi.resetModules();
 
-    await expect(import('@/middleware')).rejects.toThrow('JWT_SECRET is not configured');
+    await expect(import('@/proxy')).rejects.toThrow('JWT_SECRET is not configured');
 
     if (originalSecret) process.env.JWT_SECRET = originalSecret;
   });

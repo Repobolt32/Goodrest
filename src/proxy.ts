@@ -8,7 +8,7 @@ if (!jwtSecret) {
 }
 const JWT_SECRET = new TextEncoder().encode(jwtSecret);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Only protect /admin routes
