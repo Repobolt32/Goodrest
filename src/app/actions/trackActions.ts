@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyCustomerSession } from '@/lib/auth';
 import type { OrderRecord, OrderSummary, OrderRow } from '@/types/orders';
 import { toOrderRecord, toOrderSummary } from '@/types/orders';
+import { isValidUUID } from '@/lib/validation';
 
 export async function getOrdersByPhone(phone: string): Promise<OrderSummary[]> {
   const { data, error } = await supabaseAdmin
@@ -60,10 +61,6 @@ export async function getOrderById(id: string): Promise<OrderRecord | null> {
   }
 
   return toOrderRecord(data as OrderRow);
-}
-
-function isValidUUID(id: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
 export async function getRiderLocationForOrder(orderId: string): Promise<{ riderId: string; location: { lat: number; lng: number } | null } | null> {

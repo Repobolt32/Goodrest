@@ -177,9 +177,9 @@ export default function OrderTracker({
 
   // Realtime subscription
   useEffect(() => {
-    const uniqueId = Math.random().toString(36).substring(2, 10);
+    const channelId = `order-tracking-${orderId}`;
     const channel = supabase
-      .channel(`order-tracking-${orderId}-${uniqueId}`)
+      .channel(channelId)
       .on(
         'postgres_changes',
         {
@@ -219,9 +219,9 @@ export default function OrderTracker({
         }
 
         // Subscribe to updates
-        const uniqueRiderId = Math.random().toString(36).substring(2, 10);
+        const riderChannelId = `rider-tracking-${riderId}`;
         riderChannel = supabase
-          .channel(`rider-tracking-${riderId}-${uniqueRiderId}`)
+          .channel(riderChannelId)
           .on(
             'postgres_changes',
             {

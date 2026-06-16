@@ -10,13 +10,9 @@ import { cookies } from 'next/headers';
 
 import { calculateRiderEarning, calculateNightlyBonus, calculateEarningBreakdown, calculateBonusProgress } from '@/lib/pricing';
 import { randomUUID } from 'crypto';
-import { getRestoCoordinates } from '@/lib/validation';
+import { getRestoCoordinates, isValidUUID } from '@/lib/validation';
 
 const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
-
-function isValidUUID(id: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-}
 
 async function verifyRiderExists(riderId: string): Promise<{ success: boolean; error?: string }> {
   if (!isValidUUID(riderId)) return { success: false, error: 'Invalid rider ID' };
@@ -39,10 +35,10 @@ export async function getRiderByPhone(phone: string) {
   return data;
 }
 
-export async function loginRider(phone: string, password_hash: string) {
+export async function loginRider(phone: string, password: string) {
   try {
     const cleanPhone = phone.trim();
-    const cleanPassword = password_hash.trim();
+    const cleanPassword = password.trim();
 
     const { data: rider, error } = await supabaseAdmin
       .from('riders')
@@ -322,6 +318,12 @@ export async function updateLocation(riderId: string, lat: number, lng: number) 
     return { success: false, error: 'Invalid rider ID' };
   }
 
+  const session = await verifyRiderSession();
+  if (!session.success) return { success: false, error: session.error };
+  if (!session.session || session.session.id !== riderId) {
+    return { success: false, error: 'Unauthorized: rider session does not match' };
+  }
+
   const limitResult = rateLimit(`rider_location_${riderId}`, 12);
   if (!limitResult.allowed) {
     return { success: false, error: 'Location updates are throttled. Max 12 updates per minute.' };
@@ -349,6 +351,12 @@ export async function updateLocation(riderId: string, lat: number, lng: number) 
 export async function setRiderOnline(riderId: string, isOnline: boolean) {
   if (!isValidUUID(riderId)) {
     return { success: false, error: 'Invalid rider ID' };
+  }
+
+  const session = await verifyRiderSession();
+  if (!session.success) return { success: false, error: session.error };
+  if (!session.session || session.session.id !== riderId) {
+    return { success: false, error: 'Unauthorized: rider session does not match' };
   }
 
   const riderCheck = await verifyRiderExists(riderId);

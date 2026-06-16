@@ -102,59 +102,150 @@ describe('adminActions', () => {
   });
 
   describe('updateOrderStatus', () => {
-    it('should update order status', async () => {
-      mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
-      const result = await updateOrderStatus(VALID_ORDER, 'preparing');
+    it('should update order status on valid transition', async () => {
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'created' }, error: null }) }) }) })
+        .mockReturnValueOnce({ update: () => ({ eq: () => Promise.resolve({ error: null }) }) });
+      const result = await updateOrderStatus(VALID_ORDER, 'confirmed');
       expect(result.success).toBe(true);
     });
 
-    it('should return error on DB failure', async () => {
-      mocks.mockEq.mockReturnValue(Promise.resolve({ error: { message: 'DB error' } }));
-      const result = await updateOrderStatus(VALID_ORDER, 'preparing');
+    it('should return error on DB failure during update', async () => {
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'created' }, error: null }) }) }) })
+        .mockReturnValueOnce({ update: () => ({ eq: () => Promise.resolve({ error: { message: 'DB error' } }) }) });
+      const result = await updateOrderStatus(VALID_ORDER, 'confirmed');
       expect(result.success).toBe(false);
       expect(result.error).toBe('DB error');
     });
 
-    // Tracer bullet: reject non-UUID orderId
     it('should reject non-UUID orderId', async () => {
       const result = await updateOrderStatus('not-a-uuid', 'confirmed');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Invalid order ID');
     });
 
-    // Tracer bullet: reject invalid status values
     it('should reject invalid status values', async () => {
       const result = await updateOrderStatus(VALID_ORDER, 'hacked');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Invalid status');
     });
 
-    it('should update with whitelisted status', async () => {
-      mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
+    it('should skip update when status is unchanged', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'confirmed' }, error: null }) }) }),
+      });
       const result = await updateOrderStatus(VALID_ORDER, 'confirmed');
       expect(result.success).toBe(true);
+    });
+
+    it('should reject delivered -> confirmed (backwards transition)', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'delivered' }, error: null }) }) }),
+      });
+      const result = await updateOrderStatus(VALID_ORDER, 'confirmed');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Cannot transition');
+    });
+
+    it('should reject created -> delivered (skipping steps)', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'created' }, error: null }) }) }),
+      });
+      const result = await updateOrderStatus(VALID_ORDER, 'delivered');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Cannot transition');
+    });
+
+    it('should allow created -> cancelled', async () => {
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'created' }, error: null }) }) }) })
+        .mockReturnValueOnce({ update: () => ({ eq: () => Promise.resolve({ error: null }) }) });
+      const result = await updateOrderStatus(VALID_ORDER, 'cancelled');
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject delivered -> preparing (backwards from terminal)', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'delivered' }, error: null }) }) }),
+      });
+      const result = await updateOrderStatus(VALID_ORDER, 'preparing');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Cannot transition');
+    });
+
+    it('should return error when order not found during status fetch', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'not found' } }) }) }),
+      });
+      const result = await updateOrderStatus(VALID_ORDER, 'confirmed');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Order not found');
     });
   });
 
   describe('updatePaymentStatus', () => {
-    it('should update payment status', async () => {
-      mocks.mockEq.mockReturnValue(Promise.resolve({ error: null }));
+    it('should update payment status on valid transition', async () => {
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { payment_status: 'pending' }, error: null }) }) }) })
+        .mockReturnValueOnce({ update: () => ({ eq: () => Promise.resolve({ error: null }) }) });
       const result = await updatePaymentStatus(VALID_ORDER, 'paid');
       expect(result.success).toBe(true);
     });
 
-    // Tracer bullet: reject non-UUID orderId
     it('should reject non-UUID orderId', async () => {
       const result = await updatePaymentStatus('not-a-uuid', 'paid');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Invalid order ID');
     });
 
-    // Tracer bullet: reject invalid payment status values
     it('should reject invalid payment status values', async () => {
       const result = await updatePaymentStatus(VALID_ORDER, 'hacked');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Invalid payment status');
+    });
+
+    it('should reject pending -> refunded (skipping steps)', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { payment_status: 'pending' }, error: null }) }) }),
+      });
+      const result = await updatePaymentStatus(VALID_ORDER, 'refunded');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Cannot transition');
+    });
+
+    it('should reject refunded -> paid (backwards from terminal)', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { payment_status: 'refunded' }, error: null }) }) }),
+      });
+      const result = await updatePaymentStatus(VALID_ORDER, 'paid');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Cannot transition');
+    });
+
+    it('should allow paid -> refund_processing', async () => {
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { payment_status: 'paid' }, error: null }) }) }) })
+        .mockReturnValueOnce({ update: () => ({ eq: () => Promise.resolve({ error: null }) }) });
+      const result = await updatePaymentStatus(VALID_ORDER, 'refund_processing');
+      expect(result.success).toBe(true);
+    });
+
+    it('should skip update when payment status is unchanged', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { payment_status: 'paid' }, error: null }) }) }),
+      });
+      const result = await updatePaymentStatus(VALID_ORDER, 'paid');
+      expect(result.success).toBe(true);
+    });
+
+    it('should return error when order not found', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'not found' } }) }) }),
+      });
+      const result = await updatePaymentStatus(VALID_ORDER, 'paid');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Order not found');
     });
   });
 

@@ -13,13 +13,7 @@ export async function getAppSettings() {
 
   if (error) {
     console.error('Failed to fetch app settings:', error);
-    return { 
-      success: true, 
-      data: { 
-        max_delivery_radius: 10, 
-        delivery_enabled: true 
-      } 
-    };
+    return { success: false, error: error.message };
   }
 
   return { success: true, data };

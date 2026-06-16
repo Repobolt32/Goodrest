@@ -4,9 +4,7 @@
  * Tests that validate the status of medium-severity bugs from issues-open.md
  * BUG-17, QOL-03, QOL-05, QOL-06, BUG-18
  */
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 

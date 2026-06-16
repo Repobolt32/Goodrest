@@ -24,6 +24,7 @@ vi.mock('next/headers', () => ({
 
 vi.mock('@/lib/validation', () => ({
   getRestoCoordinates: vi.fn().mockReturnValue({ lat: 24.79, lng: 85.01 }),
+  isValidUUID: (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
 }));
 
 vi.mock('@/app/actions/distanceActions', () => ({

@@ -3,13 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAdminSession } from '@/lib/auth';
-import { Json } from '@/types/database.types';
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function isValidUUID(id: string): boolean {
-  return UUID_REGEX.test(id);
-}
+import { Database, Json } from '@/types/database.types';
+import { isValidUUID } from '@/lib/validation';
 
 export async function getActiveOffers() {
   try {
@@ -30,7 +25,7 @@ export async function getActiveOffers() {
     });
 
     return { success: true, data: offers };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Failed to fetch offers' };
   }
 }
@@ -50,7 +45,7 @@ export async function getAllOffers() {
     }
 
     return { success: true, data: data || [] };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Failed to fetch offers' };
   }
 }
@@ -90,7 +85,7 @@ export async function createOffer(input: {
 
     revalidatePath('/admin/offers');
     return { success: true, data };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Failed to create offer' };
   }
 }
@@ -114,7 +109,10 @@ export async function updateOffer(
       return { success: false, error: 'Invalid offer ID' };
     }
 
-    const updateData: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() };
+    const updateData: Database['public']['Tables']['offers']['Update'] = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
 
     if (updates.config && updates.type) {
       updateData.label = updates.label || generateLabel(updates.type, updates.config);
@@ -133,7 +131,7 @@ export async function updateOffer(
 
     revalidatePath('/admin/offers');
     return { success: true, data };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Failed to update offer' };
   }
 }
@@ -160,7 +158,7 @@ export async function toggleOffer(id: string, active: boolean) {
 
     revalidatePath('/admin/offers');
     return { success: true, data };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Failed to toggle offer' };
   }
 }
@@ -185,7 +183,7 @@ export async function deleteOffer(id: string) {
 
     revalidatePath('/admin/offers');
     return { success: true };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Failed to delete offer' };
   }
 }

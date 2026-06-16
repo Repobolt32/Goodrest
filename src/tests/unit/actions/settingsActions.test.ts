@@ -49,13 +49,12 @@ describe('settingsActions', () => {
       expect(result.data.max_delivery_radius).toBe(15);
     });
 
-    it('should return defaults if table does not exist', async () => {
+    it('should return error if table does not exist', async () => {
       mocks.mockSelect.mockReturnValue({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'relation does not exist' } }) }) });
 
       const result = await getAppSettings();
-      expect(result.success).toBe(true);
-      expect(result.data.max_delivery_radius).toBe(10);
-      expect(result.data.delivery_enabled).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 

@@ -1,8 +1,10 @@
 import { cookies } from 'next/headers';
 import { jwtVerify, SignJWT } from 'jose';
 
-const jwtSecret = process.env.JWT_SECRET || 'placeholder-jwt-secret-key-at-least-32-chars-long';
-const JWT_SECRET = new TextEncoder().encode(jwtSecret);
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required but not set');
+}
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export interface AdminSession {
   role: 'admin';

@@ -7,13 +7,10 @@ import { getGoogleMapsRouteData } from './distanceActions';
 import { calculateETA } from '@/lib/distance';
 import { calculateEarningBreakdown, calculateNightlyBonus } from '@/lib/pricing';
 import { revalidatePath } from 'next/cache';
-import { getRestoCoordinates } from '@/lib/validation';
+import { getRestoCoordinates, isValidUUID } from '@/lib/validation';
+import { Database } from '@/types/database.types';
 
 const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
-
-function isValidUUID(id: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-}
 
 export async function getRestaurantSettings() {
   const { data, error } = await supabaseAdmin
@@ -180,7 +177,7 @@ export async function dispatchOrder(orderId: string) {
     return { success: false, error: 'Cannot dispatch without a rider. Assign a rider first.' };
   }
 
-  const updateData: Record<string, unknown> = {
+  const updateData: Database['public']['Tables']['orders']['Update'] = {
     manual_dispatch: true,
   };
 
@@ -265,6 +262,58 @@ export async function initiateRefund(orderId: string) {
     console.error('[initiateRefund] Razorpay refund failed:', err);
     return { success: false, error: 'Refund failed' };
   }
+}
+
+export async function recoverStuckRefunds(): Promise<{ success: boolean; error?: string; recovered?: number; reverted?: number }> {
+  const auth = await verifyAdminSession();
+  if (!auth.success) return { success: false, error: auth.error };
+
+  const { data: stuckOrders, error: fetchError } = await supabaseAdmin
+    .from('orders')
+    .select('id, razorpay_payment_id, total_amount')
+    .eq('payment_status', 'refund_processing');
+
+  if (fetchError) return { success: false, error: fetchError.message };
+  if (!stuckOrders || stuckOrders.length === 0) return { success: true, recovered: 0, reverted: 0 };
+
+  let recovered = 0;
+  let reverted = 0;
+
+  for (const order of stuckOrders) {
+    if (!order.razorpay_payment_id) {
+      await supabaseAdmin
+        .from('orders')
+        .update({ payment_status: 'paid' })
+        .eq('id', order.id);
+      reverted++;
+      continue;
+    }
+
+    try {
+      const payment = await razorpay.payments.fetch(order.razorpay_payment_id);
+      if (payment.amount_refunded && payment.amount_refunded > 0) {
+        await supabaseAdmin
+          .from('orders')
+          .update({ payment_status: 'refunded' })
+          .eq('id', order.id);
+        recovered++;
+      } else {
+        await supabaseAdmin
+          .from('orders')
+          .update({ payment_status: 'paid' })
+          .eq('id', order.id);
+        reverted++;
+      }
+    } catch {
+      await supabaseAdmin
+        .from('orders')
+        .update({ payment_status: 'paid' })
+        .eq('id', order.id);
+      reverted++;
+    }
+  }
+
+  return { success: true, recovered, reverted };
 }
 
 export async function updatePrepTime(minutes: number) {

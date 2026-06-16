@@ -38,15 +38,19 @@ export default function OwnerDashboardClient({
 
   // Polling fallback to keep orders in sync if WebSockets are blocked
   useEffect(() => {
+    let cancelled = false;
     const pollInterval = setInterval(async () => {
       const res = await getOrdersForOwner();
-      if (res.success && res.data) {
+      if (!cancelled && res.success && res.data) {
         const freshOrders = res.data.map(toOrderRecord);
         setOrders(freshOrders);
       }
     }, 5000);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      cancelled = true;
+      clearInterval(pollInterval);
+    };
   }, []);
 
   // Realtime subscription

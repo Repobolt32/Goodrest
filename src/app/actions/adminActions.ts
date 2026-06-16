@@ -3,14 +3,28 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAdminSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function isValidUUID(id: string): boolean {
-  return UUID_REGEX.test(id);
-}
+import { isValidUUID } from '@/lib/validation';
 
 const ALLOWED_ORDER_STATUSES = ['created', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
 const ALLOWED_PAYMENT_STATUSES = ['pending', 'paid', 'requires_refund', 'refund_processing', 'refunded'];
+
+const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
+  created: ['confirmed', 'cancelled'],
+  confirmed: ['preparing', 'cancelled'],
+  preparing: ['ready', 'cancelled'],
+  ready: ['out_for_delivery', 'cancelled'],
+  out_for_delivery: ['delivered', 'cancelled'],
+  delivered: [],
+  cancelled: [],
+};
+
+const VALID_PAYMENT_TRANSITIONS: Record<string, string[]> = {
+  pending: ['paid', 'requires_refund'],
+  paid: ['requires_refund', 'refund_processing'],
+  requires_refund: ['refund_processing', 'paid'],
+  refund_processing: ['refunded', 'paid'],
+  refunded: [],
+};
 
 export async function updateOrderStatus(orderId: string, status: string) {
   const auth = await verifyAdminSession();
@@ -18,6 +32,26 @@ export async function updateOrderStatus(orderId: string, status: string) {
 
   if (!isValidUUID(orderId)) return { success: false, error: 'Invalid order ID' };
   if (!ALLOWED_ORDER_STATUSES.includes(status)) return { success: false, error: `Invalid status: ${status}` };
+
+  const { data: order, error: fetchError } = await supabaseAdmin
+    .from('orders')
+    .select('order_status')
+    .eq('id', orderId)
+    .single();
+
+  if (fetchError || !order) {
+    return { success: false, error: 'Order not found' };
+  }
+
+  const currentStatus = order.order_status as string;
+  if (currentStatus === status) {
+    return { success: true };
+  }
+
+  const allowed = VALID_ORDER_TRANSITIONS[currentStatus];
+  if (!allowed || !allowed.includes(status)) {
+    return { success: false, error: `Cannot transition from '${currentStatus}' to '${status}'` };
+  }
 
   const { error } = await supabaseAdmin
     .from('orders')
@@ -40,6 +74,26 @@ export async function updatePaymentStatus(orderId: string, status: string) {
 
   if (!isValidUUID(orderId)) return { success: false, error: 'Invalid order ID' };
   if (!ALLOWED_PAYMENT_STATUSES.includes(status)) return { success: false, error: `Invalid payment status: ${status}` };
+
+  const { data: order, error: fetchError } = await supabaseAdmin
+    .from('orders')
+    .select('payment_status')
+    .eq('id', orderId)
+    .single();
+
+  if (fetchError || !order) {
+    return { success: false, error: 'Order not found' };
+  }
+
+  const currentStatus = order.payment_status as string;
+  if (currentStatus === status) {
+    return { success: true };
+  }
+
+  const allowed = VALID_PAYMENT_TRANSITIONS[currentStatus];
+  if (!allowed || !allowed.includes(status)) {
+    return { success: false, error: `Cannot transition payment from '${currentStatus}' to '${status}'` };
+  }
 
   const { error } = await supabaseAdmin
     .from('orders')

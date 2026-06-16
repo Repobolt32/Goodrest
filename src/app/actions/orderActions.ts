@@ -1,8 +1,8 @@
 "use server";
 
 import { cookies } from 'next/headers';
+import { verifyAdminSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { jwtVerify } from 'jose';
 import { rateLimit } from '@/lib/rateLimit';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { razorpay } from '@/lib/razorpay';
@@ -559,18 +559,9 @@ export async function sendHelpMessage(orderId: string, message: string) {
 export async function updateRefundStatus(orderId: string, status: 'pending' | 'refunded') {
   console.log(`[updateRefundStatus] ENTRY: Setting refund status for order ${orderId} to: "${status}"`);
 
-  // Verify admin session
-  const cookieStore = await cookies();
-  const session = cookieStore.get('admin_session')?.value;
-  if (!session) {
-    return { success: false, error: 'Unauthorized' };
-  }
-  try {
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) return { success: false, error: 'Server configuration error' };
-    await jwtVerify(session, new TextEncoder().encode(jwtSecret));
-  } catch {
-    return { success: false, error: 'Unauthorized' };
+  const auth = await verifyAdminSession();
+  if (!auth.success) {
+    return { success: false, error: auth.error };
   }
 
   try {

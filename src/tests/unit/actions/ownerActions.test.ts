@@ -30,9 +30,20 @@ vi.mock('next/cache', () => ({
 
 vi.mock('@/lib/validation', () => ({
   getRestoCoordinates: vi.fn().mockReturnValue({ lat: 24.79, lng: 85.01 }),
+  isValidUUID: (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
 }));
 
-import { getWeeklyRiderPayouts, toggleOnlineStatus, updatePrepTime } from '@/app/actions/ownerActions';
+const razorpayMocks = vi.hoisted(() => ({
+  payments: {
+    fetch: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/razorpay', () => ({
+  razorpay: razorpayMocks,
+}));
+
+import { getWeeklyRiderPayouts, toggleOnlineStatus, updatePrepTime, recoverStuckRefunds } from '@/app/actions/ownerActions';
 
 describe('ownerActions', () => {
   beforeEach(() => {
@@ -254,6 +265,82 @@ describe('ownerActions', () => {
       const result = await updatePrepTime(25);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Update failed');
+    });
+  });
+
+  describe('recoverStuckRefunds', () => {
+    it('should reject without admin session', async () => {
+      mocks.mockVerifyAdminSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+
+      const result = await recoverStuckRefunds();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized');
+    });
+
+    it('should return zero recovered when no stuck refunds exist', async () => {
+      mocks.mockFrom.mockReturnValueOnce({
+        select: mocks.mockSelect.mockReturnValueOnce({
+          eq: () => Promise.resolve({ data: [], error: null }),
+        }),
+      });
+
+      const result = await recoverStuckRefunds();
+      expect(result.success).toBe(true);
+      expect(result.recovered).toBe(0);
+    });
+
+    it('should recover stuck refund when Razorpay confirms refund exists', async () => {
+      const stuckOrder = { id: 'order-1', razorpay_payment_id: 'pay_abc123', total_amount: 500 };
+
+      mocks.mockFrom
+        .mockReturnValueOnce({ // query stuck orders
+          select: mocks.mockSelect.mockReturnValueOnce({
+            eq: () => Promise.resolve({ data: [stuckOrder], error: null }),
+          }),
+        })
+        .mockReturnValueOnce({ // update to refunded
+          update: mocks.mockUpdate.mockReturnValueOnce({
+            eq: () => Promise.resolve({ error: null }),
+          }),
+        });
+
+      razorpayMocks.payments.fetch.mockResolvedValueOnce({
+        id: 'pay_abc123',
+        amount: 50000,
+        amount_refunded: 50000,
+      });
+
+      const result = await recoverStuckRefunds();
+      expect(result.success).toBe(true);
+      expect(result.recovered).toBe(1);
+      expect(razorpayMocks.payments.fetch).toHaveBeenCalledWith('pay_abc123');
+    });
+
+    it('should revert to paid when Razorpay has no refund', async () => {
+      const stuckOrder = { id: 'order-2', razorpay_payment_id: 'pay_xyz789', total_amount: 300 };
+
+      mocks.mockFrom
+        .mockReturnValueOnce({
+          select: mocks.mockSelect.mockReturnValueOnce({
+            eq: () => Promise.resolve({ data: [stuckOrder], error: null }),
+          }),
+        })
+        .mockReturnValueOnce({ // revert to paid
+          update: mocks.mockUpdate.mockReturnValueOnce({
+            eq: () => Promise.resolve({ error: null }),
+          }),
+        });
+
+      razorpayMocks.payments.fetch.mockResolvedValueOnce({
+        id: 'pay_xyz789',
+        amount: 30000,
+        amount_refunded: 0,
+      });
+
+      const result = await recoverStuckRefunds();
+      expect(result.success).toBe(true);
+      expect(result.recovered).toBe(0);
+      expect(result.reverted).toBe(1);
     });
   });
 });

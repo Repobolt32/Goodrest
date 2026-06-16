@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 const authMocks = vi.hoisted(() => ({
   verifyCustomerSession: vi.fn(),
   signCustomerSession: vi.fn(),
+  verifyAdminSession: vi.fn(),
 }));
 
 const rzpMocks = vi.hoisted(() => ({
@@ -36,6 +37,7 @@ vi.mock('@/lib/supabaseAdmin', () => ({
 vi.mock('@/lib/auth', () => ({
   verifyCustomerSession: authMocks.verifyCustomerSession,
   signCustomerSession: authMocks.signCustomerSession,
+  verifyAdminSession: authMocks.verifyAdminSession,
 }));
 
 vi.mock('jose', () => ({
@@ -239,7 +241,7 @@ describe('orderActions', () => {
 
     it('should apply discount_percent offer to order total', async () => {
       let eqCallCount = 0;
-      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+      mocks.mockEq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 1) {
           // offers.eq('active', true) → resolve with offer data
@@ -264,7 +266,7 @@ describe('orderActions', () => {
 
     it('should cap discount at max_amount', async () => {
       let eqCallCount = 0;
-      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+      mocks.mockEq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 1) {
           return Promise.resolve({
@@ -284,7 +286,7 @@ describe('orderActions', () => {
 
     it('should cap discount at subtotal (cannot exceed order total)', async () => {
       let eqCallCount = 0;
-      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+      mocks.mockEq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 1) {
           return Promise.resolve({
@@ -304,7 +306,7 @@ describe('orderActions', () => {
 
     it('should apply free_delivery offer when order meets threshold', async () => {
       let eqCallCount = 0;
-      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+      mocks.mockEq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 1) {
           return Promise.resolve({
@@ -324,7 +326,7 @@ describe('orderActions', () => {
 
     it('should not apply free_delivery when order below threshold', async () => {
       let eqCallCount = 0;
-      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+      mocks.mockEq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 1) {
           return Promise.resolve({
@@ -345,7 +347,7 @@ describe('orderActions', () => {
 
     it('should not apply expired offers', async () => {
       let eqCallCount = 0;
-      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+      mocks.mockEq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 1) {
           return Promise.resolve({
@@ -366,7 +368,7 @@ describe('orderActions', () => {
 
     it('should handle no active offers gracefully', async () => {
       let eqCallCount = 0;
-      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+      mocks.mockEq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 1) {
           return Promise.resolve({ data: [], error: null });
@@ -385,7 +387,7 @@ describe('orderActions', () => {
 
     it('should apply both discount and free_delivery simultaneously', async () => {
       let eqCallCount = 0;
-      mocks.mockEq.mockImplementation((...args: unknown[]) => {
+      mocks.mockEq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 1) {
           return Promise.resolve({
@@ -784,16 +786,7 @@ describe('orderActions', () => {
 
   describe('updateRefundStatus', () => {
     it('should update refund_status for cancelled order', async () => {
-      const { cookies } = await import('next/headers');
-      vi.mocked(cookies).mockResolvedValue({
-        set: vi.fn(),
-        get: vi.fn().mockImplementation((name: string) => {
-          if (name === 'admin_session') return { value: 'valid-admin-token' };
-          return undefined;
-        }),
-        delete: vi.fn(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+      authMocks.verifyAdminSession.mockResolvedValue({ success: true, session: { role: 'admin' } });
 
       mocks.mockSingle
         .mockResolvedValueOnce({ data: { id: 'order-1', order_status: 'cancelled' }, error: null })
@@ -805,16 +798,7 @@ describe('orderActions', () => {
     });
 
     it('should reject update for non-cancelled order', async () => {
-      const { cookies } = await import('next/headers');
-      vi.mocked(cookies).mockResolvedValue({
-        set: vi.fn(),
-        get: vi.fn().mockImplementation((name: string) => {
-          if (name === 'admin_session') return { value: 'valid-admin-token' };
-          return undefined;
-        }),
-        delete: vi.fn(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+      authMocks.verifyAdminSession.mockResolvedValue({ success: true, session: { role: 'admin' } });
 
       mocks.mockSingle.mockResolvedValueOnce({
         data: { id: 'order-1', order_status: 'confirmed' },
@@ -827,17 +811,23 @@ describe('orderActions', () => {
     });
 
     it('should reject without admin session', async () => {
-      const { cookies } = await import('next/headers');
-      vi.mocked(cookies).mockResolvedValue({
-        set: vi.fn(),
-        get: vi.fn().mockReturnValue(undefined),
-        delete: vi.fn(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+      authMocks.verifyAdminSession.mockResolvedValue({ success: false, error: 'Unauthorized' });
 
       const result = await updateRefundStatus('order-1', 'refunded');
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
+    });
+
+    it('should use verifyAdminSession instead of manual cookie reading', async () => {
+      authMocks.verifyAdminSession.mockResolvedValue({ success: true, session: { role: 'admin' } });
+
+      mocks.mockSingle
+        .mockResolvedValueOnce({ data: { id: 'order-1', order_status: 'cancelled' }, error: null })
+        .mockResolvedValueOnce({ data: { id: 'order-1', refund_status: 'refunded' }, error: null });
+
+      const result = await updateRefundStatus('order-1', 'refunded');
+      expect(authMocks.verifyAdminSession).toHaveBeenCalled();
+      expect(result.success).toBe(true);
     });
   });
 

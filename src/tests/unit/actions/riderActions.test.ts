@@ -31,6 +31,7 @@ const revalidateMocks = vi.hoisted(() => ({
 
 const validationMocks = vi.hoisted(() => ({
   getRestoCoordinates: vi.fn().mockReturnValue({ lat: 24.79, lng: 85.01 }),
+  isValidUUID: (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
 }));
 
 const cookiesMocks = vi.hoisted(() => ({
@@ -65,6 +66,7 @@ vi.mock('@/app/actions/distanceActions', () => ({
 
 vi.mock('@/lib/validation', () => ({
   getRestoCoordinates: validationMocks.getRestoCoordinates,
+  isValidUUID: validationMocks.isValidUUID,
 }));
 
 vi.mock('next/cache', () => ({
@@ -83,6 +85,7 @@ import {
   startRiding,
   markOrderAsDeliveredRider,
   setRiderOnline,
+  updateLocation,
   getRiderStats,
   getRiderActiveOrder,
   getUnassignedOrders,
@@ -241,6 +244,17 @@ describe('riderActions', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid phone or password');
+    });
+
+    it('should accept plaintext password and compare against stored hash via bcrypt', async () => {
+      const mockRider = { id: VALID_RIDER_ID, phone: '9999999999', name: 'Test Rider', password_hash: '$2b$10$hashed' };
+      mocks.mockSingle.mockResolvedValueOnce({ data: mockRider, error: null });
+      vi.spyOn(bcrypt, 'compare').mockResolvedValueOnce(true as never);
+
+      const result = await loginRider('9999999999', 'plaintext_password');
+
+      expect(result.success).toBe(true);
+      expect(bcrypt.compare).toHaveBeenCalledWith('plaintext_password', '$2b$10$hashed');
     });
   });
 
@@ -454,6 +468,34 @@ describe('riderActions', () => {
 
       expect(result.success).toBe(true);
       expect((result as unknown as AcceptOrderSuccess).earning).toBe(41); // default fallback earning
+    });
+
+    it('should reject via FCFS guard when early check passes but order taken before update', async () => {
+      const mockOrder = { distance_km: 2, lat: null, lng: null };
+      const mockRider = { phone: '8888888888' };
+
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: null }, error: null }) }) }) }) // early check: rider_id is null
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockOrder, error: null }) }) }) }) // order details
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockRider, error: null }) }) }) }) // rider phone
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
+        .mockReturnValueOnce({ // FCFS update: returns empty (another rider claimed it first)
+          update: () => ({
+            eq: () => ({
+              is: () => ({
+                in: () => ({
+                  select: () => Promise.resolve({ data: [], error: null }),
+                }),
+              }),
+            }),
+          }),
+        });
+
+      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Order already taken or no longer available');
     });
   });
 
@@ -766,6 +808,48 @@ describe('riderActions', () => {
     });
   });
 
+  // ─── updateLocation ──────────────────────────────────────────────
+  describe('updateLocation', () => {
+    it('should reject invalid UUID', async () => {
+      const result = await updateLocation('bad-id', 28.61, 77.20);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid rider ID');
+    });
+
+    it('should reject when rider session is invalid', async () => {
+      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+
+      const result = await updateLocation(VALID_RIDER_ID, 28.61, 77.20);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized');
+    });
+
+    it('should reject when rider session ID does not match riderId', async () => {
+      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+        success: true,
+        session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
+      });
+
+      const result = await updateLocation(VALID_RIDER_ID, 28.61, 77.20);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized: rider session does not match');
+    });
+
+    it('should update location with valid session', async () => {
+      mockRiderExists();
+      mocks.mockFrom.mockReturnValueOnce({
+        update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+      });
+      mocks.mockInsert.mockReturnValueOnce(Promise.resolve({ error: null }));
+
+      const result = await updateLocation(VALID_RIDER_ID, 28.6139, 77.209);
+
+      expect(result.success).toBe(true);
+    });
+  });
+
   // ─── setRiderOnline ──────────────────────────────────────────────
   describe('setRiderOnline', () => {
     it('should reject invalid UUID', async () => {
@@ -774,7 +858,28 @@ describe('riderActions', () => {
       expect(result.error).toBe('Invalid rider ID');
     });
 
-    it('should update is_online to true', async () => {
+    it('should reject when rider session is invalid', async () => {
+      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+
+      const result = await setRiderOnline(VALID_RIDER_ID, true);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized');
+    });
+
+    it('should reject when rider session ID does not match riderId', async () => {
+      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+        success: true,
+        session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
+      });
+
+      const result = await setRiderOnline(VALID_RIDER_ID, true);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized: rider session does not match');
+    });
+
+    it('should update is_online to true with valid session', async () => {
       mockRiderExists();
       mocks.mockFrom.mockReturnValueOnce({
         update: () => ({
@@ -788,7 +893,7 @@ describe('riderActions', () => {
       expect(mocks.mockFrom).toHaveBeenCalledWith('riders');
     });
 
-    it('should update is_online to false', async () => {
+    it('should update is_online to false with valid session', async () => {
       mockRiderExists();
       mocks.mockFrom.mockReturnValueOnce({
         update: () => ({

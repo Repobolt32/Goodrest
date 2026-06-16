@@ -43,6 +43,25 @@ describe('isValidUUID', () => {
   });
 });
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+describe('QOL-11: action files should not duplicate isValidUUID', () => {
+  const actionFiles = [
+    'src/app/actions/ownerActions.ts',
+    'src/app/actions/riderActions.ts',
+    'src/app/actions/adminActions.ts',
+    'src/app/actions/offerActions.ts',
+    'src/app/actions/trackActions.ts',
+  ];
+
+  it.each(actionFiles)('%s should import isValidUUID from @/lib/validation, not define locally', (file) => {
+    const content = readFileSync(resolve(process.cwd(), file), 'utf-8');
+    const hasLocalDef = /function\s+isValidUUID\s*\(/.test(content);
+    expect(hasLocalDef).toBe(false);
+  });
+});
+
 describe('getRestoCoordinates', () => {
   let originalLat: string | undefined;
   let originalLng: string | undefined;

@@ -10,6 +10,22 @@ import Script from 'next/script';
 import { RazorpayPaymentCallback, RazorpayOptions, RazorpayErrorResponse } from '@/types/payment';
 import { calculateDeliveryFee } from '@/lib/pricing';
 
+type LocationStatusType = 'success' | 'warning' | 'error' | 'info' | 'loading';
+
+interface LocationStatus {
+  type: LocationStatusType;
+  message: string;
+}
+
+function locationStatusClasses(type: LocationStatusType): string {
+  switch (type) {
+    case 'success':
+      return 'text-green-600';
+    default:
+      return 'text-amber-600';
+  }
+}
+
 declare global {
   interface Window {
     Razorpay: new (options: RazorpayOptions) => {
@@ -45,7 +61,7 @@ export default function CheckoutForm() {
     lat: null as number | null,
     lng: null as number | null,
   });
-  const [locationStatus, setLocationStatus] = useState<string>('');
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>({ type: 'info', message: '' });
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [showMap, setShowMap] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -94,7 +110,7 @@ export default function CheckoutForm() {
           console.log(`[GoogleMap] Marker dragged to lat=${newLat}, lng=${newLng}`);
 
           setFormData(prev => ({ ...prev, lat: newLat, lng: newLng }));
-          setLocationStatus('Calculating delivery fee for adjusted pin…');
+          setLocationStatus({ type: 'loading', message: 'Calculating delivery fee for adjusted pin…' });
 
           try {
             const { getAppSettings } = await import('@/app/actions/settingsActions');
@@ -111,12 +127,12 @@ export default function CheckoutForm() {
 
             if (distance === null) {
               setDeliveryFee(0);
-              setLocationStatus('📍 Location detected. Delivery fee will be confirmed at checkout.');
+              setLocationStatus({ type: 'warning', message: 'Location detected. Delivery fee will be confirmed at checkout.' });
               return;
             }
 
             if (distance > maxRadius) {
-              setLocationStatus(`❌ Sorry, we don't deliver in this area. (Distance: ${distance.toFixed(1)}km, Max: ${maxRadius}km)`);
+              setLocationStatus({ type: 'error', message: `Sorry, we don't deliver in this area. (Distance: ${distance.toFixed(1)}km, Max: ${maxRadius}km)` });
               setFormData(prev => ({ ...prev, lat: null, lng: null }));
               setDeliveryFee(0);
               return;
@@ -124,11 +140,11 @@ export default function CheckoutForm() {
 
             const fee = calculateDeliveryFee(distance);
             setDeliveryFee(fee);
-            setLocationStatus('✅ Location Verified & Fee Updated');
+            setLocationStatus({ type: 'success', message: 'Location Verified & Fee Updated' });
           } catch (err) {
             console.error('[GoogleMap] dragend error:', err);
             const msg = err instanceof Error ? err.message : 'Unknown error';
-            setLocationStatus(`❌ Configuration Error: ${msg}`);
+            setLocationStatus({ type: 'error', message: `Configuration Error: ${msg}` });
           }
         }
       });
@@ -136,13 +152,23 @@ export default function CheckoutForm() {
       mapInstanceRef.current?.setCenter(latLng);
       markerInstanceRef.current?.setPosition(latLng);
     }
+
+    return () => {
+      if (markerInstanceRef.current) {
+        markerInstanceRef.current.setMap(null);
+        markerInstanceRef.current = null;
+      }
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current = null;
+      }
+    };
   }, [showMap, formData.lat, formData.lng, isMapScriptLoaded]);
 
 
   const detectLocation = async () => {
     if (isLocating) return;
     setIsLocating(true);
-    setLocationStatus('Detecting...');
+    setLocationStatus({ type: 'loading', message: 'Detecting...' });
     
     try {
       // Fetch Settings
@@ -163,7 +189,7 @@ export default function CheckoutForm() {
 
                 // 1. Check if delivery is enabled
                 if (settings && !settings.delivery_enabled) {
-                  setLocationStatus('❌ Currently online delivery is off.');
+                  setLocationStatus({ type: 'error', message: 'Currently online delivery is off.' });
                   setFormData(prev => ({ ...prev, lat: null, lng: null }));
                   setDeliveryFee(0);
                   setIsLocating(false);
@@ -186,14 +212,14 @@ export default function CheckoutForm() {
                     lng: userLng,
                   }));
                   setDeliveryFee(0);
-                  setLocationStatus('📍 Location detected. Delivery fee will be confirmed at checkout.');
+              setLocationStatus({ type: 'warning', message: 'Location detected. Delivery fee will be confirmed at checkout.' });
                   setShowMap(true);
                   setIsLocating(false);
                   return;
                 }
 
                 if (distance > maxRadius) {
-                  setLocationStatus(`❌ Sorry, we don't deliver in this area. (Distance: ${distance.toFixed(1)}km, Max: ${maxRadius}km)`);
+                  setLocationStatus({ type: 'error', message: `Sorry, we don't deliver in this area. (Distance: ${distance.toFixed(1)}km, Max: ${maxRadius}km)` });
                   setFormData(prev => ({ ...prev, lat: null, lng: null }));
                   setDeliveryFee(0);
                   setIsLocating(false);
@@ -208,13 +234,13 @@ export default function CheckoutForm() {
                   lat: userLat,
                   lng: userLng,
                 }));
-                setLocationStatus('✅ Location Verified (In Range)');
+                setLocationStatus({ type: 'success', message: 'Location Verified (In Range)' });
                 setShowMap(true);
                 setIsLocating(false);
               } catch (innerErr) {
                 console.error('[CheckoutForm] tryGeolocation inner error:', innerErr);
                 const msg = innerErr instanceof Error ? innerErr.message : 'Unknown error';
-                setLocationStatus(`❌ Configuration Error: ${msg}`);
+                setLocationStatus({ type: 'error', message: `Configuration Error: ${msg}` });
                 setIsLocating(false);
               }
             },
@@ -222,20 +248,20 @@ export default function CheckoutForm() {
               console.warn('[CheckoutForm] Geolocation error:', error);
               if (highAccuracy) {
                 // Automatically retry in low-accuracy mode (e.g. IP/Wi-Fi database lookup), which is faster and doesn't require hardware GPS
-                setLocationStatus('Detecting (IP fallback)...');
+                setLocationStatus({ type: 'loading', message: 'Detecting (IP fallback)...' });
                 tryGeolocation(false);
               } else {
                 try {
                   const { lat: restoLat, lng: restoLng } = getRestoCoordinates();
                   setFormData(prev => ({ ...prev, lat: restoLat, lng: restoLng }));
                   setDeliveryFee(0);
-                  setLocationStatus('📍 Geolocation failed. Please manually drag the map pin to your delivery address.');
+                  setLocationStatus({ type: 'warning', message: 'Geolocation failed. Please manually drag the map pin to your delivery address.' });
                   setShowMap(true);
                   setIsLocating(false);
                 } catch (innerErr) {
                   console.error('[CheckoutForm] tryGeolocation fallback error:', innerErr);
                   const msg = innerErr instanceof Error ? innerErr.message : 'Unknown error';
-                  setLocationStatus(`❌ Configuration Error: ${msg}`);
+                  setLocationStatus({ type: 'error', message: `Configuration Error: ${msg}` });
                   setIsLocating(false);
                 }
               }
@@ -247,13 +273,13 @@ export default function CheckoutForm() {
 
         tryGeolocation(true);
       } else {
-        setLocationStatus('❌ Geolocation not supported by your browser.');
+        setLocationStatus({ type: 'error', message: 'Geolocation not supported by your browser.' });
         setIsLocating(false);
       }
     } catch (err) {
       console.error('[CheckoutForm] detectLocation top-level error:', err);
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      setLocationStatus(`❌ Configuration Error: ${msg}`);
+      setLocationStatus({ type: 'error', message: `Configuration Error: ${msg}` });
       setIsLocating(false);
     }
   };
@@ -523,9 +549,9 @@ export default function CheckoutForm() {
               {isLocating ? 'Detecting...' : 'Detect Location'}
             </button>
           </div>
-          {locationStatus && (
-            <p className={`text-xs font-bold mt-2 ${locationStatus.includes('✅') || locationStatus.includes('📍') ? 'text-green-600' : 'text-amber-600'}`}>
-              {locationStatus}
+          {locationStatus.message && (
+            <p className={`text-xs font-bold mt-2 ${locationStatusClasses(locationStatus.type)}`}>
+              {locationStatus.message}
             </p>
           )}
           {formData.lat && formData.lng && (
@@ -586,7 +612,7 @@ export default function CheckoutForm() {
           <span>
             {deliveryFee > 0
               ? `₹${deliveryFee}`
-              : locationStatus.includes('confirmed at checkout')
+              : locationStatus.message.includes('confirmed at checkout')
                 ? 'Will be calculated at checkout'
                 : 'Free / Calculated at detection'}
           </span>
