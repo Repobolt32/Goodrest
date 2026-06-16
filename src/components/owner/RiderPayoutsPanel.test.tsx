@@ -4,10 +4,22 @@ import RiderPayoutsPanel from './RiderPayoutsPanel';
 
 const mocks = vi.hoisted(() => ({
   getWeeklyRiderPayouts: vi.fn(),
+  settleWeeklyPayout: vi.fn(),
+  getAdminSettlementStatus: vi.fn(),
+  getCurrentWeekRange: vi.fn(),
 }));
 
 vi.mock('@/app/actions/ownerActions', () => ({
   getWeeklyRiderPayouts: mocks.getWeeklyRiderPayouts,
+}));
+
+vi.mock('@/app/actions/settlementActions', () => ({
+  settleWeeklyPayout: mocks.settleWeeklyPayout,
+  getAdminSettlementStatus: mocks.getAdminSettlementStatus,
+}));
+
+vi.mock('@/lib/weekRange', () => ({
+  getCurrentWeekRange: mocks.getCurrentWeekRange,
 }));
 
 vi.mock('lucide-react', async (importOriginal) => {
@@ -15,12 +27,18 @@ vi.mock('lucide-react', async (importOriginal) => {
   return {
     ...actual,
     Bike: () => null,
+    Check: () => null,
+    Clock: () => null,
+    AlertCircle: () => null,
   };
 });
 
 describe('RiderPayoutsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getCurrentWeekRange.mockReturnValue({ weekStart: '2026-06-15', weekEnd: '2026-06-21' });
+    mocks.getAdminSettlementStatus.mockResolvedValue({ success: true, data: [] });
+    mocks.settleWeeklyPayout.mockResolvedValue({ success: true });
   });
 
   it('should show loading skeleton while fetching', () => {
@@ -32,34 +50,34 @@ describe('RiderPayoutsPanel', () => {
     expect(loadingEls.length).toBeGreaterThan(0);
   });
 
-  it('should return null when payouts array is empty', async () => {
+  it('should show empty state when payouts array is empty', async () => {
     mocks.getWeeklyRiderPayouts.mockResolvedValue({ success: true, data: [] });
 
-    const { container } = await act(async () => {
-      return render(<RiderPayoutsPanel />);
+    await act(async () => {
+      render(<RiderPayoutsPanel />);
     });
 
-    expect(container.innerHTML).toBe('');
+    expect(screen.getByText('No rider payouts this week')).toBeInTheDocument();
   });
 
-  it('should return null when response has no success/data', async () => {
+  it('should show empty state when response has no success/data', async () => {
     mocks.getWeeklyRiderPayouts.mockResolvedValue({ success: false, error: 'error' });
 
-    const { container } = await act(async () => {
-      return render(<RiderPayoutsPanel />);
+    await act(async () => {
+      render(<RiderPayoutsPanel />);
     });
 
-    expect(container.innerHTML).toBe('');
+    expect(screen.getByText('No rider payouts this week')).toBeInTheDocument();
   });
 
-  it('should return null when success but no data', async () => {
+  it('should show empty state when success but no data', async () => {
     mocks.getWeeklyRiderPayouts.mockResolvedValue({ success: true });
 
-    const { container } = await act(async () => {
-      return render(<RiderPayoutsPanel />);
+    await act(async () => {
+      render(<RiderPayoutsPanel />);
     });
 
-    expect(container.innerHTML).toBe('');
+    expect(screen.getByText('No rider payouts this week')).toBeInTheDocument();
   });
 
   it('should render payout rows for each rider', async () => {
@@ -129,6 +147,7 @@ describe('RiderPayoutsPanel', () => {
     expect(within(thead!).getByText('Pickup')).toBeInTheDocument();
     expect(within(thead!).getByText('Bonus')).toBeInTheDocument();
     expect(within(thead!).getByText('Total Due')).toBeInTheDocument();
+    expect(within(thead!).getByText('Action')).toBeInTheDocument();
   });
 
   it('should calculate correct totals row', async () => {
@@ -245,6 +264,6 @@ describe('RiderPayoutsPanel', () => {
       render(<RiderPayoutsPanel />);
     });
 
-    expect(screen.queryByText('Rider Payouts')).toBeNull();
+    expect(screen.getByText('No rider payouts this week')).toBeInTheDocument();
   });
 });
