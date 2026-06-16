@@ -175,7 +175,7 @@ export default function EarningsView({
               {new Date(settlement.settled_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
             </p>
             {settlement.notes && (
-              <p className="text-[10px] text-[#696969] font-medium mt-1 italic">"{settlement.notes}"</p>
+              <p className="text-[10px] text-[#696969] font-medium mt-1 italic">&ldquo;{settlement.notes}&rdquo;</p>
             )}
           </div>
         </div>

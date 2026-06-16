@@ -23,10 +23,19 @@ vi.mock('./WeeklyChart', () => ({
 
 const mocks = vi.hoisted(() => ({
   getRiderEarningHistory: vi.fn(),
+  getRiderWeekSettlementStatus: vi.fn(),
 }));
 
 vi.mock('@/app/actions/riderActions', () => ({
   getRiderEarningHistory: mocks.getRiderEarningHistory,
+}));
+
+vi.mock('@/app/actions/settlementActions', () => ({
+  getRiderWeekSettlementStatus: mocks.getRiderWeekSettlementStatus,
+}));
+
+vi.mock('@/lib/weekRange', () => ({
+  getCurrentWeekRange: () => ({ weekStart: '2026-05-25', weekEnd: '2026-05-31' }),
 }));
 
 const emptyResult = {
@@ -69,6 +78,7 @@ describe('EarningsView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getRiderEarningHistory.mockResolvedValue(emptyResult);
+    mocks.getRiderWeekSettlementStatus.mockResolvedValue({ success: true, data: null });
   });
 
   // ─── Loading State ────────────────────────────────────────────────
