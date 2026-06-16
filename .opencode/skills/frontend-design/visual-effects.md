@@ -177,8 +177,8 @@ Good Gradient Rules:
 Multiple radial gradients overlapped:
 ├── Each at different position
 ├── Each with transparent falloff
-├── **Mandatory for "Wow" factor in Hero sections**
-└── Creates organic, colorful effect (Search: "Aurora Gradient CSS")
+├── Use with INTENT — overused as a lazy "wow" default
+└── Creates organic, colorful effect; pair with a deliberate palette
 ```
 
 ---
@@ -374,7 +374,7 @@ Before applying any effect:
 
 - ❌ Glassmorphism on every element (kitsch)
 - ❌ Dark + neon as default (lazy AI look)
-- ❌ **Static/Flat designs with no depth (FAILED)**
+- ❌ **Flat with no intent** (depth absent by accident, not by choice)
 - ❌ Effects that hurt readability
 - ❌ Animations without purpose
 

@@ -106,7 +106,7 @@
 | **Green** | Growth, nature, success | Can feel boring if overused |
 | **Red** | Passion, urgency, energy | High arousal, use sparingly |
 | **Orange** | Warmth, friendly, creative | Can feel cheap if saturated |
-| **Purple** | ⚠️ **BANNED** - AI overuses this! | Use Deep Teal/Maroon/Emerald instead |
+| **Purple** | Creative, luxury, imaginative | ⚠️ AI's default — earn it or try Deep Teal/Maroon/Emerald |
 | **Yellow** | Optimism, attention, happy | Hard to read, use as accent |
 | **Black** | Elegance, power, modern | Can feel heavy |
 | **White** | Clean, minimal, open | Can feel sterile |
