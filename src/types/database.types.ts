@@ -769,6 +769,48 @@ export type Database = {
         }
         Relationships: []
       }
+      rider_settlements: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          rider_id: string
+          settled_at: string
+          total_amount: number
+          total_bonus: number
+          total_deliveries: number
+          total_earnings: number
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rider_id: string
+          settled_at?: string
+          total_amount?: number
+          total_bonus?: number
+          total_deliveries?: number
+          total_earnings?: number
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rider_id?: string
+          settled_at?: string
+          total_amount?: number
+          total_bonus?: number
+          total_deliveries?: number
+          total_earnings?: number
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       taxes: {
         Row: {
           created_at: string
