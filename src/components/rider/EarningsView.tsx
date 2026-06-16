@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, TrendingUp } from 'lucide-react';
+import { ChevronDown, TrendingUp, CheckCircle } from 'lucide-react';
 import { getRiderEarningHistory } from '@/app/actions/riderActions';
+import { getRiderWeekSettlementStatus } from '@/app/actions/settlementActions';
+import { getCurrentWeekRange } from '@/lib/weekRange';
 import WeeklyChart from './WeeklyChart';
 
 interface DayEntry {
@@ -50,12 +52,19 @@ export default function EarningsView({
   const [weekTotal, setWeekTotal] = useState<WeekTotal>({ deliveries: 0, earnings: 0, bonus: 0, total: 0 });
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [settlement, setSettlement] = useState<{ settled_at: string; total_amount: number; notes: string | null } | null>(null);
 
   useEffect(() => {
-    getRiderEarningHistory(riderId).then((result) => {
+    getRiderEarningHistory(riderId).then(async (result) => {
       setWeekly(result.weekly);
       setWeekTotal(result.weekTotal);
       setLoading(false);
+
+      const { weekStart } = getCurrentWeekRange();
+      const status = await getRiderWeekSettlementStatus(riderId, weekStart);
+      if (status.success && status.data) {
+        setSettlement(status.data);
+      }
     });
   }, [riderId]);
 
@@ -150,6 +159,25 @@ export default function EarningsView({
               <p className="text-xs text-[#9C9C9C] font-medium">No deliveries this week yet</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Week Settled Badge */}
+      {!loading && settlement && (
+        <div className="bg-[#252525] border border-[#3AB757] border-l-4 border-l-[#3AB757] rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#3AB757]/10 rounded-xl flex items-center justify-center">
+            <CheckCircle size={20} className="text-[#3AB757]" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-white">This Week is Settled</p>
+            <p className="text-xs text-[#9C9C9C] font-medium mt-0.5">
+              Paid {formatCurrency(settlement.total_amount)} on{' '}
+              {new Date(settlement.settled_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+            </p>
+            {settlement.notes && (
+              <p className="text-[10px] text-[#696969] font-medium mt-1 italic">"{settlement.notes}"</p>
+            )}
+          </div>
         </div>
       )}
 
