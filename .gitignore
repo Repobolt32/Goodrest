@@ -46,7 +46,7 @@ nul
 !package.json
 !package-lock.json
 !capacitor.config.json
-!opencode.json
+
 !tsconfig.json
 !next.config.ts
 
