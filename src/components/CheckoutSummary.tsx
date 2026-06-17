@@ -96,7 +96,7 @@ export default function CheckoutSummary({ offerResult }: CheckoutSummaryProps) {
             <span className="text-green-600 font-bold">-Rs {offerResult.discountAmount}</span>
           </div>
         )}
-        {offerResult && offerResult.finalDeliveryFee === 0 && (
+        {offerResult && offerResult.appliedOffers.some(o => o.type === 'free_delivery') && (
           <div className="flex justify-between items-center text-sm">
             <span className="flex items-center gap-1.5 text-green-600 font-medium">
               <Truck size={14} />
