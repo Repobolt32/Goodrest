@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyOffers, type ActiveOffer } from '@/lib/offers';
+import { applyOffers, validateOfferConfig, type ActiveOffer } from '@/lib/offers';
 
 describe('applyOffers', () => {
   describe('no offers', () => {
@@ -235,6 +235,59 @@ describe('applyOffers', () => {
       expect(result.discountAmount).toBe(10);
       expect(result.finalDeliveryFee).toBe(0);
       expect(result.finalTotal).toBe(90);
+    });
+  });
+});
+
+describe('validateOfferConfig', () => {
+  describe('discount_percent', () => {
+    it('should accept valid config with percent', () => {
+      const result = validateOfferConfig('discount_percent', { percent: 10 });
+      expect(result.valid).toBe(true);
+    });
+
+    it('should accept config with percent and max_amount', () => {
+      const result = validateOfferConfig('discount_percent', { percent: 10, max_amount: 100 });
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject config without percent', () => {
+      const result = validateOfferConfig('discount_percent', { max_amount: 100 });
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('percent');
+    });
+
+    it('should reject config with percent <= 0', () => {
+      const result = validateOfferConfig('discount_percent', { percent: 0 });
+      expect(result.valid).toBe(false);
+    });
+
+    it('should reject config with percent > 100', () => {
+      const result = validateOfferConfig('discount_percent', { percent: 101 });
+      expect(result.valid).toBe(false);
+    });
+  });
+
+  describe('free_delivery', () => {
+    it('should accept valid config with threshold', () => {
+      const result = validateOfferConfig('free_delivery', { threshold: 200 });
+      expect(result.valid).toBe(true);
+    });
+
+    it('should accept threshold of 0', () => {
+      const result = validateOfferConfig('free_delivery', { threshold: 0 });
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject config without threshold', () => {
+      const result = validateOfferConfig('free_delivery', {});
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('threshold');
+    });
+
+    it('should reject config with negative threshold', () => {
+      const result = validateOfferConfig('free_delivery', { threshold: -10 });
+      expect(result.valid).toBe(false);
     });
   });
 });

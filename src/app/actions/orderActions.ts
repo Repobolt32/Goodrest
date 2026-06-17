@@ -15,6 +15,7 @@ import { calculateDeliveryFee } from '@/lib/pricing';
 import { verifyCustomerSession, signCustomerSession } from '@/lib/auth';
 import { isValidUUID } from '@/lib/validation';
 import { logger } from '@/lib/logger';
+import { applyOffers } from '@/lib/offers';
 
 function sanitizeString(str: string): string {
   return str
@@ -128,19 +129,7 @@ export async function createOrder(input: OrderInput) {
       if (offer.start_time && now < new Date(offer.start_time)) return false;
       if (offer.end_time && now > new Date(offer.end_time)) return false;
       return true;
-    });
-
-    // Apply discount_percent offer (only one active per type)
-    let discountAmount = 0;
-    const discountOffer = validOffers.find(o => o.type === 'discount_percent');
-    if (discountOffer) {
-      const { percent, max_amount } = discountOffer.config as { percent: number; max_amount?: number };
-      discountAmount = Math.min(
-        serverTotal * (percent / 100),
-        max_amount ?? Infinity
-      );
-      discountAmount = Math.min(discountAmount, serverTotal); // Clamp to subtotal
-    }
+    }).map(o => ({ id: o.id, type: o.type as 'discount_percent' | 'free_delivery', config: o.config as { percent?: number; max_amount?: number; threshold?: number } }));
 
     // Check restaurant online status before creating order
     const { data: settings } = await supabaseAdmin
@@ -172,15 +161,11 @@ export async function createOrder(input: OrderInput) {
       }
     }
 
-    // Check free_delivery offer after delivery fee calculation
-    const freeDeliveryOffer = validOffers.find(o => o.type === 'free_delivery');
-    if (freeDeliveryOffer && serverTotal >= (freeDeliveryOffer.config as { threshold: number }).threshold) {
-      deliveryFee = 0;
-    }
-
-    // Apply discount and delivery fee to total
-    serverTotal = Math.max(0, serverTotal - discountAmount);
-    serverTotal += deliveryFee;
+    // Apply offers using shared logic
+    const offerResult = applyOffers(serverTotal, deliveryFee, validOffers);
+    const discountAmount = offerResult.discountAmount;
+    deliveryFee = offerResult.finalDeliveryFee;
+    serverTotal = offerResult.finalTotal;
 
     // 1. Prepare atomic insert data
     const orderData = {
@@ -198,9 +183,7 @@ export async function createOrder(input: OrderInput) {
       duration_seconds: durationSeconds,
       discount_amount: discountAmount,
       delivery_fee: deliveryFee,
-      applied_offers: validOffers.length > 0 ? validOffers.map(o => ({
-        id: o.id, type: o.type, config: o.config
-      })) : null,
+      applied_offers: offerResult.appliedOffers.length > 0 ? offerResult.appliedOffers : null,
     };
 
     const orderItemsData = normalizeOrderItems('00000000-0000-0000-0000-000000000000', input.items, priceMap).map(item => ({

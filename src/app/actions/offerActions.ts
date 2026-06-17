@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAdminSession } from '@/lib/auth';
 import { Database, Json } from '@/types/database.types';
 import { isValidUUID } from '@/lib/validation';
+import { validateOfferConfig } from '@/lib/offers';
 
 export async function getActiveOffers() {
   try {
@@ -63,6 +64,9 @@ export async function createOffer(input: {
     if (!auth.success) return { success: false, error: auth.error };
 
     const { type, label, config, active, start_time, end_time } = input;
+
+    const validation = validateOfferConfig(type, config as Record<string, unknown>);
+    if (!validation.valid) return { success: false, error: validation.error };
 
     const autoLabel = label || generateLabel(type, config);
 

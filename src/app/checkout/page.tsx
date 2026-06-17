@@ -1,14 +1,19 @@
+"use client";
+
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ShoppingBag } from 'lucide-react';
 import CheckoutForm from '@/components/CheckoutForm';
 import CheckoutSummary from '@/components/CheckoutSummary';
-
-export const metadata = {
-  title: 'Checkout | Goodrest',
-  description: 'Complete your restaurant order fast and securely.',
-};
+import type { OfferResult } from '@/lib/offers';
 
 export default function CheckoutPage() {
+  const [offerResult, setOfferResult] = useState<OfferResult | undefined>();
+
+  const handleOffersApplied = useCallback((result: OfferResult) => {
+    setOfferResult(result);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <header className="bg-white border-b px-6 py-6 sticky top-0 z-20 backdrop-blur-md bg-white/80">
@@ -33,12 +38,12 @@ export default function CheckoutPage() {
             <ShoppingBag className="text-gray-400" size={18} />
             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500">Your Order</h2>
           </div>
-          <CheckoutSummary />
+          <CheckoutSummary offerResult={offerResult} />
         </section>
 
         {/* Final Form */}
         <section>
-          <CheckoutForm />
+          <CheckoutForm onOffersApplied={handleOffersApplied} />
         </section>
       </main>
     </div>

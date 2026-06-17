@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
 import { createOrder, generateRazorpayOrder, verifyPaymentSignature } from '@/app/actions/orderActions';
 import { getActiveOffers } from '@/app/actions/offerActions';
-import { applyOffers, type ActiveOffer } from '@/lib/offers';
+import { applyOffers, type ActiveOffer, type OfferResult } from '@/lib/offers';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, User, MapPin, CreditCard, Loader2, Navigation, ShoppingBag, Tag, Percent, Truck } from 'lucide-react';
+import { Phone, User, MapPin, CreditCard, Loader2, Navigation, ShoppingBag, Tag, Percent, Truck, RefreshCw } from 'lucide-react';
 import Script from 'next/script';
 import { RazorpayPaymentCallback, RazorpayOptions, RazorpayErrorResponse } from '@/types/payment';
 import { calculateDeliveryFee } from '@/lib/pricing';
@@ -48,7 +48,7 @@ interface GoogleMarkerInstance {
   setMap: (map: GoogleMapInstance | null) => void;
 }
 
-export default function CheckoutForm() {
+export default function CheckoutForm({ onOffersApplied }: { onOffersApplied?: (result: OfferResult) => void }) {
   const router = useRouter();
   const { items, totalPrice, clearCart, mounted } = useCart();
   const [loading, setLoading] = useState(false);
@@ -76,9 +76,12 @@ export default function CheckoutForm() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<GoogleMapInstance | null>(null);
   const markerInstanceRef = useRef<GoogleMarkerInstance | null>(null);
+  const [offersLoading, setOffersLoading] = useState(false);
 
-  useEffect(() => {
-    getActiveOffers().then(res => {
+  const fetchOffers = useCallback(async () => {
+    setOffersLoading(true);
+    try {
+      const res = await getActiveOffers();
       if (res.success && res.data) {
         setActiveOffers(res.data.map((o: Record<string, unknown>) => ({
           id: o.id as string,
@@ -86,10 +89,20 @@ export default function CheckoutForm() {
           config: o.config as ActiveOffer['config'],
         })));
       }
-    });
+    } finally {
+      setOffersLoading(false);
+    }
   }, []);
 
-  const offerResult = applyOffers(totalPrice, deliveryFee, activeOffers);
+  useEffect(() => {
+    fetchOffers();
+  }, [fetchOffers]);
+
+  const offerResult = useMemo(() => applyOffers(totalPrice, deliveryFee, activeOffers), [totalPrice, deliveryFee, activeOffers]);
+
+  useEffect(() => {
+    onOffersApplied?.(offerResult);
+  }, [offerResult, onOffersApplied]);
 
   useEffect(() => {
     if (!showMap || !formData.lat || !formData.lng || !mapRef.current) return;
@@ -661,8 +674,19 @@ export default function CheckoutForm() {
           <span>₹{offerResult.finalTotal}</span>
         </div>
         {activeOffers.length > 0 && (
-          <div className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/5 px-3 py-1.5 rounded-xl">
-            <Tag size={12} /> {activeOffers.length} offer{activeOffers.length > 1 ? 's' : ''} applied
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/5 px-3 py-1.5 rounded-xl">
+              <Tag size={12} /> {activeOffers.length} offer{activeOffers.length > 1 ? 's' : ''} applied
+            </div>
+            <button
+              type="button"
+              onClick={fetchOffers}
+              disabled={offersLoading}
+              className="flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-primary transition-colors"
+            >
+              <RefreshCw size={12} className={offersLoading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
           </div>
         )}
       </section>

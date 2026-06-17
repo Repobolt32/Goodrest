@@ -2,10 +2,15 @@
 
 import { useCart } from '@/hooks/useCart';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, X } from 'lucide-react';
+import { ShoppingBag, X, Tag, Truck } from 'lucide-react';
 import Image from 'next/image';
+import type { OfferResult } from '@/lib/offers';
 
-export default function CheckoutSummary() {
+interface CheckoutSummaryProps {
+  offerResult?: OfferResult;
+}
+
+export default function CheckoutSummary({ offerResult }: CheckoutSummaryProps) {
   const { items, totalPrice, removeFromCart, mounted } = useCart();
 
   if (!mounted) return (
@@ -81,9 +86,36 @@ export default function CheckoutSummary() {
         </AnimatePresence>
       </ul>
       
-      <div className="bg-gray-50 p-6 flex justify-between items-center border-t border-gray-100">
-        <span className="font-bold uppercase tracking-widest text-xs text-gray-400">Total Payable</span>
-        <span className="text-2xl font-black text-primary">Rs {totalPrice}</span>
+      <div className="bg-gray-50 p-6 border-t border-gray-100 space-y-2">
+        {offerResult && offerResult.discountAmount > 0 && (
+          <div className="flex justify-between items-center text-sm">
+            <span className="flex items-center gap-1.5 text-green-600 font-medium">
+              <Tag size={14} />
+              Discount
+            </span>
+            <span className="text-green-600 font-bold">-Rs {offerResult.discountAmount}</span>
+          </div>
+        )}
+        {offerResult && offerResult.finalDeliveryFee === 0 && (
+          <div className="flex justify-between items-center text-sm">
+            <span className="flex items-center gap-1.5 text-green-600 font-medium">
+              <Truck size={14} />
+              Free Delivery
+            </span>
+            <span className="text-green-600 font-bold">Applied</span>
+          </div>
+        )}
+        <div className="flex justify-between items-center">
+          <span className="font-bold uppercase tracking-widest text-xs text-gray-400">Total Payable</span>
+          <div className="text-right">
+            {offerResult && offerResult.discountAmount > 0 && (
+              <span className="text-sm text-gray-400 line-through mr-2">Rs {totalPrice}</span>
+            )}
+            <span className="text-2xl font-black text-primary">
+              Rs {offerResult ? offerResult.finalTotal : totalPrice}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

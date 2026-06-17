@@ -54,3 +54,24 @@ export function applyOffers(
     appliedOffers,
   };
 }
+
+export function validateOfferConfig(
+  type: ActiveOffer['type'],
+  config: Record<string, unknown>
+): { valid: boolean; error?: string } {
+  if (type === 'discount_percent') {
+    if (typeof config.percent !== 'number' || config.percent <= 0 || config.percent > 100) {
+      return { valid: false, error: 'discount_percent requires percent between 1 and 100' };
+    }
+    return { valid: true };
+  }
+
+  if (type === 'free_delivery') {
+    if (typeof config.threshold !== 'number' || config.threshold < 0) {
+      return { valid: false, error: 'free_delivery requires threshold >= 0' };
+    }
+    return { valid: true };
+  }
+
+  return { valid: false, error: `Unknown offer type: ${type}` };
+}
