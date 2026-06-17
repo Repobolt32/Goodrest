@@ -106,3 +106,4 @@ graphify-out/
 .chrome-profile-headful/
 
 scripts/bin/
+.secrets/

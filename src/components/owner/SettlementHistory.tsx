@@ -24,7 +24,8 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   });

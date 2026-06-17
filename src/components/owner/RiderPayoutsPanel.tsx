@@ -56,6 +56,8 @@ export default function RiderPayoutsPanel() {
 
     setSettlingId(payout.riderId);
     setError(null);
+    setSettledIds(new Set([...settledIds, payout.riderId]));
+
     const result = await settleWeeklyPayout({
       riderId: payout.riderId,
       weekStart,
@@ -67,9 +69,8 @@ export default function RiderPayoutsPanel() {
       notes: notes[payout.riderId] || undefined,
     });
 
-    if (result.success) {
-      setSettledIds(new Set([...settledIds, payout.riderId]));
-    } else {
+    if (!result.success) {
+      setSettledIds(new Set([...settledIds].filter(id => id !== payout.riderId)));
       setError(result.error || 'Failed to settle');
     }
     setSettlingId(null);

@@ -23,8 +23,8 @@ CREATE INDEX IF NOT EXISTS idx_rider_settlements_week_start
 
 ALTER TABLE public.rider_settlements ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow read for rider_settlements" ON public.rider_settlements
-    FOR SELECT USING (true);
+CREATE POLICY "Admin read rider_settlements" ON public.rider_settlements
+    FOR SELECT USING (auth.role() = 'service_role');
 
-CREATE POLICY "Allow insert for rider_settlements" ON public.rider_settlements
-    FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin insert rider_settlements" ON public.rider_settlements
+    FOR INSERT WITH CHECK (auth.role() = 'service_role');

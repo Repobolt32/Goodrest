@@ -1,69 +1,23 @@
-{
-  "$schema": "https://opencode.ai/config.json",
-  "default_agent": "build",
-  "instructions": ["AGENTS.md"],
-  "permission": "allow",
-  "plugin": ["~/.config/opencode/node_modules/superpowers"],
-  "agent": {
-    "build": {
-      "description": "Build agent — implements features, fixes bugs, writes code",
-      "permission": {
-        "*": "allow"
-      }
-    },
-    "plan": {
-      "description": "Plan agent — researches, plans, suggests changes without modifying files",
-      "permission": {
-        "edit": "deny",
-        "write": "deny",
-        "bash": "ask",
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow"
-      }
-    },
-    "security": {
-      "description": "Security auditor — threat modeling, vulnerability scanning, auth review",
-      "mode": "subagent",
-      "permission": {
-        "edit": "deny",
-        "bash": "ask",
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow"
-      }
-    },
-    "debug": {
-      "description": "Systematic debugger — root cause analysis, reproduce-isolate-fix",
-      "mode": "subagent",
-      "permission": {
-        "edit": "deny",
-        "bash": "ask",
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow"
-      }
-    },
-    "review": {
-      "description": "Code reviewer — quality, security, performance, correctness",
-      "mode": "subagent",
-      "permission": {
-        "edit": "deny",
-        "bash": "deny",
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow"
-      }
-    }
-  },
+{ "$schema": 
+  "https://opencode.ai/config.json", 
+  "default_agent": "build", 
+  "instructions": ["AGENTS.md"], 
   "mcp": {
-    "ref-context": {
-      "type": "http",
-      "url": "https://api.ref.tools/mcp",
+    "ref-context": { "type": 
+      "remote", "url": 
+      "https://api.ref.tools/mcp", 
       "headers": {
-        "x-ref-api-key": "{env:REF_API_KEY}"
+        "x-ref-api-key": 
+        "{file:.secrets/ref-api-key}"
       },
       "enabled": true
+    },
+    "chrome-devtools": { "type": 
+      "local", "enabled": true, 
+      "command": ["npx", "-y", 
+      "chrome-devtools-mcp@latest"]
     }
   }
 }
+
+
