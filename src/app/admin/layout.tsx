@@ -18,7 +18,8 @@ import {
   AlertTriangle,
   Clock,
   ExternalLink,
-  History
+  History,
+  Tag
 } from 'lucide-react';
 import Link from 'next/link';
 import AdminSearchBar from '@/components/admin/AdminSearchBar';
@@ -155,6 +156,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Menu Editor', icon: ChefHat, href: '/admin/menu' },
     { name: 'Reports', icon: BarChart3, href: '/admin/reports' },
     { name: 'Settlements', icon: History, href: '/admin/settlements' },
+    { name: 'Offers', icon: Tag, href: '/admin/offers' },
   ];
 
   const handleToggleDelivery = async () => {

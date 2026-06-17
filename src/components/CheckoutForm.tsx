@@ -4,8 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
 import { createOrder, generateRazorpayOrder, verifyPaymentSignature } from '@/app/actions/orderActions';
+import { getActiveOffers } from '@/app/actions/offerActions';
+import { applyOffers, type ActiveOffer } from '@/lib/offers';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, User, MapPin, CreditCard, Loader2, Navigation, ShoppingBag } from 'lucide-react';
+import { Phone, User, MapPin, CreditCard, Loader2, Navigation, ShoppingBag, Tag, Percent, Truck } from 'lucide-react';
 import Script from 'next/script';
 import { RazorpayPaymentCallback, RazorpayOptions, RazorpayErrorResponse } from '@/types/payment';
 import { calculateDeliveryFee } from '@/lib/pricing';
@@ -70,9 +72,24 @@ export default function CheckoutForm() {
     typeof (window as unknown as { google?: { maps?: unknown } }).google !== 'undefined' &&
     typeof (window as unknown as { google?: { maps?: unknown } }).google?.maps !== 'undefined'
   );
+  const [activeOffers, setActiveOffers] = useState<ActiveOffer[]>([]);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<GoogleMapInstance | null>(null);
   const markerInstanceRef = useRef<GoogleMarkerInstance | null>(null);
+
+  useEffect(() => {
+    getActiveOffers().then(res => {
+      if (res.success && res.data) {
+        setActiveOffers(res.data.map((o: Record<string, unknown>) => ({
+          id: o.id as string,
+          type: o.type as 'discount_percent' | 'free_delivery',
+          config: o.config as ActiveOffer['config'],
+        })));
+      }
+    });
+  }, []);
+
+  const offerResult = applyOffers(totalPrice, deliveryFee, activeOffers);
 
   useEffect(() => {
     if (!showMap || !formData.lat || !formData.lng || !mapRef.current) return;
@@ -607,20 +624,47 @@ export default function CheckoutForm() {
           <span>Items Total</span>
           <span>₹{totalPrice}</span>
         </div>
+        {offerResult.discountAmount > 0 && (() => {
+          const discOffer = activeOffers.find(o => o.type === 'discount_percent');
+          if (!discOffer) return null;
+          const pct = discOffer.config.percent ?? 0;
+          const cap = discOffer.config.max_amount;
+          const label = cap ? `${pct}% off (capped at ₹${cap})` : `${pct}% off`;
+          return (
+            <div className="flex justify-between text-sm font-bold text-green-600">
+              <span className="flex items-center gap-1"><Percent size={14} />{label}</span>
+              <span>-₹{offerResult.discountAmount}</span>
+            </div>
+          );
+        })()}
         <div className="flex justify-between text-sm font-bold text-slate-600">
-          <span>Delivery Fee</span>
           <span>
-            {deliveryFee > 0
-              ? `₹${deliveryFee}`
-              : locationStatus.message.includes('confirmed at checkout')
-                ? 'Will be calculated at checkout'
-                : 'Free / Calculated at detection'}
+            {offerResult.finalDeliveryFee === 0 && deliveryFee > 0 && activeOffers.some(o => o.type === 'free_delivery')
+              ? <span className="flex items-center gap-1 text-green-600"><Truck size={14} />Delivery</span>
+              : 'Delivery Fee'}
+          </span>
+          <span>
+            {offerResult.finalDeliveryFee === 0 && deliveryFee > 0 && activeOffers.some(o => o.type === 'free_delivery')
+              ? <span className="line-through text-slate-400 mr-1">₹{deliveryFee}</span>
+              : null}
+            {offerResult.finalDeliveryFee === 0 && deliveryFee > 0 && activeOffers.some(o => o.type === 'free_delivery')
+              ? <span className="text-green-600 font-black">Free</span>
+              : deliveryFee > 0
+                ? `₹${deliveryFee}`
+                : locationStatus.message.includes('confirmed at checkout')
+                  ? 'Will be calculated at checkout'
+                  : 'Free / Calculated at detection'}
           </span>
         </div>
         <div className="border-t-2 border-slate-100 pt-3 flex justify-between text-lg font-black text-gray-900">
           <span>Grand Total</span>
-          <span>₹{totalPrice + deliveryFee}</span>
+          <span>₹{offerResult.finalTotal}</span>
         </div>
+        {activeOffers.length > 0 && (
+          <div className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/5 px-3 py-1.5 rounded-xl">
+            <Tag size={12} /> {activeOffers.length} offer{activeOffers.length > 1 ? 's' : ''} applied
+          </div>
+        )}
       </section>
 
       {error && (
@@ -640,7 +684,7 @@ export default function CheckoutForm() {
         ) : (
           <>
             <CreditCard size={24} />
-            Pay & Order • Rs {totalPrice + deliveryFee}
+            Pay & Order • Rs {offerResult.finalTotal}
           </>
         )}
       </motion.button>
