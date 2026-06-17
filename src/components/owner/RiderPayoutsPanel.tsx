@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Bike, Check, Clock, AlertCircle } from 'lucide-react';
 import { getWeeklyRiderPayouts } from '@/app/actions/ownerActions';
-import { settleWeeklyPayout, getAdminSettlementStatus } from '@/app/actions/settlementActions';
+import { settleWeeklyPayout } from '@/app/actions/settlementActions';
 import { getCurrentWeekRange } from '@/lib/weekRange';
 
 interface RiderPayout {
@@ -15,6 +15,8 @@ interface RiderPayout {
   weekPickupPay: number;
   weekBonus: number;
   weekTotalDue: number;
+  isSettled?: boolean;
+  settledAmount?: number;
 }
 
 function formatCurrency(amount: number): string {
@@ -26,7 +28,6 @@ function formatCurrency(amount: number): string {
 export default function RiderPayoutsPanel() {
   const [payouts, setPayouts] = useState<RiderPayout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [settledIds, setSettledIds] = useState<Set<string>>(new Set());
   const [settlingId, setSettlingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -37,13 +38,6 @@ export default function RiderPayoutsPanel() {
     getWeeklyRiderPayouts().then(async (res) => {
       if (res && res.success && res.data) {
         setPayouts(res.data);
-        const riderIds = res.data.map((p: RiderPayout) => p.riderId);
-        if (riderIds.length > 0) {
-          const settled = await getAdminSettlementStatus(riderIds, weekStart);
-          if (settled.success && settled.data) {
-            setSettledIds(new Set(settled.data.map((s: { rider_id: string }) => s.rider_id)));
-          }
-        }
       } else {
         setPayouts([]);
       }
@@ -56,22 +50,20 @@ export default function RiderPayoutsPanel() {
 
     setSettlingId(payout.riderId);
     setError(null);
-    setSettledIds(new Set([...settledIds, payout.riderId]));
 
     const result = await settleWeeklyPayout({
       riderId: payout.riderId,
       weekStart,
       weekEnd,
-      totalDeliveries: payout.weekDeliveries,
-      totalEarnings: payout.weekDeliveryFees + payout.weekPickupPay,
-      totalBonus: payout.weekBonus,
-      totalAmount: payout.weekTotalDue,
       notes: notes[payout.riderId] || undefined,
     });
 
     if (!result.success) {
-      setSettledIds(new Set([...settledIds].filter(id => id !== payout.riderId)));
       setError(result.error || 'Failed to settle');
+    } else {
+      setPayouts(prev => prev.map(p =>
+        p.riderId === payout.riderId ? { ...p, isSettled: true } : p
+      ));
     }
     setSettlingId(null);
   };
@@ -135,7 +127,7 @@ export default function RiderPayoutsPanel() {
           </thead>
           <tbody>
             {payouts.map((p, idx) => {
-              const isSettled = settledIds.has(p.riderId);
+              const isSettled = p.isSettled || false;
               return (
                 <tr key={p.riderId} className={`border-b border-slate-50 last:border-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
                   <td className="px-6 py-3">

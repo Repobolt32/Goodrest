@@ -179,6 +179,60 @@ describe('ownerActions', () => {
       expect(payout.weekDeliveries).toBe(2);
       expect(payout.weekTotalDue).toBe(94);
     });
+
+    it('should include settlement status for already-settled riders', async () => {
+      // Use mockImplementation to handle multiple tables properly
+      const mockOrders = [
+        { rider_id: 'rider-1', rider_earning: 300, distance_km: 2.0, delivered_at: '2026-06-16T10:00:00.000Z' },
+        { rider_id: 'rider-2', rider_earning: 400, distance_km: 2.0, delivered_at: '2026-06-16T12:00:00.000Z' },
+      ];
+      const mockRiders = [
+        { id: 'rider-1', name: 'Settled Rider', phone: '1111111111' },
+        { id: 'rider-2', name: 'Unsettled Rider', phone: '2222222222' },
+      ];
+      const mockSettlements = [
+        { rider_id: 'rider-1', week_start: '2026-06-15' },
+      ];
+
+      const ordersChain = {
+        select: () => ordersChain,
+        is: () => ordersChain,
+        eq: () => ordersChain,
+        not: () => ordersChain,
+        gte: () => ordersChain,
+        order: () => Promise.resolve({ data: mockOrders, error: null }),
+      };
+
+      const settlementChain = {
+        select: () => settlementChain,
+        in: () => settlementChain,
+        eq: () => Promise.resolve({ data: mockSettlements, error: null }),
+      };
+
+      const ridersChain = {
+        select: () => ridersChain,
+        in: () => Promise.resolve({ data: mockRiders, error: null }),
+      };
+
+      mocks.mockFrom.mockImplementation((table: string) => {
+        if (table === 'orders') return ordersChain;
+        if (table === 'rider_settlements') return settlementChain;
+        if (table === 'riders') return ridersChain;
+        return {};
+      });
+
+      const result = await getWeeklyRiderPayouts();
+      expect(result.success).toBe(true);
+      const payouts = result.data!;
+      expect(payouts.length).toBe(2);
+
+      const settled = payouts.find(p => p.riderId === 'rider-1')!;
+      expect(settled.isSettled).toBe(true);
+      expect(settled.weekTotalDue).toBeGreaterThan(0);
+
+      const unsettled = payouts.find(p => p.riderId === 'rider-2')!;
+      expect(unsettled.isSettled).toBe(false);
+    });
   });
 
   describe('toggleOnlineStatus', () => {

@@ -470,6 +470,14 @@ export async function getWeeklyRiderPayouts() {
 
   const riderLookup = new Map((riders || []).map(r => [r.id, r]));
 
+  const weekStartDate = `${mondayYyyy}-${mondayMm}-${mondayDd}`;
+  const { data: settlements } = await supabaseAdmin
+    .from('rider_settlements')
+    .select('rider_id, total_amount')
+    .eq('week_start', weekStartDate);
+
+  const settledMap = new Map((settlements || []).map(s => [s.rider_id, s.total_amount]));
+
   const payouts = Array.from(riderMap.entries()).map(([riderId, stats]) => {
     // Sum nightly bonuses across all days
     let weekBonus = 0;
@@ -478,6 +486,7 @@ export async function getWeeklyRiderPayouts() {
     }
 
     const riderInfo = riderLookup.get(riderId);
+    const settledAmount = settledMap.get(riderId) || 0;
     return {
       riderId,
       riderName: riderInfo?.name || 'Unknown',
@@ -487,6 +496,8 @@ export async function getWeeklyRiderPayouts() {
       weekPickupPay: stats.pickupPay,
       weekBonus,
       weekTotalDue: stats.earnings + weekBonus,
+      isSettled: settledMap.has(riderId),
+      settledAmount,
     };
   }).sort((a, b) => b.weekTotalDue - a.weekTotalDue);
 

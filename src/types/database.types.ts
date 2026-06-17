@@ -737,6 +737,7 @@ export type Database = {
           status: string | null
           total_deliveries: number | null
           total_earnings: number | null
+          total_settled: number | null
           username: string
         }
         Insert: {
@@ -751,6 +752,7 @@ export type Database = {
           status?: string | null
           total_deliveries?: number | null
           total_earnings?: number | null
+          total_settled?: number | null
           username: string
         }
         Update: {
@@ -765,6 +767,7 @@ export type Database = {
           status?: string | null
           total_deliveries?: number | null
           total_earnings?: number | null
+          total_settled?: number | null
           username?: string
         }
         Relationships: []

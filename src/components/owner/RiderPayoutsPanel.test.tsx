@@ -5,7 +5,6 @@ import RiderPayoutsPanel from './RiderPayoutsPanel';
 const mocks = vi.hoisted(() => ({
   getWeeklyRiderPayouts: vi.fn(),
   settleWeeklyPayout: vi.fn(),
-  getAdminSettlementStatus: vi.fn(),
   getCurrentWeekRange: vi.fn(),
 }));
 
@@ -15,7 +14,6 @@ vi.mock('@/app/actions/ownerActions', () => ({
 
 vi.mock('@/app/actions/settlementActions', () => ({
   settleWeeklyPayout: mocks.settleWeeklyPayout,
-  getAdminSettlementStatus: mocks.getAdminSettlementStatus,
 }));
 
 vi.mock('@/lib/weekRange', () => ({
@@ -37,7 +35,6 @@ describe('RiderPayoutsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCurrentWeekRange.mockReturnValue({ weekStart: '2026-06-15', weekEnd: '2026-06-21' });
-    mocks.getAdminSettlementStatus.mockResolvedValue({ success: true, data: [] });
     mocks.settleWeeklyPayout.mockResolvedValue({ success: true });
   });
 
