@@ -105,7 +105,6 @@ export default function OrderTracker({
   const [helpSuccess, setHelpSuccess] = useState(false);
   const [helpError, setHelpError] = useState<string | null>(null);
 
-  // 30-Second grace countdown timer (can be changed to 15s/30s later)
   useEffect(() => {
     if (status !== 'confirmed') {
       setTimeLeft(0);

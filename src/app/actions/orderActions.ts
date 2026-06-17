@@ -13,6 +13,8 @@ import { RazorpayPaymentCallback } from '@/types/payment';
 import { getGoogleMapsRouteData } from './distanceActions';
 import { calculateDeliveryFee } from '@/lib/pricing';
 import { verifyCustomerSession, signCustomerSession } from '@/lib/auth';
+import { isValidUUID } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 
 function sanitizeString(str: string): string {
   return str
@@ -45,10 +47,10 @@ function normalizeOrderItems(
     if (isNaN(price) || price <= 0) {
       throw new Error(`Invalid price for item ${item.name}: ${price}`);
     }
-    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id);
+    const hasValidUUID = isValidUUID(item.id);
     return {
       order_id: orderId,
-      menu_item_id: isValidUUID ? item.id : null,
+      menu_item_id: hasValidUUID ? item.id : null,
       price_at_order: price,
       quantity: item.quantity,
     };
@@ -60,23 +62,23 @@ function normalizeOrderItems(
  * Saves the order in Supabase BEFORE any payment is initialized.
  */
 export async function createOrder(input: OrderInput) {
-  console.log(`[createOrder] ENTRY: Starting order, total: ${input.total_amount}`);
+  logger.log(`[createOrder] ENTRY: Starting order, total: ${input.total_amount}`);
   try {
     if (!input.customer_name || input.customer_name.trim().length < 2) {
-      console.warn('[createOrder] FAILURE: Name must be at least 2 characters.');
+      logger.warn('[createOrder] FAILURE: Name must be at least 2 characters.');
       return { success: false, error: 'Name must be at least 2 characters.' };
     }
     if (!input.customer_phone || !input.delivery_address) {
-      console.warn('[createOrder] FAILURE: Missing required fields');
+      logger.warn('[createOrder] FAILURE: Missing required fields');
       return { success: false, error: 'Missing required fields' };
     }
     if (!input.items || input.items.length === 0) {
-      console.warn('[createOrder] FAILURE: Invalid menu items');
+      logger.warn('[createOrder] FAILURE: Invalid menu items');
       return { success: false, error: 'Invalid menu items' };
     }
     for (const item of input.items) {
       if (item.quantity <= 0) {
-        console.warn(`[createOrder] FAILURE: Invalid quantity for item ${item.id}: ${item.quantity}`);
+        logger.warn(`[createOrder] FAILURE: Invalid quantity for item ${item.id}: ${item.quantity}`);
         return { success: false, error: 'Invalid quantity' };
       }
     }
@@ -97,7 +99,7 @@ export async function createOrder(input: OrderInput) {
       .in('id', menuItemIds);
 
     if (menuError || !menuItems || menuItems.length !== menuItemIds.length) {
-      console.warn('[createOrder] FAILURE: Invalid menu items or price fetch failed');
+      logger.warn('[createOrder] FAILURE: Invalid menu items or price fetch failed');
       return { success: false, error: 'Invalid menu items' };
     }
 
@@ -113,7 +115,7 @@ export async function createOrder(input: OrderInput) {
       serverTotal += Number(dbPrice) * item.quantity;
     }
 
-    console.log(`[createOrder] Price validation: client total=${input.total_amount}, server total=${serverTotal}`);
+    logger.log(`[createOrder] Price validation: client total=${input.total_amount}, server total=${serverTotal}`);
 
     // Fetch active offers and filter by time window
     const { data: activeOffers } = await supabaseAdmin
@@ -207,7 +209,7 @@ export async function createOrder(input: OrderInput) {
       quantity: item.quantity
     }));
 
-    console.log('[createOrder] DB: Attempting atomic transaction insert via RPC...');
+    logger.log('[createOrder] DB: Attempting atomic transaction insert via RPC...');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: orderId, error: rpcError } = await supabaseAdmin.rpc('create_order_with_items' as any, {
       p_order: orderData,
@@ -215,11 +217,11 @@ export async function createOrder(input: OrderInput) {
     });
 
     if (rpcError || !orderId) {
-      console.error('[createOrder] Supabase RPC transaction error:', rpcError);
+      logger.error('[createOrder] Supabase RPC transaction error:', rpcError);
       return { success: false, error: rpcError?.message || 'Failed to save order' };
     }
 
-    console.log(`[createOrder] SUCCESS: Order created atomically in DB with ID: ${orderId}`);
+    logger.log(`[createOrder] SUCCESS: Order created atomically in DB with ID: ${orderId}`);
 
     // Set customer_session cookie so tracking pages can authenticate the customer
     const token = await signCustomerSession(input.customer_phone);
@@ -241,7 +243,7 @@ export async function createOrder(input: OrderInput) {
       } 
     };
   } catch (err) {
-    console.error('[createOrder] CRITICAL Unexpected error:', err);
+    logger.error('[createOrder] CRITICAL Unexpected error:', err);
     return { success: false, error: 'Internal Server Error' };
   }
 }
@@ -252,10 +254,10 @@ export async function createOrder(input: OrderInput) {
  * Idempotency Guard: If razorpay_order_id already exists, return it — prevents double-charges on re-render.
  */
 export async function generateRazorpayOrder(orderId: string) {
-  console.log(`[generateRazorpayOrder] ENTRY: Generating RP order for order ${orderId}`);
+  logger.log(`[generateRazorpayOrder] ENTRY: Generating RP order for order ${orderId}`);
   const isTestKey = process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_');
   if (isTestKey) {
-    console.warn('[generateRazorpayOrder] WARNING: Using RAZORPAY TEST KEY. Real UPI apps will not work for scanning.');
+    logger.warn('[generateRazorpayOrder] WARNING: Using RAZORPAY TEST KEY. Real UPI apps will not work for scanning.');
   }
   try {
     const { data: order, error: fetchError } = await supabaseAdmin
@@ -265,18 +267,18 @@ export async function generateRazorpayOrder(orderId: string) {
       .single();
 
     if (fetchError || !order) {
-      console.warn(`[generateRazorpayOrder] FAILURE: Order ${orderId} not found`);
+      logger.warn(`[generateRazorpayOrder] FAILURE: Order ${orderId} not found`);
       return { success: false, error: 'Order not found' };
     }
 
     if (order.payment_status === 'paid') {
-      console.warn(`[generateRazorpayOrder] FAILURE: Order ${orderId} already paid`);
+      logger.warn(`[generateRazorpayOrder] FAILURE: Order ${orderId} already paid`);
       return { success: false, error: 'Order already paid' };
     }
 
     // Idempotency Guard: If we already created a Razorpay order for this DB order, reuse it
     if (order.razorpay_order_id) {
-      console.log(`[generateRazorpayOrder] IDEMPOTENCY: Reusing existing RP ID ${order.razorpay_order_id} for order ${orderId}`);
+      logger.log(`[generateRazorpayOrder] IDEMPOTENCY: Reusing existing RP ID ${order.razorpay_order_id} for order ${orderId}`);
       const amountInPaise = Math.round(Number(order.total_amount) * 100);
       return {
         success: true,
@@ -288,7 +290,7 @@ export async function generateRazorpayOrder(orderId: string) {
 
     // Amount in paise (Context7: amount is in smallest currency unit)
     const amountInPaise = Math.round(Number(order.total_amount) * 100);
-    console.log(`[generateRazorpayOrder] RP: Creating new RP order for ${amountInPaise} paise...`);
+    logger.log(`[generateRazorpayOrder] RP: Creating new RP order for ${amountInPaise} paise...`);
 
     const rzpOrder = await razorpay.orders.create({
       amount: amountInPaise,
@@ -300,7 +302,7 @@ export async function generateRazorpayOrder(orderId: string) {
       },
     });
 
-    console.log(`[generateRazorpayOrder] RP: Received RP Order ID ${rzpOrder.id}`);
+    logger.log(`[generateRazorpayOrder] RP: Received RP Order ID ${rzpOrder.id}`);
 
     // Trace RP order ID back to our DB record
     const { error: updateError } = await supabaseAdmin
@@ -309,9 +311,9 @@ export async function generateRazorpayOrder(orderId: string) {
       .eq('id', order.id);
 
     if (updateError) {
-      console.error('[generateRazorpayOrder] DB FAILURE: Failed to trace RP Order ID to DB:', updateError);
+      logger.error('[generateRazorpayOrder] DB FAILURE: Failed to trace RP Order ID to DB:', updateError);
     } else {
-      console.log(`[generateRazorpayOrder] DB SUCCESS: Traced RP ID ${rzpOrder.id} to Order ${order.id}`);
+      logger.log(`[generateRazorpayOrder] DB SUCCESS: Traced RP ID ${rzpOrder.id} to Order ${order.id}`);
     }
 
     return {
@@ -321,7 +323,7 @@ export async function generateRazorpayOrder(orderId: string) {
       currency: 'INR',
     };
   } catch (err) {
-    console.error('[generateRazorpayOrder] CRITICAL ERROR:', err);
+    logger.error('[generateRazorpayOrder] CRITICAL ERROR:', err);
     return { success: false, error: 'Failed to generate payment link' };
   }
 }
@@ -335,12 +337,12 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = response;
     
-    console.log(`[verifyPaymentSignature] Starting verification for payment_id: ${razorpay_payment_id}, order_id: ${razorpay_order_id}`);
+    logger.log(`[verifyPaymentSignature] Starting verification for payment_id: ${razorpay_payment_id}, order_id: ${razorpay_order_id}`);
 
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keySecret) {
-      console.error('[verifyPaymentSignature] CRITICAL FAILURE: RAZORPAY_KEY_SECRET is not configured in .env');
+      logger.error('[verifyPaymentSignature] CRITICAL FAILURE: RAZORPAY_KEY_SECRET is not configured in .env');
       return { success: false, error: 'Server configuration error' };
     }
 
@@ -352,12 +354,12 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
     );
 
     if (!isValid) {
-      console.warn(`[verifyPaymentSignature] FAILURE: Invalid signature for order: ${razorpay_order_id}. Signature mismatch reported by SDK.`);
+      logger.warn(`[verifyPaymentSignature] FAILURE: Invalid signature for order: ${razorpay_order_id}. Signature mismatch reported by SDK.`);
       return { success: false, error: 'Signature verification failed.' };
     }
-    console.log(`[verifyPaymentSignature] SUCCESS: SDK verified signature for: ${razorpay_payment_id}`);
+    logger.log(`[verifyPaymentSignature] SUCCESS: SDK verified signature for: ${razorpay_payment_id}`);
 
-    console.log(`[verifyPaymentSignature] Looking up order in DB by razorpay_order_id: ${razorpay_order_id}`);
+    logger.log(`[verifyPaymentSignature] Looking up order in DB by razorpay_order_id: ${razorpay_order_id}`);
 
     // Idempotency Check: Don't double-update an already paid order
     const { data: order, error: fetchError } = await supabaseAdmin
@@ -367,18 +369,18 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
       .single();
 
     if (fetchError || !order) {
-      console.error(`[verifyPaymentSignature] FAILURE: Order trace failed for RP order: ${razorpay_order_id}. Error: ${fetchError?.message || 'Not found'}`);
+      logger.error(`[verifyPaymentSignature] FAILURE: Order trace failed for RP order: ${razorpay_order_id}. Error: ${fetchError?.message || 'Not found'}`);
       return { success: false, error: 'Order trace failed' };
     }
 
-    console.log(`[verifyPaymentSignature] Found order: ${order.id}, current payment_status: ${order.payment_status}`);
+    logger.log(`[verifyPaymentSignature] Found order: ${order.id}, current payment_status: ${order.payment_status}`);
 
     if (order.payment_status === 'paid') {
-      console.log(`[verifyPaymentSignature] Order ${order.id} already paid — idempotent response.`);
+      logger.log(`[verifyPaymentSignature] Order ${order.id} already paid — idempotent response.`);
       return { success: true, message: 'Already processed' };
     }
 
-    console.log(`[verifyPaymentSignature] Updating DB to mark order ${order.id} as paid...`);
+    logger.log(`[verifyPaymentSignature] Updating DB to mark order ${order.id} as paid...`);
 
     // Mark as paid — DB as Source of Truth
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
@@ -399,14 +401,14 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
     }
 
     if (updateError) {
-      console.error(`[verifyPaymentSignature] FAILURE: DB update failed for order ${order.id}:`, updateError);
+      logger.error(`[verifyPaymentSignature] FAILURE: DB update failed for order ${order.id}:`, updateError);
       return { success: false, error: 'Failed to update order status' };
     }
 
-    console.log(`[verifyPaymentSignature] SUCCESS: Order ${order.id} marked as paid in DB.`);
+    logger.log(`[verifyPaymentSignature] SUCCESS: Order ${order.id} marked as paid in DB.`);
     return { success: true };
   } catch (err) {
-    console.error('[verifyPaymentSignature] FAILURE: Unexpected error:', err);
+    logger.error('[verifyPaymentSignature] FAILURE: Unexpected error:', err);
     return { success: false, error: 'Payment verification failed' };
   }
 }
@@ -416,7 +418,7 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
  * Guard: only allowed if status is NOT out_for_delivery, delivered, or already cancelled.
  */
 export async function cancelOrder(orderId: string, reason?: string) {
-  console.log(`[cancelOrder] ENTRY: Cancelling order ${orderId} with reason: "${reason || 'no reason provided'}"`);
+  logger.log(`[cancelOrder] ENTRY: Cancelling order ${orderId} with reason: "${reason || 'no reason provided'}"`);
   try {
     const auth = await verifyCustomerSession();
     if (!auth.success || !auth.session) {
@@ -430,7 +432,7 @@ export async function cancelOrder(orderId: string, reason?: string) {
       .single();
 
     if (fetchError || !order) {
-      console.warn(`[cancelOrder] FAILURE: Order ${orderId} not found`);
+      logger.warn(`[cancelOrder] FAILURE: Order ${orderId} not found`);
       return { success: false, error: 'Order not found' };
     }
 
@@ -439,21 +441,21 @@ export async function cancelOrder(orderId: string, reason?: string) {
     }
 
     if (order.order_status === 'cancelled') {
-      console.log(`[cancelOrder] Order ${orderId} is already cancelled.`);
+      logger.log(`[cancelOrder] Order ${orderId} is already cancelled.`);
       return { success: true, message: 'Order is already cancelled' };
     }
 
     // Cancellation only allowed before out_for_delivery or delivered
     const forbiddenStatuses = ['out_for_delivery', 'delivered'];
     if (order.order_status && forbiddenStatuses.includes(order.order_status)) {
-      console.warn(`[cancelOrder] FAILURE: Cannot cancel order ${orderId} because status is ${order.order_status}`);
+      logger.warn(`[cancelOrder] FAILURE: Cannot cancel order ${orderId} because status is ${order.order_status}`);
       return { 
         success: false, 
         error: `Cannot cancel order once it is ${order.order_status.replace(/_/g, ' ')}.` 
       };
     }
 
-    console.log(`[cancelOrder] Updating DB: Marking order ${orderId} as cancelled by customer.`);
+    logger.log(`[cancelOrder] Updating DB: Marking order ${orderId} as cancelled by customer.`);
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
@@ -466,11 +468,11 @@ export async function cancelOrder(orderId: string, reason?: string) {
       .single();
 
     if (updateError || !updatedOrder) {
-      console.error(`[cancelOrder] FAILURE: DB update failed for order ${orderId}:`, updateError);
+      logger.error(`[cancelOrder] FAILURE: DB update failed for order ${orderId}:`, updateError);
       return { success: false, error: updateError?.message || 'Failed to cancel order' };
     }
 
-    console.log(`[cancelOrder] SUCCESS: Order ${orderId} successfully cancelled by customer.`);
+    logger.log(`[cancelOrder] SUCCESS: Order ${orderId} successfully cancelled by customer.`);
     return {
       success: true,
       data: {
@@ -480,7 +482,7 @@ export async function cancelOrder(orderId: string, reason?: string) {
       }
     };
   } catch (err) {
-    console.error('[cancelOrder] CRITICAL ERROR:', err);
+    logger.error('[cancelOrder] CRITICAL ERROR:', err);
     return { success: false, error: 'Internal Server Error' };
   }
 }
@@ -490,7 +492,7 @@ export async function cancelOrder(orderId: string, reason?: string) {
  * Guard: only allowed if order exists and order_status is 'cancelled'.
  */
 export async function sendHelpMessage(orderId: string, message: string) {
-  console.log(`[sendHelpMessage] ENTRY: Sending help message for order ${orderId}: "${message}"`);
+  logger.log(`[sendHelpMessage] ENTRY: Sending help message for order ${orderId}: "${message}"`);
   try {
     if (!message || message.trim() === '') {
       return { success: false, error: 'Help message cannot be empty' };
@@ -508,7 +510,7 @@ export async function sendHelpMessage(orderId: string, message: string) {
       .single();
 
     if (fetchError || !order) {
-      console.warn(`[sendHelpMessage] FAILURE: Order ${orderId} not found`);
+      logger.warn(`[sendHelpMessage] FAILURE: Order ${orderId} not found`);
       return { success: false, error: 'Order not found' };
     }
 
@@ -517,11 +519,11 @@ export async function sendHelpMessage(orderId: string, message: string) {
     }
 
     if (order.order_status !== 'cancelled') {
-      console.warn(`[sendHelpMessage] FAILURE: Cannot send help message for order ${orderId} because status is ${order.order_status}`);
+      logger.warn(`[sendHelpMessage] FAILURE: Cannot send help message for order ${orderId} because status is ${order.order_status}`);
       return { success: false, error: 'Help message can only be sent for cancelled orders.' };
     }
 
-    console.log(`[sendHelpMessage] Updating DB: Saving customer help message for order ${orderId}.`);
+    logger.log(`[sendHelpMessage] Updating DB: Saving customer help message for order ${orderId}.`);
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
@@ -532,11 +534,11 @@ export async function sendHelpMessage(orderId: string, message: string) {
       .single();
 
     if (updateError || !updatedOrder) {
-      console.error(`[sendHelpMessage] FAILURE: DB update failed for order ${orderId}:`, updateError);
+      logger.error(`[sendHelpMessage] FAILURE: DB update failed for order ${orderId}:`, updateError);
       return { success: false, error: updateError?.message || 'Failed to save help message' };
     }
 
-    console.log(`[sendHelpMessage] SUCCESS: Customer help message saved for order ${orderId}.`);
+    logger.log(`[sendHelpMessage] SUCCESS: Customer help message saved for order ${orderId}.`);
     revalidatePath('/track/order/' + orderId);
     return {
       success: true,
@@ -546,7 +548,7 @@ export async function sendHelpMessage(orderId: string, message: string) {
       }
     };
   } catch (err) {
-    console.error('[sendHelpMessage] CRITICAL ERROR:', err);
+    logger.error('[sendHelpMessage] CRITICAL ERROR:', err);
     return { success: false, error: 'Internal Server Error' };
   }
 }
@@ -557,7 +559,7 @@ export async function sendHelpMessage(orderId: string, message: string) {
  * Toggle: 'pending' ↔ 'refunded'
  */
 export async function updateRefundStatus(orderId: string, status: 'pending' | 'refunded') {
-  console.log(`[updateRefundStatus] ENTRY: Setting refund status for order ${orderId} to: "${status}"`);
+  logger.log(`[updateRefundStatus] ENTRY: Setting refund status for order ${orderId} to: "${status}"`);
 
   const auth = await verifyAdminSession();
   if (!auth.success) {
@@ -572,16 +574,16 @@ export async function updateRefundStatus(orderId: string, status: 'pending' | 'r
       .single();
 
     if (fetchError || !order) {
-      console.warn(`[updateRefundStatus] FAILURE: Order ${orderId} not found`);
+      logger.warn(`[updateRefundStatus] FAILURE: Order ${orderId} not found`);
       return { success: false, error: 'Order not found' };
     }
 
     if (order.order_status !== 'cancelled') {
-      console.warn(`[updateRefundStatus] FAILURE: Order ${orderId} is not cancelled (status: ${order.order_status})`);
+      logger.warn(`[updateRefundStatus] FAILURE: Order ${orderId} is not cancelled (status: ${order.order_status})`);
       return { success: false, error: 'Only cancelled orders can have their refund status managed.' };
     }
 
-    console.log(`[updateRefundStatus] Updating DB: Setting refund_status to ${status} for order ${orderId}.`);
+    logger.log(`[updateRefundStatus] Updating DB: Setting refund_status to ${status} for order ${orderId}.`);
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
@@ -592,11 +594,11 @@ export async function updateRefundStatus(orderId: string, status: 'pending' | 'r
       .single();
 
     if (updateError || !updatedOrder) {
-      console.error(`[updateRefundStatus] FAILURE: DB update failed for order ${orderId}:`, updateError);
+      logger.error(`[updateRefundStatus] FAILURE: DB update failed for order ${orderId}:`, updateError);
       return { success: false, error: updateError?.message || 'Failed to update refund status' };
     }
 
-    console.log(`[updateRefundStatus] SUCCESS: Refund status updated for order ${orderId} to ${status}.`);
+    logger.log(`[updateRefundStatus] SUCCESS: Refund status updated for order ${orderId} to ${status}.`);
     return {
       success: true,
       data: {
@@ -605,7 +607,7 @@ export async function updateRefundStatus(orderId: string, status: 'pending' | 'r
       }
     };
   } catch (err) {
-    console.error('[updateRefundStatus] CRITICAL ERROR:', err);
+    logger.error('[updateRefundStatus] CRITICAL ERROR:', err);
     return { success: false, error: 'Internal Server Error' };
   }
 }

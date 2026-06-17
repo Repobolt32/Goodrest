@@ -3,6 +3,7 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAdminSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { logger } from '@/lib/logger';
 
 export async function getAppSettings() {
   const { data, error } = await supabaseAdmin
@@ -12,7 +13,7 @@ export async function getAppSettings() {
     .single();
 
   if (error) {
-    console.error('Failed to fetch app settings:', error);
+    logger.error('Failed to fetch app settings:', error);
     return { success: false, error: error.message };
   }
 
@@ -38,7 +39,7 @@ export async function updateAppSettings(updates: {
     .eq('id', 'global');
 
   if (error) {
-    console.error('Failed to update app settings:', error);
+    logger.error('Failed to update app settings:', error);
     return { success: false, error: error.message };
   }
 

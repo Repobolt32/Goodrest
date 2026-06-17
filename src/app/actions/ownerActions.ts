@@ -8,6 +8,7 @@ import { calculateETA } from '@/lib/distance';
 import { calculateEarningBreakdown, calculateNightlyBonus } from '@/lib/pricing';
 import { revalidatePath } from 'next/cache';
 import { getRestoCoordinates, isValidUUID } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 import { Database } from '@/types/database.types';
 
 const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
@@ -246,7 +247,7 @@ export async function initiateRefund(orderId: string) {
       .eq('id', orderId);
 
     if (dbUpdateError) {
-      console.error('[initiateRefund] DB update failed after refund:', dbUpdateError);
+      logger.error('[initiateRefund] DB update failed after refund:', dbUpdateError);
       return { success: false, error: 'Refund processed but failed to update order. Contact support.' };
     }
 
@@ -259,7 +260,7 @@ export async function initiateRefund(orderId: string) {
       .from('orders')
       .update({ payment_status: 'paid' })
       .eq('id', orderId);
-    console.error('[initiateRefund] Razorpay refund failed:', err);
+    logger.error('[initiateRefund] Razorpay refund failed:', err);
     return { success: false, error: 'Refund failed' };
   }
 }

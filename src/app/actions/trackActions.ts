@@ -5,6 +5,7 @@ import { verifyCustomerSession } from '@/lib/auth';
 import type { OrderRecord, OrderSummary, OrderRow } from '@/types/orders';
 import { toOrderRecord, toOrderSummary } from '@/types/orders';
 import { isValidUUID } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 
 export async function getOrdersByPhone(phone: string): Promise<OrderSummary[]> {
   const { data, error } = await supabaseAdmin
@@ -22,7 +23,7 @@ export async function getOrdersByPhone(phone: string): Promise<OrderSummary[]> {
     .limit(3);
 
   if (error) {
-    console.error('Error fetching orders:', error);
+    logger.error('Error fetching orders:', error);
     return [];
   }
 
@@ -52,7 +53,7 @@ export async function getOrderById(id: string): Promise<OrderRecord | null> {
     .single();
 
   if (error) {
-    console.error('Error fetching order:', error);
+    logger.error('Error fetching order:', error);
     return null;
   }
 

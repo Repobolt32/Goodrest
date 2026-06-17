@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAdminSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { isValidUUID } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 
 const ALLOWED_ORDER_STATUSES = ['created', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
 const ALLOWED_PAYMENT_STATUSES = ['pending', 'paid', 'requires_refund', 'refund_processing', 'refunded'];
@@ -59,7 +60,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
     .eq('id', orderId);
 
   if (error) {
-    console.error('Failed to update order status:', error);
+    logger.error('Failed to update order status:', error);
     return { success: false, error: error.message };
   }
 
@@ -101,7 +102,7 @@ export async function updatePaymentStatus(orderId: string, status: string) {
     .eq('id', orderId);
 
   if (error) {
-    console.error('Failed to update payment status:', error);
+    logger.error('Failed to update payment status:', error);
     return { success: false, error: error.message };
   }
 
@@ -123,7 +124,7 @@ export async function deleteOrder(orderId: string) {
     .is('deleted_at', null);
 
   if (error) {
-    console.error('Failed to delete order:', error);
+    logger.error('Failed to delete order:', error);
     return { success: false, error: error.message };
   }
 
@@ -144,7 +145,7 @@ export async function toggleItemAvailability(id: string, isAvailable: boolean) {
     .eq('id', id);
 
   if (error) {
-    console.error('Failed to toggle availability:', error);
+    logger.error('Failed to toggle availability:', error);
     return { success: false, error: error.message };
   }
 
@@ -169,7 +170,7 @@ export async function updateItemPrice(id: string, price: number) {
     .eq('id', id);
 
   if (error) {
-    console.error('Failed to update price:', error);
+    logger.error('Failed to update price:', error);
     return { success: false, error: error.message };
   }
 
@@ -200,7 +201,7 @@ export async function addMenuItem(item: {
     .single();
 
   if (error) {
-    console.error('Failed to add menu item:', error);
+    logger.error('Failed to add menu item:', error);
     return { success: false, error: error.message };
   }
 
@@ -234,7 +235,7 @@ export async function updateMenuItem(id: string, updates: {
     .single();
 
   if (error) {
-    console.error('Failed to update menu item:', error);
+    logger.error('Failed to update menu item:', error);
     return { success: false, error: error.message };
   }
 
@@ -253,7 +254,7 @@ export async function getCategories() {
     .order('display_order', { ascending: true });
 
   if (error) {
-    console.error('Failed to fetch categories:', error);
+    logger.error('Failed to fetch categories:', error);
     return { success: false, error: error.message };
   }
 
@@ -272,7 +273,7 @@ export async function deleteMenuItem(id: string) {
     .eq('id', id);
 
   if (error) {
-    console.error('Failed to soft delete menu item:', error);
+    logger.error('Failed to soft delete menu item:', error);
     return { success: false, error: error.message };
   }
 
@@ -312,7 +313,7 @@ export async function uploadDishImage(formData: FormData) {
       });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
+      logger.error('Storage upload error:', uploadError);
       return { success: false, error: uploadError.message };
     }
 
@@ -323,7 +324,7 @@ export async function uploadDishImage(formData: FormData) {
     return { success: true, url: publicUrl };
   } catch (err) {
     const error = err as Error;
-    console.error('Unexpected upload error:', error);
+    logger.error('Unexpected upload error:', error);
     return { success: false, error: error.message || 'An unexpected error occurred during upload' };
   }
 }

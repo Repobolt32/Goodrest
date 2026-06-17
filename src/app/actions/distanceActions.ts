@@ -1,6 +1,7 @@
 'use server';
 
 import { RouteData } from '@/lib/distance';
+import { logger } from '@/lib/logger';
 
 const getGoogleMapsApiKey = () => process.env.GOOGLE_MAPS_API_KEY;
 
@@ -19,13 +20,13 @@ export async function getGoogleMapsRouteData(
   const latDiff = Math.abs(originLat - destLat);
   const lngDiff = Math.abs(originLng - destLng);
   if (latDiff < 0.0002 && lngDiff < 0.0002) {
-    console.log('[getGoogleMapsRouteData] PROXIMITY OVERRIDE: Coordinates are virtually identical.');
+    logger.log('[getGoogleMapsRouteData] PROXIMITY OVERRIDE: Coordinates are virtually identical.');
     return { distanceKm: 0.01, durationSeconds: 60 };
   }
 
   const apiKey = getGoogleMapsApiKey();
   if (!apiKey) {
-    console.warn('[getGoogleMapsRouteData] GOOGLE_MAPS_API_KEY not set');
+    logger.warn('[getGoogleMapsRouteData] GOOGLE_MAPS_API_KEY not set');
     return null;
   }
   try {
@@ -65,7 +66,7 @@ export async function getGoogleMapsRouteData(
     }
     return null;
   } catch (err) {
-    console.error('[getGoogleMapsRouteData] API error:', err);
+    logger.error('[getGoogleMapsRouteData] API error:', err);
     return null;
   }
 }

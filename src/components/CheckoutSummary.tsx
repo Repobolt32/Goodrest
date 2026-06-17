@@ -49,6 +49,7 @@ export default function CheckoutSummary() {
                     src={item.image_url}
                     alt={item.name}
                     fill
+                    sizes="4rem"
                     className="object-cover"
                   />
                 </div>

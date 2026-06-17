@@ -11,6 +11,7 @@ import { cookies } from 'next/headers';
 import { calculateRiderEarning, calculateNightlyBonus, calculateEarningBreakdown, calculateBonusProgress } from '@/lib/pricing';
 import { randomUUID } from 'crypto';
 import { getRestoCoordinates, isValidUUID } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 
 const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
 
@@ -76,7 +77,7 @@ export async function loginRider(phone: string, password: string) {
 
     return { success: true, rider };
   } catch (err) {
-    console.error('Error logging in rider:', err);
+    logger.error('Error logging in rider:', err);
     return { success: false, error: 'Invalid phone or password' };
   }
 }
@@ -344,7 +345,7 @@ export async function updateLocation(riderId: string, lat: number, lng: number) 
     .from('rider_locations')
     .insert({ rider_id: riderId, lat, lng, location });
 
-  if (historyError) console.warn('History logging failed:', historyError.message);
+  if (historyError) logger.warn('History logging failed:', historyError.message);
   return { success: true };
 }
 
@@ -368,7 +369,7 @@ export async function setRiderOnline(riderId: string, isOnline: boolean) {
     .eq('id', riderId);
 
   if (error) {
-    console.error('Failed to update rider online status:', error);
+    logger.error('Failed to update rider online status:', error);
     return { success: false, error: error.message };
   }
   return { success: true };
@@ -483,7 +484,7 @@ export async function getUnassignedOrders() {
     .order('created_at', { ascending: true });
 
   if (error) {
-    console.error('Failed to fetch unassigned orders:', error);
+    logger.error('Failed to fetch unassigned orders:', error);
     return [];
   }
   return data || [];

@@ -26,9 +26,7 @@ export default function MenuItemCard({ item, quantity, onAdd, onRemove }: MenuIt
   const isExternalUrl = item.image_url?.startsWith('http') || false;
   const imageSrc = imgError || isExternalUrl ? DEFAULT_FOOD_IMAGE : (item.image_url || DEFAULT_FOOD_IMAGE);
   
-  // Simple Veg/Non-Veg logic with safety guard
-  const isVeg = (item.category || '').toLowerCase().includes('veg') || 
-                ['paneer', 'gobi', 'veg', 'naan', 'soda'].some(term => item.name.toLowerCase().includes(term));
+  const isVeg = item.is_veg ?? true;
 
   return (
     <motion.div

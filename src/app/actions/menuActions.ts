@@ -1,6 +1,7 @@
 'use server';
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { logger } from '@/lib/logger';
 
 export interface MenuDataResult {
   success: boolean;
@@ -33,7 +34,7 @@ export async function getMenuData(): Promise<MenuDataResult> {
       items: itemsResult.data || [],
     };
   } catch (err) {
-    console.error('[getMenuData] Error:', err);
+    logger.error('[getMenuData] Error:', err);
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Unknown error',

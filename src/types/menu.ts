@@ -5,10 +5,11 @@ export interface MenuItem {
   name: string;
   price: number;
   category: Category;
-  category_id?: string; // FK to Categories table
+  category_id?: string;
   image_url?: string;
   tags: string[];
   is_available: boolean;
+  is_veg?: boolean;
 }
 
 export interface CategoryData {

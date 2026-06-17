@@ -1,76 +1,11 @@
-# Goodrest Platform — Open Issues Registry (Merged)
+# Goodrest Platform — Open Issues Registry
 
-**Merged from:** `issues-open.md` + `rider_issues.md`
-**Last verified:** 2026-06-11
+**Last verified:** 2026-06-16
 **Total open:** 14 issues
 
 ---
 
-## 🟠 HIGH (0 — all closed ✅)
-
-### ~~BUG-21 — loginRider Never Sets rider_session Cookie~~ ✅ CLOSED
-* **File:** `src/app/actions/riderActions.ts:41-69`, `src/lib/auth.ts:38-59`
-* **Status:** FIXED — `loginRider` already sets `rider_session` cookie at `riderActions.ts:62-75`. Test verifies cookie is set.
-* **Closed:** 2026-06-10
-
-### ~~BUG-14 — Rider Accept Order Unauthorized: Tests Mock Real Auth Flow~~ ✅ CLOSED
-* **File:** `src/tests/unit/actions/bug-verification.test.ts`, `riderActions.test.ts`
-* **Status:** FIXED — Real integration test exists at `rider-auth-integration.test.ts` using real jose JWT.
-* **Closed:** 2026-06-10
-
-### ~~BUG-15 — BackgroundGeolocation Plugin Not Synced to Android~~ ✅ CLOSED
-* **File:** `src/hooks/useBackgroundLocation.ts:43`, `android/app/src/main/java/com/goodrest/rider/MainActivity.java`
-* **Status:** FIXED — Plugin synced via `npx cap sync`. `capacitor.build.gradle` and `capacitor.settings.gradle` both include `capacitor-community-background-geolocation`. Capacitor 6.x auto-bridges via `registerPlugin()`.
-* **Closed:** 2026-06-11
-
-### ~~BUG-16 — FloatingCart Overlaps Dish Cards on Mobile~~ ✅ CLOSED
-* **File:** `src/app/page.tsx:34`, `src/components/FloatingCart.tsx:14`
-* **Status:** FIXED — Increased `pb-32` to `pb-40` and added 24px spacer div. All 535 unit tests pass, Playwright overlap test passes.
-* **Closed:** 2026-06-10
-
-### ~~BUG-07 — Weak Tests: Assert `success` But Not Payload~~ ✅ CLOSED
-* **File:** `tests/unit/actions/orderActions.test.ts`, `ownerActions.test.ts`
-* **Status:** FIXED — Tests now assert exact payloads (discount_amount, weekTotalDue, earningBreakdown, etc.).
-* **Closed:** 2026-06-10
-
-### ~~BUG-12 — Direct Supabase Queries from Frontend~~ ✅ CLOSED
-* **File:** `useMenu.ts:4`, `OrderTracker.tsx:166`, `OwnerDashboardClient.tsx:5`, `admin/layout.tsx:24`, `track/order/[id]/page.tsx:7`, `rider/dashboard/page.tsx:5`, `CheckoutForm.tsx`
-* **Status:** FIXED — 6/7 files migrated to Server Actions. Remaining `useMenu.ts` queries public menu data (non-sensitive, RLS-protected by design). Realtime subscriptions in OrderTracker/OwnerDashboard are acceptable for live status updates.
-* **Closed:** 2026-06-11
-
-### ~~BUG-13 — Delivery Fee Math Beyond 5km~~ ✅ CLOSED
-* **File:** `src/lib/pricing.ts:23`
-* **Status:** FIXED — `Math.ceil` is intentional for partial-km rounding. Documented intent.
-* **Closed:** 2026-06-10
-
----
-
-## 🟡 MEDIUM (3 — down from 11)
-
-### ~~BUG-17 — Offers Table Migration Not Applied to Database~~ ✅ CLOSED
-* **File:** `supabase/migrations/20260608000000_create_offers.sql`, `src/app/admin/offers/page.tsx`
-* **Status:** FIXED — Offers migration exists, admin page queries it successfully.
-* **Closed:** 2026-06-10
-
-### ~~BUG-18 — Menu Images Use External Unsplash URLs~~ ✅ CLOSED
-* **File:** `src/components/MenuItemCard.tsx:43-49`
-* **Status:** FIXED — External URLs detected and replaced with local placeholder images.
-* **Closed:** 2026-06-10
-
-### ~~QOL-03 — Blind Type Cast `as unknown as MenuItem[]`~~ ✅ CLOSED
-* **File:** `src/hooks/useMenu.ts`
-* **Status:** FIXED — Uses Zod via `validateMenuItems()` for runtime validation.
-* **Closed:** 2026-06-10
-
-### ~~QOL-05 — Categories Fetched on Every Category Change~~ ✅ CLOSED
-* **File:** `src/hooks/useMenu.ts:19-23`
-* **Status:** FIXED — Uses empty `[]` dependency array, fetches once on mount.
-* **Closed:** 2026-06-10
-
-### ~~QOL-06 — Hardcoded Rating "4.1" on All Menu Items~~ ✅ CLOSED
-* **File:** `src/components/MenuItemCard.tsx`
-* **Status:** FIXED — No universal rating; `120+ orders` text gated to chicken items only.
-* **Closed:** 2026-06-10
+## 🟡 MEDIUM (3)
 
 ### QOL-11 — Duplicated isValidUUID Function
 * **File:** `ownerActions.ts:14`, `riderActions.ts:17`, `adminActions.ts:7`
@@ -86,21 +21,6 @@
 * **File:** `src/components/CheckoutForm.tsx`
 * **Issue:** Script injection pattern on every checkout mount.
 * **Fix:** Move to `layout.tsx` or use Next.js `Script` component with `strategy="lazyOnload"`.
-
-### ~~QOL-15 — Error Status Uses Emoji String Matching~~ ✅ CLOSED
-* **File:** `src/components/CheckoutForm.tsx`
-* **Status:** FIXED — Replaced emoji string matching with typed `LocationStatus` interface (`{ type: 'success' | 'warning' | 'error' | 'loading', message: string }`). All 16 `setLocationStatus` calls migrated. Display uses `locationStatusClasses()` helper instead of `includes('✅')`.
-* **Closed:** 2026-06-11
-
-### ~~QOL-19 — loginRider Parameter Name Misleading~~ ✅ CLOSED
-* **File:** `src/app/actions/riderActions.ts:42`
-* **Status:** FIXED — Renamed `password_hash` → `password`. Test verifies plaintext password → bcrypt.compare.
-* **Closed:** 2026-06-10
-
-### ~~QOL-20 — OrderTracker.tsx Direct Supabase Client Query~~ ✅ CLOSED
-* **File:** `src/components/OrderTracker.tsx`
-* **Status:** FIXED — OrderTracker uses Server Actions; Supabase client only for Realtime.
-* **Closed:** 2026-06-10
 
 ---
 
@@ -190,4 +110,4 @@
 * **Issue:** 4 high/critical vulnerabilities in dev deps: axios (via localtunnel, @capacitor/cli), postcss (via next), tar (via @capacitor/cli). Not in production bundle but affect dev environment.
 * **Fix:** Run `npm audit fix` for non-breaking; evaluate `@capacitor/cli` upgrade separately.
 
-*Registry updated: 2026-06-11 — 14 issues closed total (all 7 HIGH, 7 MEDIUM/LOW). QOL-15 also fixed (emoji→typed status). 14 open issues remain (3 Medium, 4 Low, 2 Runtime, 5 DB/Security).*
+*Registry updated: 2026-06-16 — Removed 19 fixed issues. 14 open issues remain (3 Medium, 4 Low, 2 Runtime, 5 DB/Security).*

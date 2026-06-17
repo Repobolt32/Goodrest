@@ -31,6 +31,7 @@ export default function OwnerDashboardClient({
   const [toggleLoading, setToggleLoading] = useState(false);
   const [dismissedOrderIds, setDismissedOrderIds] = useState<Set<string>>(new Set());
   const notifiedOrderIdsRef = useRef<Set<string>>(new Set());
+  const pendingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     setOrders(initialOrders);
@@ -66,19 +67,20 @@ export default function OwnerDashboardClient({
             const newOrder = toOrderRecord(payload.new as OrderRow);
             
             if (newOrder.order_status === 'confirmed') {
-              // 30-second grace period delay (can be changed to 15s/30s later)
               const ageMs = newOrder.created_at 
                 ? Date.now() - new Date(newOrder.created_at).getTime()
                 : 0;
               const delay = 30000 - ageMs;
               
               if (delay > 0) {
-                setTimeout(() => {
+                const timer = setTimeout(() => {
+                  pendingTimersRef.current.delete(newOrder.id);
                   setOrders((prev) => {
                     if (prev.some(o => o.id === newOrder.id)) return prev;
                     return [newOrder, ...prev];
                   });
                 }, delay);
+                pendingTimersRef.current.set(newOrder.id, timer);
                 return;
               }
             }
@@ -89,6 +91,18 @@ export default function OwnerDashboardClient({
             });
           } else if (payload.eventType === 'UPDATE') {
             const updated = toOrderRecord(payload.new as OrderRow);
+
+            const pendingTimer = pendingTimersRef.current.get(updated.id);
+            if (pendingTimer) {
+              clearTimeout(pendingTimer);
+              pendingTimersRef.current.delete(updated.id);
+            }
+
+            if (updated.order_status === 'cancelled' || updated.order_status === 'deleted') {
+              setOrders((prev) => prev.filter((o) => o.id !== updated.id));
+              return;
+            }
+
             const ageMs = updated.created_at
               ? Date.now() - new Date(updated.created_at).getTime()
               : 0;
@@ -104,7 +118,8 @@ export default function OwnerDashboardClient({
                 }
 
                 if (delay > 0) {
-                  setTimeout(() => {
+                  const timer = setTimeout(() => {
+                    pendingTimersRef.current.delete(updated.id);
                     setOrders((current) => {
                       const currExisting = current.find(o => o.id === updated.id);
                       if (currExisting && currExisting.order_status !== 'confirmed' && currExisting.order_status !== 'created') {
@@ -117,6 +132,7 @@ export default function OwnerDashboardClient({
                       return [updated, ...current];
                     });
                   }, delay);
+                  pendingTimersRef.current.set(updated.id, timer);
                   return prev;
                 } else {
                   const exists = prev.some(o => o.id === updated.id);
@@ -136,7 +152,14 @@ export default function OwnerDashboardClient({
               });
             }
           } else if (payload.eventType === 'DELETE') {
-            setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
+            if (payload.old?.id) {
+              const deleteTimer = pendingTimersRef.current.get(payload.old.id);
+              if (deleteTimer) {
+                clearTimeout(deleteTimer);
+                pendingTimersRef.current.delete(payload.old.id);
+              }
+              setOrders((prev) => prev.filter((o) => o.id !== payload.old!.id));
+            }
           }
         }
       )

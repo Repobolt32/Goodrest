@@ -664,11 +664,6 @@ export default function CheckoutForm() {
       </motion.button>
 
       <Script
-        id="razorpay-checkout-js"
-        src="https://checkout.razorpay.com/v1/checkout.js"
-      />
-
-      <Script
         id="google-maps-js"
         src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}`}
         strategy="lazyOnload"
