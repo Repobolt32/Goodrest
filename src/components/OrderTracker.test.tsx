@@ -127,6 +127,30 @@ describe('OrderTracker', () => {
     expect(screen.getByText(/Need to cancel\? \(29s remaining\)/i)).toBeInTheDocument();
   });
 
+  it('uses serverNow prop to correct clock skew for grace period', () => {
+    const handleCancel = vi.fn();
+    // Simulate: server clock is 10 seconds AHEAD of client clock
+    // createdAt was 25 seconds before server time
+    // Without correction: client sees 15s elapsed → 15s remaining
+    // With correction: uses server time → 25s elapsed → 5s remaining
+    const clockSkewMs = 10_000; // server is 10s ahead
+    const serverNow = new Date(Date.now() + clockSkewMs);
+    const createdAt = new Date(serverNow.getTime() - 25_000).toISOString(); // 25s before server now
+
+    render(
+      <OrderTracker
+        orderId="123"
+        initialStatus="confirmed"
+        createdAt={createdAt}
+        serverNow={serverNow.toISOString()}
+        onCancel={handleCancel}
+      />,
+    );
+
+    // With clock skew correction: 30 - 25 = 5s remaining
+    expect(screen.getByText(/Need to cancel\? \(5s remaining\)/i)).toBeInTheDocument();
+  });
+
   it('renders the Call Restaurant button when the 30-second grace window is expired', () => {
     const handleCancel = vi.fn();
     const expiredCreatedAt = new Date(Date.now() - 31000).toISOString(); // 31 seconds ago (expired)

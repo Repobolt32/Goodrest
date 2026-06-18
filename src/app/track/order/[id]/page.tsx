@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getOrderById } from '@/app/actions/trackActions';
+import { getOrderById, getServerNow } from '@/app/actions/trackActions';
 import { cancelOrder, sendHelpMessage } from '@/app/actions/orderActions';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
@@ -18,6 +18,7 @@ export default function SingleOrderPage() {
   const params = useParams();
   const [order, setOrder] = useState<OrderRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [serverNow, setServerNow] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchOrder() {
@@ -28,9 +29,13 @@ export default function SingleOrderPage() {
       
       const tryFetch = async () => {
         try {
-          const data = await getOrderById(params.id as string);
+          const [data, now] = await Promise.all([
+            getOrderById(params.id as string),
+            getServerNow(),
+          ]);
           if (data) {
             setOrder(data);
+            setServerNow(now);
             setLoading(false);
             return true;
           }
@@ -166,6 +171,7 @@ export default function SingleOrderPage() {
             initialCancelReason={order.cancel_reason}
             initialCustomerHelpMessage={order.customer_help_message}
             createdAt={order.created_at}
+            serverNow={serverNow}
             onCancel={handleCancel}
             onSendHelp={handleSendHelp}
           />

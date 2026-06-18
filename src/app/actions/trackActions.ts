@@ -8,6 +8,11 @@ import { isValidUUID } from '@/lib/validation';
 import { logger } from '@/lib/logger';
 
 export async function getOrdersByPhone(phone: string): Promise<OrderSummary[]> {
+  const auth = await verifyCustomerSession();
+  if (!auth.success || !auth.session || auth.session.phone !== phone) {
+    return [];
+  }
+
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select(`
@@ -64,16 +69,25 @@ export async function getOrderById(id: string): Promise<OrderRecord | null> {
   return toOrderRecord(data as OrderRow);
 }
 
+export async function getServerNow(): Promise<string> {
+  return new Date().toISOString();
+}
+
 export async function getRiderLocationForOrder(orderId: string): Promise<{ riderId: string; location: { lat: number; lng: number } | null } | null> {
+  const auth = await verifyCustomerSession();
+  if (!auth.success || !auth.session) {
+    return null;
+  }
+
   if (!isValidUUID(orderId)) return null;
 
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('rider_id')
+    .select('rider_id, customer_phone')
     .eq('id', orderId)
     .single();
 
-  if (!order?.rider_id) return null;
+  if (!order?.rider_id || order.customer_phone !== auth.session.phone) return null;
 
   const { data: rider } = await supabaseAdmin
     .from('riders')

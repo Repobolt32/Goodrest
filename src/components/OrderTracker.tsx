@@ -52,6 +52,7 @@ export default function OrderTracker({
   initialCancelReason = null,
   initialCustomerHelpMessage = null,
   createdAt = null,
+  serverNow = null,
   onCancel,
   onSendHelp,
 }: {
@@ -66,6 +67,7 @@ export default function OrderTracker({
   initialCancelReason?: string | null;
   initialCustomerHelpMessage?: string | null;
   createdAt?: string | null;
+  serverNow?: string | null;
   onCancel?: (reason?: string) => Promise<{ success: boolean; error?: string }>;
   onSendHelp?: (message: string) => Promise<{ success: boolean; error?: string }>;
 }) {
@@ -75,6 +77,15 @@ export default function OrderTracker({
   const [cancelReason, setCancelReason] = useState<string | null>(initialCancelReason);
   const [customerHelpMessage, setCustomerHelpMessage] = useState<string | null>(initialCustomerHelpMessage);
   const [etaMins, setEtaMins] = useState<number | null>(null);
+
+  // Clock skew correction: compute offset between server time and client time
+  const clockOffsetRef = useRef(0);
+  useEffect(() => {
+    if (serverNow) {
+      clockOffsetRef.current = new Date(serverNow).getTime() - Date.now();
+    }
+  }, [serverNow]);
+  const getServerTime = useCallback(() => Date.now() + clockOffsetRef.current, []);
 
   // Sync from props via useEffect (avoids setState in render body)
   useEffect(() => {
@@ -90,15 +101,7 @@ export default function OrderTracker({
   const [cancelInputReason, setCancelInputReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(() => {
-    if (initialStatus === 'confirmed') {
-      if (!createdAt) return 30;
-      const createdTime = new Date(createdAt).getTime();
-      const elapsed = Date.now() - createdTime;
-      return Math.max(0, Math.ceil((30000 - elapsed) / 1000));
-    }
-    return 0;
-  });
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const [helpInput, setHelpInput] = useState('');
   const [isSendingHelp, setIsSendingHelp] = useState(false);
@@ -111,9 +114,9 @@ export default function OrderTracker({
       return;
     }
 
-    const createdTime = createdAt ? new Date(createdAt).getTime() : Date.now();
+    const createdTime = createdAt ? new Date(createdAt).getTime() : getServerTime();
     const calculateTimeLeft = () => {
-      const elapsed = Date.now() - createdTime;
+      const elapsed = getServerTime() - createdTime;
       const remaining = Math.max(0, Math.ceil((30000 - elapsed) / 1000));
       return remaining;
     };
@@ -132,7 +135,7 @@ export default function OrderTracker({
     }, 250);
 
     return () => clearInterval(timer);
-  }, [createdAt, status]);
+  }, [createdAt, status, getServerTime]);
 
   const getStepStatus = (stepId: string, index: number) => {
     const currentIdx = steps.findIndex((s) => s.id === status);
@@ -147,17 +150,17 @@ export default function OrderTracker({
     if (durationSeconds != null && status === 'out_for_delivery' && riderStartedAt) {
       const totalEta = calculateETA(durationSeconds, 0); // 0 prep time since food is already cooked!
       const startTime = new Date(riderStartedAt).getTime();
-      const remaining = Math.max(0, totalEta - Math.floor((Date.now() - startTime) / 60000));
+      const remaining = Math.max(0, totalEta - Math.floor((getServerTime() - startTime) / 60000));
       setEtaMins(remaining);
 
       const timer = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 60000);
+        const elapsed = Math.floor((getServerTime() - startTime) / 60000);
         setEtaMins(Math.max(0, totalEta - elapsed));
       }, 60000);
 
       return () => clearInterval(timer);
     }
-  }, [durationSeconds, status, riderStartedAt]);
+  }, [durationSeconds, status, riderStartedAt, getServerTime]);
 
   // Throttle realtime updates to prevent render thrashing (SEC-08)
   const lastUpdateRef = useRef(0);
