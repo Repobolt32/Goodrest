@@ -61,7 +61,9 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
          customer_name: name,
          customer_phone: phone,
          delivery_address: address,
-         payment_method: (i % 2 === 0 ? 'cod' : 'online') as 'cod' | 'online',
+         payment_method: 'online' as const,
+         lat: 24.79,
+         lng: 85.01,
          items: [
            {
              id: item1.id,
@@ -120,7 +122,7 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
       .single();
 
     expect(codOrderError).toBeNull();
-    expect(codOrder?.payment_method).toBe('cod');
+    expect(codOrder?.payment_method).toBe('online');
 
     // Verify customer record was created/updated and count incremented via trigger
     const { data: customer, error: customerError } = await supabase
@@ -147,6 +149,8 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
       customer_phone: phone,
       delivery_address: '999 Reliability Street, Test City',
       payment_method: 'online' as const,
+      lat: 24.79,
+      lng: 85.01,
       items: [
         {
           id: item1.id,

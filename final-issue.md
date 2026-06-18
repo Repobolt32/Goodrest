@@ -7,39 +7,6 @@ This document combines the findings from both agent audits, focusing on critical
 
 ---
 
-## 🔴 CRITICAL - Security, Auth & Money Loss
-
-### 1. Admin JWT Verification Bypass
-**File:** `src/lib/auth.ts`
-**Issue:** `verifyAdminSession` verifies the JWT signature but never actually checks if the role inside the token is admin. It casts it blindly: `role: payload.role as 'admin'`. A valid customer or rider token could potentially access admin routes.
-**Fix:** Explicitly assert `if (payload.role !== 'admin') throw Error`.
-
-### 2. Free Delivery Exploit via Missing Coordinates
-**File:** `src/app/actions/orderActions.ts`
-**Issue:** `lat` and `lng` are optional in `OrderInput`. If stripped from the request, `deliveryFee` stays `0` and is bypassed completely, even while a valid `delivery_address` string is provided.
-**Fix:** Enforce `lat` and `lng` as required fields before creating the order.
-
-### 3. Missing `is_available` Check (Ordering Out-of-Stock Items)
-**File:** `src/app/actions/orderActions.ts`
-**Issue:** `createOrder` fetches item prices from the DB but never checks `is_available`. A customer with stale cache or a crafted API request can order disabled items.
-**Fix:** Add `.eq('is_available', true)` to the `menu_items` query.
-
-### 4. Unauthorized Public Data Leaks (Riders & Customers)
-**Files:** `src/app/actions/riderActions.ts`, `src/app/actions/trackActions.ts`
-**Issue:** Several server actions completely lack `verifyRiderSession()` or `verifyCustomerSession()`.
-- `getRiderByPhone`: Leaks the rider's `password_hash` to anyone.
-- `getUnassignedOrders`: Leaks customer names, phone numbers, and addresses.
-- `getOrdersByPhone`: Allows anyone to query the order history of any phone number.
-- `getRiderLocationForOrder`: Allows anyone with an order ID to track a rider's GPS location.
-**Fix:** Add strict session verification and assert IDs/phone numbers match the logged-in session.
-
-### 5. Webhook State Machine Lock (Customer Charged but Ignored)
-**File:** `src/app/api/webhook/razorpay/route.ts` & `verifyPaymentSignature`
-**Issue:** If a customer's payment fails, the webhook sets `payment_status = 'failed'`. If they retry and succeed, the success webhook fails to update the order because it rigidly expects `.eq('payment_status', 'pending')`. The customer is charged, but the order stays failed.
-**Fix:** Change the update query to allow `.in('payment_status', ['pending', 'failed'])`.
-
----
-
 ## 🟠 HIGH - Business Logic & State Machine Flaws
 
 ### 6. Deactivated Riders Can Still Accept Orders

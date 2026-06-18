@@ -19,7 +19,8 @@ import {
   Clock,
   ExternalLink,
   History,
-  Tag
+  Tag,
+  Bike
 } from 'lucide-react';
 import Link from 'next/link';
 import AdminSearchBar from '@/components/admin/AdminSearchBar';
@@ -155,6 +156,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Cancelled Orders', icon: AlertTriangle, href: '/admin/cancelled-orders' },
     { name: 'Menu Editor', icon: ChefHat, href: '/admin/menu' },
     { name: 'Reports', icon: BarChart3, href: '/admin/reports' },
+    { name: 'Riders', icon: Bike, href: '/admin/riders' },
     { name: 'Settlements', icon: History, href: '/admin/settlements' },
     { name: 'Offers', icon: Tag, href: '/admin/offers' },
   ];

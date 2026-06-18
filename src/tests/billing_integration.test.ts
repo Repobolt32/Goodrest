@@ -42,6 +42,8 @@ describe.skipIf(!isDBConfigured)('Billing Infrastructure Integration', () => {
       customer_phone: TEST_PHONE,
       delivery_address: '123 Integration Lane',
       payment_method: 'online' as const,
+      lat: 28.6139,
+      lng: 77.209,
       items: [
         { 
           id: menuItem.id,

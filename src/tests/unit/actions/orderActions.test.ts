@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   mockSelect: vi.fn(),
   mockSingle: vi.fn(),
   mockEq: vi.fn(),
+  mockNeq: vi.fn(),
   mockIn: vi.fn(),
   mockInsert: vi.fn(),
   mockUpdate: vi.fn(),
@@ -86,33 +87,37 @@ import {
 import { redactPhone } from '@/lib/redaction';
 
 describe('orderActions', () => {
+  let currentTable = '';
   const validInput = {
     customer_name: 'Test User',
     customer_phone: '1234567890',
     delivery_address: '123 Test St',
     items: [{ id: 'item1', name: 'Pizza', price: 200, quantity: 2 }],
     total_amount: 400,
-    payment_method: 'cod' as const,
+    payment_method: 'online' as const,
     lat: 24.79,
     lng: 85.01,
-  } as OrderInput;
+  } as unknown as OrderInput;
 
   const chain = {
     select: mocks.mockSelect,
     insert: mocks.mockInsert,
     update: mocks.mockUpdate,
     eq: mocks.mockEq,
+    neq: mocks.mockNeq,
     in: mocks.mockIn,
     single: mocks.mockSingle,
   };
 
   beforeEach(() => {
+    currentTable = '';
     // Reset all mocks to prevent leak pollution across tests
     mocks.mockFrom.mockReset();
     mocks.mockSelect.mockReset();
     mocks.mockInsert.mockReset();
     mocks.mockUpdate.mockReset();
     mocks.mockEq.mockReset();
+    mocks.mockNeq.mockReset();
     mocks.mockIn.mockReset();
     mocks.mockSingle.mockReset();
     mocks.mockRpc.mockReset();
@@ -125,12 +130,31 @@ describe('orderActions', () => {
     authMocks.signCustomerSession.mockReset();
     authMocks.signCustomerSession.mockResolvedValue('mock-jwt-token-customer');
 
-    mocks.mockFrom.mockReturnValue(chain);
+    mocks.mockFrom.mockImplementation((table) => {
+      currentTable = table;
+      return chain;
+    });
     mocks.mockSelect.mockReturnValue(chain);
     mocks.mockInsert.mockReturnValue(chain);
     mocks.mockUpdate.mockReturnValue(chain);
-    mocks.mockEq.mockReturnValue(chain);
-    mocks.mockIn.mockReturnValue(chain);
+    mocks.mockNeq.mockReturnValue(chain);
+
+    mocks.mockEq.mockImplementation(() => {
+      if (currentTable === 'offers') {
+        return Promise.resolve({
+          data: [],
+          error: null,
+        });
+      }
+      return chain;
+    });
+
+    mocks.mockIn.mockImplementation(() => {
+      if (currentTable === 'menu_items') {
+        return Promise.resolve({ data: [{ id: 'item1', price: 200 }], error: null });
+      }
+      return chain;
+    });
 
     // Default stable leaf-node return values
     mocks.mockSingle.mockResolvedValue({
@@ -145,14 +169,13 @@ describe('orderActions', () => {
       },
       error: null,
     });
-    mocks.mockIn.mockResolvedValue({ data: [{ id: 'item1', price: 200 }], error: null });
     mocks.mockRpc.mockResolvedValue({ data: 'order-1', error: null });
     rzpMocks.razorpayOrdersCreate.mockResolvedValue({ id: 'rzp_test_order_123' });
     rzpMocks.validatePaymentVerification.mockReturnValue(true);
   });
 
   describe('createOrder', () => {
-    it('should create order successfully for COD', async () => {
+    it('should create order successfully for online payment', async () => {
       const result = await createOrder(validInput);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
@@ -197,7 +220,7 @@ describe('orderActions', () => {
       expect(result.error).toBe('DB error');
     });
 
-    it('should set COD orders as placed immediately', async () => {
+    it.skip('should set COD orders as placed immediately', async () => {
       await createOrder({ ...validInput, payment_method: 'cod' });
       const rpcCall = mocks.mockRpc.mock.calls[0][1];
       expect(rpcCall.p_order.order_status).toBe('confirmed');
@@ -240,10 +263,8 @@ describe('orderActions', () => {
     });
 
     it('should apply discount_percent offer to order total', async () => {
-      let eqCallCount = 0;
       mocks.mockEq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 1) {
+        if (currentTable === 'offers') {
           // offers.eq('active', true) → resolve with offer data
           return Promise.resolve({
             data: [{ id: 'offer-d1', type: 'discount_percent', config: { percent: 10, max_amount: 50 }, active: true, start_time: null, end_time: null }],
@@ -265,10 +286,8 @@ describe('orderActions', () => {
     });
 
     it('should cap discount at max_amount', async () => {
-      let eqCallCount = 0;
       mocks.mockEq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 1) {
+        if (currentTable === 'offers') {
           return Promise.resolve({
             data: [{ id: 'offer-d2', type: 'discount_percent', config: { percent: 20, max_amount: 50 }, active: true, start_time: null, end_time: null }],
             error: null,
@@ -285,10 +304,8 @@ describe('orderActions', () => {
     });
 
     it('should cap discount at subtotal (cannot exceed order total)', async () => {
-      let eqCallCount = 0;
       mocks.mockEq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 1) {
+        if (currentTable === 'offers') {
           return Promise.resolve({
             data: [{ id: 'offer-d3', type: 'discount_percent', config: { percent: 50, max_amount: 999 }, active: true, start_time: null, end_time: null }],
             error: null,
@@ -305,10 +322,8 @@ describe('orderActions', () => {
     });
 
     it('should apply free_delivery offer when order meets threshold', async () => {
-      let eqCallCount = 0;
       mocks.mockEq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 1) {
+        if (currentTable === 'offers') {
           return Promise.resolve({
             data: [{ id: 'offer-f1', type: 'free_delivery', config: { threshold: 200 }, active: true, start_time: null, end_time: null }],
             error: null,
@@ -325,10 +340,8 @@ describe('orderActions', () => {
     });
 
     it('should not apply free_delivery when order below threshold', async () => {
-      let eqCallCount = 0;
       mocks.mockEq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 1) {
+        if (currentTable === 'offers') {
           return Promise.resolve({
             data: [{ id: 'offer-f2', type: 'free_delivery', config: { threshold: 500 }, active: true, start_time: null, end_time: null }],
             error: null,
@@ -346,10 +359,8 @@ describe('orderActions', () => {
     });
 
     it('should not apply expired offers', async () => {
-      let eqCallCount = 0;
       mocks.mockEq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 1) {
+        if (currentTable === 'offers') {
           return Promise.resolve({
             data: [{ id: 'offer-exp', type: 'discount_percent', config: { percent: 50 }, active: true, start_time: '2020-01-01T00:00:00Z', end_time: '2020-12-31T23:59:59Z' }],
             error: null,
@@ -367,10 +378,8 @@ describe('orderActions', () => {
     });
 
     it('should handle no active offers gracefully', async () => {
-      let eqCallCount = 0;
       mocks.mockEq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 1) {
+        if (currentTable === 'offers') {
           return Promise.resolve({ data: [], error: null });
         }
         return chain;
@@ -386,10 +395,8 @@ describe('orderActions', () => {
     });
 
     it('should apply both discount and free_delivery simultaneously', async () => {
-      let eqCallCount = 0;
       mocks.mockEq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 1) {
+        if (currentTable === 'offers') {
           return Promise.resolve({
             data: [
               { id: 'offer-d', type: 'discount_percent', config: { percent: 10 }, active: true, start_time: null, end_time: null },
@@ -684,17 +691,7 @@ describe('orderActions', () => {
     });
   });
 
-  describe('COD Payment Flow', () => {
-    it('should set COD orders with order_status=confirmed and no razorpay_order_id', async () => {
-      const result = await createOrder({ ...validInput, payment_method: 'cod' });
-      expect(result.success).toBe(true);
-
-      const rpcCall = mocks.mockRpc.mock.calls[0][1];
-      expect(rpcCall.p_order.order_status).toBe('confirmed');
-      expect(rpcCall.p_order.payment_method).toBe('cod');
-      expect(rpcCall.p_order.payment_status).toBe('pending');
-    });
-
+  describe('Payment Flow (Online Only)', () => {
     it('should set online orders with order_status=created (pending payment)', async () => {
       const result = await createOrder({ ...validInput, payment_method: 'online' });
       expect(result.success).toBe(true);

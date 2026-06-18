@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mocks = vi.hoisted(() => ({
   mockSelect: vi.fn(),
   mockEq: vi.fn(),
+  mockNeq: vi.fn(),
   mockInsert: vi.fn(),
   mockUpdate: vi.fn(),
   mockDelete: vi.fn(),
@@ -45,6 +46,7 @@ describe('offerActions', () => {
     const chain = {
       select: mocks.mockSelect,
       eq: mocks.mockEq,
+      neq: mocks.mockNeq,
       insert: mocks.mockInsert,
       update: mocks.mockUpdate,
       delete: mocks.mockDelete,
@@ -56,6 +58,7 @@ describe('offerActions', () => {
     mocks.mockFrom.mockReturnValue(chain);
     mocks.mockSelect.mockReturnValue(chain);
     mocks.mockEq.mockReturnValue(chain);
+    mocks.mockNeq.mockReturnValue(chain);
     mocks.mockInsert.mockReturnValue(chain);
     mocks.mockUpdate.mockReturnValue(chain);
     mocks.mockDelete.mockReturnValue(chain);
@@ -149,7 +152,9 @@ describe('offerActions', () => {
     it('should update an offer', async () => {
       const validId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
       const mockUpdated = { id: validId, type: 'discount_percent', config: { percent: 20 }, active: true };
-      mocks.mockSingle.mockResolvedValueOnce({ data: mockUpdated, error: null });
+      mocks.mockSingle
+        .mockResolvedValueOnce({ data: { type: 'discount_percent', config: { percent: 10 }, active: true }, error: null }) // SELECT existing lookup
+        .mockResolvedValueOnce({ data: mockUpdated, error: null }); // UPDATE result
 
       const result = await updateOffer(validId, { config: { percent: 20 } });
       expect(result.success).toBe(true);

@@ -178,11 +178,21 @@ describe('riderActions', () => {
     mocks.mockMaybeSingle.mockResolvedValue({ data: null, error: null });
   });
 
+  const mockRiderQuery = {
+    select: () => ({
+      eq: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null })
+        })
+      })
+    })
+  };
+
+
+
   // Helper: prepend verifyRiderExists mock to a mockFrom chain
   function mockRiderExists() {
-    return mocks.mockFrom.mockReturnValueOnce({
-      select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }),
-    });
+    return mocks.mockFrom.mockReturnValueOnce(mockRiderQuery);
   }
 
   // ─── loginRider ───────────────────────────────────────────────────
@@ -316,11 +326,11 @@ describe('riderActions', () => {
       const mockUpdatedRows = [{ id: VALID_ORDER_ID }];
 
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: null }, error: null }) }) }) }) // early rider_id check
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockOrder, error: null }) }) }) }) // order details
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockRider, error: null }) }) }) }) // rider phone
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ limit: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
         .mockReturnValueOnce({ // FCFS update
           update: () => ({
             eq: () => ({
@@ -348,11 +358,11 @@ describe('riderActions', () => {
       distanceMocks.getGoogleMapsRouteData.mockResolvedValueOnce({ distanceKm: 3.5, durationSeconds: 600 });
 
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: null }, error: null }) }) }) }) // early rider_id check
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockOrder, error: null }) }) }) }) // order details
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockRider, error: null }) }) }) }) // rider phone
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ limit: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
         .mockReturnValueOnce({ // FCFS update
           update: () => ({
             eq: () => ({
@@ -379,11 +389,11 @@ describe('riderActions', () => {
       const mockRider = { phone: '8888888888' };
 
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: null }, error: null }) }) }) }) // early rider_id check
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockOrder, error: null }) }) }) }) // order details
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockRider, error: null }) }) }) }) // rider phone
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ limit: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
         .mockReturnValueOnce({ // FCFS update returns empty
           update: () => ({
             eq: () => ({
@@ -404,7 +414,7 @@ describe('riderActions', () => {
 
     it('should reject immediately if order already has a rider_id (early race check)', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: 'some-other-rider' }, error: null }) }) }) }); // early rider_id check shows taken
 
       const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
@@ -418,11 +428,11 @@ describe('riderActions', () => {
       const mockRider = { phone: '8888888888' };
 
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: null }, error: null }) }) }) }) // early rider_id check
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockOrder, error: null }) }) }) }) // order details
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockRider, error: null }) }) }) }) // rider phone
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ limit: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
         .mockReturnValueOnce({ // FCFS update with DB error
           update: () => ({
             eq: () => ({
@@ -447,11 +457,11 @@ describe('riderActions', () => {
       const mockUpdatedRows = [{ id: VALID_ORDER_ID }];
 
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: null }, error: null }) }) }) }) // early rider_id check
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockOrder, error: null }) }) }) }) // order details
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockRider, error: null }) }) }) }) // rider phone
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ limit: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
         .mockReturnValueOnce({ // FCFS update
           update: () => ({
             eq: () => ({
@@ -475,11 +485,11 @@ describe('riderActions', () => {
       const mockRider = { phone: '8888888888' };
 
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: null }, error: null }) }) }) }) // early check: rider_id is null
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockOrder, error: null }) }) }) }) // order details
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockRider, error: null }) }) }) }) // rider phone
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ limit: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
         .mockReturnValueOnce({ // FCFS update: returns empty (another rider claimed it first)
           update: () => ({
             eq: () => ({
@@ -1023,7 +1033,7 @@ describe('riderActions', () => {
     it('should return active order when one exists', async () => {
       const mockOrder = { id: VALID_ORDER_ID, order_status: 'out_for_delivery', rider_id: VALID_RIDER_ID };
       mockRiderExists();
-      mocks.mockMaybeSingle.mockResolvedValueOnce({ data: mockOrder, error: null });
+      mocks.mockLimit.mockResolvedValueOnce({ data: [mockOrder], error: null });
 
       const result = await getRiderActiveOrder(VALID_RIDER_ID);
 
@@ -1032,7 +1042,7 @@ describe('riderActions', () => {
 
     it('should return null when no active order exists', async () => {
       mockRiderExists();
-      mocks.mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+      mocks.mockLimit.mockResolvedValueOnce({ data: [], error: null });
 
       const result = await getRiderActiveOrder(VALID_RIDER_ID);
 

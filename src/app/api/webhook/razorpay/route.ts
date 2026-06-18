@@ -105,7 +105,8 @@ async function handlePaymentCaptured(razorpay_order_id: string, razorpay_payment
       razorpay_payment_id,
     })
     .eq("id", order.id)
-    .eq("payment_status", "pending");
+    .in("payment_status", ["pending", "failed"])
+    .neq("order_status", "cancelled");
 
   if (updateError) {
     console.error(`[Webhook] payment.captured: Failed to update order ${order.id}:`, updateError);
@@ -144,7 +145,8 @@ async function handlePaymentFailed(
       ...(razorpay_payment_id && { razorpay_payment_id }),
     })
     .eq("id", order.id)
-    .eq("payment_status", "pending");
+    .in("payment_status", ["pending", "failed"])
+    .neq("order_status", "cancelled");
 
   if (updateError) {
     console.error(`[Webhook] payment.failed: Failed to update order ${order.id}:`, updateError);

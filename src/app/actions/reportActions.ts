@@ -42,7 +42,7 @@ export async function getDailyReport(): Promise<{ success: boolean; data?: Daily
     // Fetch today's orders
     const { data: todayOrders, error: todayError } = await supabaseAdmin
       .from('orders')
-      .select('id, order_status, total_amount, created_at')
+      .select('id, order_status, total_amount, delivery_fee, created_at')
       .gte('created_at', startOfToday)
       .order('created_at', { ascending: false });
 
@@ -53,7 +53,7 @@ export async function getDailyReport(): Promise<{ success: boolean; data?: Daily
     // Fetch last 7 days orders
     const { data: weekOrders, error: weekError } = await supabaseAdmin
       .from('orders')
-      .select('id, order_status, total_amount, created_at, rider_id, rider_earning, distance_km')
+      .select('id, order_status, total_amount, delivery_fee, created_at, rider_id, rider_earning, distance_km')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false });
 
@@ -69,7 +69,8 @@ export async function getDailyReport(): Promise<{ success: boolean; data?: Daily
       const status = order.order_status || 'unknown';
       ordersByStatus[status] = (ordersByStatus[status] || 0) + 1;
       if (status !== 'cancelled') {
-        totalRevenue += order.total_amount || 0;
+        const netRevenue = (order.total_amount || 0) - (order.delivery_fee || 0);
+        totalRevenue += netRevenue;
       }
     }
 
@@ -93,7 +94,9 @@ export async function getDailyReport(): Promise<{ success: boolean; data?: Daily
       if (existing) {
         existing.orderCount += 1;
         if (order.order_status !== 'cancelled') {
-          existing.revenue += order.total_amount || 0;
+          // Revenue calculation should exclude delivery fee since it goes to rider
+          const netRevenue = (order.total_amount || 0) - (order.delivery_fee || 0);
+          existing.revenue += netRevenue;
           // Track rider earnings and daily rider order counts for bonus calc
           if (order.rider_id && order.order_status === 'delivered') {
             existing.riderPayout += order.rider_earning || 0;

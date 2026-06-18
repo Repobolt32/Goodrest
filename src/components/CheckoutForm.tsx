@@ -199,13 +199,13 @@ export default function CheckoutForm({ onOffersApplied }: { onOffersApplied?: (r
     if (isLocating) return;
     setIsLocating(true);
     setLocationStatus({ type: 'loading', message: 'Detecting...' });
-    
+
     try {
       // Fetch Settings
       const { getAppSettings } = await import('@/app/actions/settingsActions');
       const { getGoogleMapsRouteData } = await import('@/app/actions/distanceActions');
       const { getRestoCoordinates } = await import('@/lib/validation');
-      
+
       const settingsRes = await getAppSettings();
       const settings = settingsRes.data;
 
@@ -242,7 +242,7 @@ export default function CheckoutForm({ onOffersApplied }: { onOffersApplied?: (r
                     lng: userLng,
                   }));
                   setDeliveryFee(0);
-              setLocationStatus({ type: 'warning', message: 'Location detected. Delivery fee will be confirmed at checkout.' });
+                  setLocationStatus({ type: 'warning', message: 'Location detected. Delivery fee will be confirmed at checkout.' });
                   setShowMap(true);
                   setIsLocating(false);
                   return;
@@ -330,6 +330,10 @@ export default function CheckoutForm({ onOffersApplied }: { onOffersApplied?: (r
       if (typeof window.Razorpay === 'undefined') {
         console.error('[CheckoutForm] Razorpay SDK not loaded');
         throw new Error('Payment system is still loading. Please try again in a few seconds.');
+      }
+
+      if (!formData.lat || !formData.lng) {
+        throw new Error('Delivery location is required');
       }
 
       // STEP 1: LOCK INTENT (Create order in Supabase first)
@@ -453,12 +457,16 @@ export default function CheckoutForm({ onOffersApplied }: { onOffersApplied?: (r
 
   const handleCOD = async () => {
     if (items.length === 0 || loading) return;
-    
+
     console.log('[CheckoutForm] handleCOD START: initiating COD order placement...');
     setLoading(true);
     setError(null);
 
     try {
+      if (!formData.lat || !formData.lng) {
+        throw new Error('Delivery location is required');
+      }
+
       const result = await createOrder({
         customer_name: formData.name,
         customer_phone: formData.phone,
@@ -566,7 +574,7 @@ export default function CheckoutForm({ onOffersApplied }: { onOffersApplied?: (r
             <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
               <Navigation size={16} className="text-primary shrink-0" />
               <span className="flex flex-wrap items-center gap-2">
-                Delivery Pinpoint 
+                Delivery Pinpoint
                 <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded whitespace-nowrap">Required</span>
               </span>
             </label>
@@ -592,8 +600,8 @@ export default function CheckoutForm({ onOffersApplied }: { onOffersApplied?: (r
               <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
                 📍 Drag the pin to adjust your exact location
               </p>
-              <div 
-                ref={mapRef} 
+              <div
+                ref={mapRef}
                 className="w-full h-48 sm:h-64 rounded-2xl border-2 border-slate-100 shadow-md"
               />
             </div>
@@ -616,13 +624,13 @@ export default function CheckoutForm({ onOffersApplied }: { onOffersApplied?: (r
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight break-words">Powered by Razorpay • Cards, UPI, Netbanking</p>
           </div>
         </div>
-        
+
         {isTestMode && (
           <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-             <p className="text-[10px] font-bold text-amber-800 uppercase tracking-tight mb-1">⚠️ Sandbox Scan Limitation</p>
-             <p className="text-[9px] text-amber-600 font-bold leading-tight">
-               Real apps like PhonePe cannot scan Test QRs. To test UPI, select <span className="text-amber-700">UPI ID / VPA</span> in the modal and type <span className="bg-amber-100 px-1 rounded font-black text-amber-800">success@razorpay</span>
-             </p>
+            <p className="text-[10px] font-bold text-amber-800 uppercase tracking-tight mb-1">⚠️ Sandbox Scan Limitation</p>
+            <p className="text-[9px] text-amber-600 font-bold leading-tight">
+              Real apps like PhonePe cannot scan Test QRs. To test UPI, select <span className="text-amber-700">UPI ID / VPA</span> in the modal and type <span className="bg-amber-100 px-1 rounded font-black text-amber-800">success@razorpay</span>
+            </p>
           </div>
         )}
       </section>

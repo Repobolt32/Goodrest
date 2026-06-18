@@ -8,6 +8,13 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
+vi.mock('@/app/actions/trackActions', () => ({
+  getRiderLocationForOrder: vi.fn(() => Promise.resolve({
+    riderId: 'rider-123',
+    location: { lat: 24.79, lng: 85.01 },
+  })),
+}));
+
 vi.mock('framer-motion', () => ({
   motion: {
     div: 'div',

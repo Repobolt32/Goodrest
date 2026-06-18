@@ -61,7 +61,27 @@ import { acceptOrder as riderAcceptOrder, startRiding, markOrderAsDeliveredRider
 describe('Order Lifecycle State Machine Tests', () => {
   const VALID_RIDER_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
   const VALID_ORDER_ID = '11111111-2222-3333-4444-555555555555';
-  const CUSTOMER_PHONE = '1234567890';
+  const CUSTOMER_PHONE = '9999999999';
+
+  const mockRiderQuery = {
+    select: () => ({
+      eq: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null })
+        })
+      })
+    })
+  };
+
+  const mockRiderNotFoundQuery = {
+    select: () => ({
+      eq: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: { message: 'Not found' } })
+        })
+      })
+    })
+  };
 
   const chain = {
     select: mocks.mockSelect,
@@ -129,14 +149,15 @@ describe('Order Lifecycle State Machine Tests', () => {
       expect(result.data?.order_status).toBe('cancelled');
     });
 
-    it('should allow cancel from preparing', async () => {
-      mocks.mockSingle
-        .mockResolvedValueOnce({ data: { id: VALID_ORDER_ID, order_status: 'preparing', customer_phone: CUSTOMER_PHONE }, error: null })
-        .mockResolvedValueOnce({ data: { id: VALID_ORDER_ID, order_status: 'cancelled', cancelled_by: 'customer' }, error: null });
+    it('should reject cancel from preparing', async () => {
+      mocks.mockSingle.mockResolvedValueOnce({
+        data: { id: VALID_ORDER_ID, order_status: 'preparing', customer_phone: CUSTOMER_PHONE },
+        error: null,
+      });
 
       const result = await cancelOrder(VALID_ORDER_ID, 'Taking too long');
-      expect(result.success).toBe(true);
-      expect(result.data?.order_status).toBe('cancelled');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('preparing');
     });
 
     it('should reject cancel from out_for_delivery', async () => {
@@ -173,7 +194,7 @@ describe('Order Lifecycle State Machine Tests', () => {
     });
 
     it('should reject cancel if customer phone does not match', async () => {
-      mocks.mockVerifyCustomerSession.mockResolvedValueOnce({ success: true, session: { phone: '9999999999' } });
+      mocks.mockVerifyCustomerSession.mockResolvedValueOnce({ success: true, session: { phone: '8888888888' } });
       mocks.mockSingle.mockResolvedValueOnce({
         data: { id: VALID_ORDER_ID, order_status: 'placed', customer_phone: CUSTOMER_PHONE },
         error: null,
@@ -337,11 +358,11 @@ describe('Order Lifecycle State Machine Tests', () => {
       const mockUpdatedRows = [{ id: VALID_ORDER_ID }];
 
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: null }, error: null }) }) }) }) // early rider_id check
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockOrder, error: null }) }) }) }) // order details
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: mockRider, error: null }) }) }) }) // rider phone
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ not: () => ({ limit: () => Promise.resolve({ data: null, error: null }) }) }) }) }) // active orders check
         .mockReturnValueOnce({ // FCFS update
           update: () => ({
             eq: () => ({
@@ -361,7 +382,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if order already taken (no rows updated)', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: 'other-rider' }, error: null }) }) }) }); // early check: taken
 
       const result = await riderAcceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
@@ -371,7 +392,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if rider does not exist', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Not found' } }) }) }) }); // verifyRiderExists fails
+        .mockReturnValueOnce(mockRiderNotFoundQuery); // verifyRiderExists fails
 
       const result = await riderAcceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
@@ -383,7 +404,7 @@ describe('Order Lifecycle State Machine Tests', () => {
   describe('startRiding', () => {
     it('should transition ready/preparing → out_for_delivery if manual_dispatch is true', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'ready', manual_dispatch: true }, error: null }) }) }) }) // order select
         .mockReturnValueOnce({ // update order
           update: () => ({
@@ -403,7 +424,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if manual_dispatch is false/null', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'ready', manual_dispatch: false }, error: null }) }) }) });
 
       const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
@@ -413,7 +434,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if order status is not ready or preparing', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'placed' }, error: null }) }) }) });
 
       const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
@@ -423,7 +444,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if order belongs to a different rider', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: 'other-rider', order_status: 'ready' }, error: null }) }) }) });
 
       const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
@@ -433,7 +454,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if rider does not exist', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Not found' } }) }) }) }); // verifyRiderExists fails
+        .mockReturnValueOnce(mockRiderNotFoundQuery); // verifyRiderExists fails
 
       const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
@@ -445,7 +466,7 @@ describe('Order Lifecycle State Machine Tests', () => {
   describe('markOrderAsDeliveredRider', () => {
     it('should transition out_for_delivery → delivered', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'out_for_delivery', rider_earning: 150 }, error: null }) }) }) }); // order select
 
       mocks.mockRpc.mockResolvedValueOnce({ error: null });
@@ -461,7 +482,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if not out_for_delivery', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'ready', rider_earning: 150 }, error: null }) }) }) });
 
       const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
@@ -471,7 +492,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if order belongs to a different rider', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: 'other-rider', order_status: 'out_for_delivery', rider_earning: 150 }, error: null }) }) }) });
 
       const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
@@ -481,7 +502,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should preserve rider_earning on transition', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: VALID_RIDER_ID }, error: null }) }) }) }) // verifyRiderExists
+        .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'out_for_delivery', rider_earning: 450 }, error: null }) }) }) }); // order select
 
       mocks.mockRpc.mockResolvedValueOnce({ error: null });
@@ -497,7 +518,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
     it('should reject if rider does not exist', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Not found' } }) }) }) }); // verifyRiderExists fails
+        .mockReturnValueOnce(mockRiderNotFoundQuery); // verifyRiderExists fails
 
       const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);

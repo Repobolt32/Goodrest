@@ -54,9 +54,23 @@ export async function updateOrderStatus(orderId: string, status: string) {
     return { success: false, error: `Cannot transition from '${currentStatus}' to '${status}'` };
   }
 
+  const updateData: {
+    order_status: string;
+    cancelled_by?: string;
+    cancel_reason?: string;
+    rider_id?: string | null;
+  } = { order_status: status };
+  
+  if (status === 'cancelled') {
+    updateData.cancelled_by = 'admin';
+    updateData.cancel_reason = 'Cancelled by admin';
+    // Let payment status and rider unassignment be handled separately or added here
+    updateData.rider_id = null; 
+  }
+
   const { error } = await supabaseAdmin
     .from('orders')
-    .update({ order_status: status })
+    .update(updateData)
     .eq('id', orderId);
 
   if (error) {
@@ -116,6 +130,17 @@ export async function deleteOrder(orderId: string) {
   if (!auth.success) return { success: false, error: auth.error };
 
   if (!isValidUUID(orderId)) return { success: false, error: 'Invalid order ID' };
+
+  // Only allow soft deletion of delivered or cancelled orders
+  const { data: order } = await supabaseAdmin
+    .from('orders')
+    .select('order_status')
+    .eq('id', orderId)
+    .single();
+
+  if (!order || !['delivered', 'cancelled'].includes(order.order_status || '')) {
+    return { success: false, error: 'Only delivered or cancelled orders can be deleted.' };
+  }
 
   const { error } = await supabaseAdmin
     .from('orders')

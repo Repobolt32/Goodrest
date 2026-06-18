@@ -251,10 +251,21 @@ describe('adminActions', () => {
 
   describe('deleteOrder', () => {
     it('should soft delete order by setting deleted_at', async () => {
+      const mockSingle = vi.fn().mockResolvedValue({ data: { order_status: 'delivered' }, error: null });
+      const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
+
       const mockIs = vi.fn().mockResolvedValue({ error: null });
-      mocks.mockEq.mockReturnValue({ is: mockIs });
+      const mockEqUpdate = vi.fn().mockReturnValue({ is: mockIs });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate });
+
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: mockSelect })
+        .mockReturnValueOnce({ update: mockUpdate });
+
       const result = await deleteOrder(VALID_ORDER);
       expect(result.success).toBe(true);
+      expect(mockIs).toHaveBeenCalled();
     });
   });
 

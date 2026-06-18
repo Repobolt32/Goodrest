@@ -26,7 +26,10 @@ export async function verifyAdminSession(): Promise<{ success: boolean; error?: 
 
   try {
     const { payload } = await jwtVerify(session, JWT_SECRET);
-    return { success: true, session: { role: payload.role as 'admin' } };
+    if (payload.role !== 'admin') {
+      return { success: false, error: 'Unauthorized' };
+    }
+    return { success: true, session: { role: 'admin' } };
   } catch {
     return { success: false, error: 'Unauthorized' };
   }

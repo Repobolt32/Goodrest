@@ -34,8 +34,8 @@ export type OrderInput = {
   items: CartItem[];
   total_amount: number;
   payment_method: 'online' | 'cod';
-  lat?: number | null;
-  lng?: number | null;
+  lat: number;
+  lng: number;
 };
 
 function normalizeOrderItems(
@@ -97,6 +97,7 @@ export async function createOrder(input: OrderInput) {
     const { data: menuItems, error: menuError } = await supabaseAdmin
       .from('menu_items')
       .select('id, price')
+      .eq('is_available', true)
       .in('id', menuItemIds);
 
     if (menuError || !menuItems || menuItems.length !== menuItemIds.length) {
@@ -147,18 +148,21 @@ export async function createOrder(input: OrderInput) {
     const sanitizedAddress = sanitizeString(input.delivery_address);
 
     // Compute route and delivery fee server-side
-    let distanceKm: number | null = null;
-    let durationSeconds: number | null = null;
+    let distanceKm: number = 0;
+    let durationSeconds: number = 0;
     let deliveryFee = 0;
-    if (input.lat != null && input.lng != null) {
-      const RESTO_LAT = parseFloat(process.env.NEXT_PUBLIC_RESTO_LAT || '0');
-      const RESTO_LNG = parseFloat(process.env.NEXT_PUBLIC_RESTO_LNG || '0');
-      const routeData = await getGoogleMapsRouteData(RESTO_LAT, RESTO_LNG, input.lat, input.lng);
-      if (routeData) {
-        distanceKm = routeData.distanceKm;
-        durationSeconds = routeData.durationSeconds;
-        deliveryFee = calculateDeliveryFee(distanceKm);
-      }
+    
+    if (input.lat == null || input.lng == null) {
+      return { success: false, error: 'Delivery coordinates are required' };
+    }
+
+    const RESTO_LAT = parseFloat(process.env.NEXT_PUBLIC_RESTO_LAT || '0');
+    const RESTO_LNG = parseFloat(process.env.NEXT_PUBLIC_RESTO_LNG || '0');
+    const routeData = await getGoogleMapsRouteData(RESTO_LAT, RESTO_LNG, input.lat, input.lng);
+    if (routeData) {
+      distanceKm = routeData.distanceKm;
+      durationSeconds = routeData.durationSeconds;
+      deliveryFee = calculateDeliveryFee(distanceKm);
     }
 
     // Apply offers using shared logic
@@ -174,11 +178,11 @@ export async function createOrder(input: OrderInput) {
       delivery_address: sanitizedAddress,
       items: JSON.parse(JSON.stringify(input.items)), // Deep copy for JSONB
       total_amount: serverTotal,
-      payment_method: input.payment_method,
+      payment_method: 'online',
       payment_status: 'pending',
-      order_status: input.payment_method === 'cod' ? 'confirmed' : 'created',
-      lat: input.lat || null,
-      lng: input.lng || null,
+      order_status: 'created',
+      lat: input.lat,
+      lng: input.lng,
       distance_km: distanceKm,
       duration_seconds: durationSeconds,
       discount_amount: discountAmount,
@@ -374,7 +378,8 @@ export async function verifyPaymentSignature(response: RazorpayPaymentCallback) 
         razorpay_payment_id,
       })
       .eq('id', order.id)
-      .eq('payment_status', 'pending')
+      .in('payment_status', ['pending', 'failed'])
+      .neq('order_status', 'cancelled')
       .select()
       .single();
 
@@ -428,8 +433,8 @@ export async function cancelOrder(orderId: string, reason?: string) {
       return { success: true, message: 'Order is already cancelled' };
     }
 
-    // Cancellation only allowed before out_for_delivery or delivered
-    const forbiddenStatuses = ['out_for_delivery', 'delivered'];
+    // Cancellation only allowed before preparing, out_for_delivery or delivered
+    const forbiddenStatuses = ['preparing', 'ready', 'out_for_delivery', 'delivered'];
     if (order.order_status && forbiddenStatuses.includes(order.order_status)) {
       logger.warn(`[cancelOrder] FAILURE: Cannot cancel order ${orderId} because status is ${order.order_status}`);
       return { 

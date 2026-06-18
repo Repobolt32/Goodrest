@@ -12,11 +12,13 @@ vi.mock('@/lib/auth', () => ({
 
 const supabaseMocks = vi.hoisted(() => ({
   mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
 }));
 
 vi.mock('@/lib/supabaseAdmin', () => ({
   supabaseAdmin: {
     from: supabaseMocks.mockFrom,
+    rpc: supabaseMocks.mockRpc,
   },
 }));
 
@@ -28,6 +30,7 @@ describe('settleWeeklyPayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.mockVerifyAdminSession.mockResolvedValue({ success: true, session: { role: 'admin' } });
+    supabaseMocks.mockRpc.mockResolvedValue({ error: null });
   });
 
   it('should reject when no orders exist for the rider in the week', async () => {
@@ -35,6 +38,7 @@ describe('settleWeeklyPayout', () => {
       select: () => ordersChain,
       is: () => ordersChain,
       eq: () => ordersChain,
+      not: () => Promise.resolve({ data: [], error: null }),
       gte: () => ordersChain,
       lte: () => ordersChain,
       order: () => Promise.resolve({ data: [], error: null }),
@@ -69,6 +73,7 @@ describe('settleWeeklyPayout', () => {
       select: () => ordersChain,
       is: () => ordersChain,
       eq: () => ordersChain,
+      not: () => Promise.resolve({ data: [], error: null }),
       gte: () => ordersChain,
       lte: () => ordersChain,
       order: () => Promise.resolve({ data: mockOrders, error: null }),
@@ -102,6 +107,8 @@ describe('settleWeeklyPayout', () => {
       return {};
     });
 
+    supabaseMocks.mockRpc.mockResolvedValueOnce({ error: { message: 'RPC failed' } });
+
     const result = await settleWeeklyPayout({
       riderId: VALID_RIDER_ID,
       weekStart: '2026-06-15',
@@ -121,7 +128,13 @@ describe('settleWeeklyPayout', () => {
     expect(insertedValues!.total_bonus).toBe(100);
     expect(insertedValues!.total_amount).toBe(346);
 
-    // Verify balance tracking
+    // Verify atomic RPC was called
+    expect(supabaseMocks.mockRpc).toHaveBeenCalledWith('increment_rider_settlement', {
+      p_rider_id: VALID_RIDER_ID,
+      p_amount: 346,
+    });
+
+    // Verify fallback balance tracking was triggered and succeeded
     expect(updatedAmount).toBe(346);
   });
 

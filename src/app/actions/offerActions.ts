@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAdminSession } from '@/lib/auth';
 import { Database, Json } from '@/types/database.types';
 import { isValidUUID } from '@/lib/validation';
-import { validateOfferConfig } from '@/lib/offers';
+import { validateOfferConfig, ActiveOffer } from '@/lib/offers';
 
 export async function getActiveOffers() {
   try {
@@ -65,6 +65,19 @@ export async function createOffer(input: {
 
     const { type, label, config, active, start_time, end_time } = input;
 
+    // Reject overlapping active offers of the same type
+    if (active) {
+      const { data: existingOffers } = await supabaseAdmin
+        .from('offers')
+        .select('id')
+        .eq('active', true)
+        .eq('type', type);
+
+      if (existingOffers && existingOffers.length > 0) {
+        return { success: false, error: `An active offer of type ${type} already exists. Disable it first.` };
+      }
+    }
+
     const validation = validateOfferConfig(type, config as Record<string, unknown>);
     if (!validation.valid) return { success: false, error: validation.error };
 
@@ -113,10 +126,38 @@ export async function updateOffer(
       return { success: false, error: 'Invalid offer ID' };
     }
 
+    const { data: existingOffer } = await supabaseAdmin.from('offers').select('type, config, active').eq('id', id).single();
+    const typeToCheck = updates.type || existingOffer?.type;
+    const configToCheck = updates.config || existingOffer?.config;
+
+    if (!typeToCheck) {
+      return { success: false, error: 'Offer type is required' };
+    }
+
+    const validation = validateOfferConfig(typeToCheck as ActiveOffer['type'], updates.config ? (updates.config as Record<string, unknown>) : (configToCheck as Record<string, unknown>));
+    if (!validation.valid) return { success: false, error: validation.error };
+
     const updateData: Database['public']['Tables']['offers']['Update'] = {
       ...updates,
       updated_at: new Date().toISOString(),
     };
+
+    // Reject overlapping active offers of the same type
+    if (updates.active !== false) {
+      const isActivating = updates.active === true || existingOffer?.active === true;
+      if (isActivating) {
+        const { data: overlappingOffers } = await supabaseAdmin
+          .from('offers')
+          .select('id')
+          .eq('active', true)
+          .eq('type', typeToCheck)
+          .neq('id', id);
+
+        if (overlappingOffers && overlappingOffers.length > 0) {
+          return { success: false, error: `An active offer of type ${typeToCheck} already exists. Disable it first.` };
+        }
+      }
+    }
 
     if (updates.config && updates.type) {
       updateData.label = updates.label || generateLabel(updates.type, updates.config);

@@ -21,15 +21,20 @@ async function verifyRiderExists(riderId: string): Promise<{ success: boolean; e
     .from('riders')
     .select('id')
     .eq('id', riderId)
+    .eq('is_active', true)
     .single();
   if (error || !data) return { success: false, error: 'Rider not found' };
   return { success: true };
 }
 
 export async function getRiderByPhone(phone: string) {
+  const session = await verifyRiderSession();
+  if (!session.success || !session.session || session.session.phone !== phone) {
+    return null;
+  }
   const { data, error } = await supabaseAdmin
     .from('riders')
-    .select('*')
+    .select('id, name, phone, is_active, vehicle_number, total_deliveries, total_earnings, is_online, current_location')
     .eq('phone', phone)
     .single();
   if (error) return null;
@@ -180,7 +185,8 @@ export async function acceptOrder(orderId: string, riderId: string) {
     await supabaseAdmin
       .from('orders')
       .update({ batch_id: batchId, rider_earning: firstOrderEarning })
-      .eq('id', firstActiveOrder.id);
+      .eq('id', firstActiveOrder.id)
+      .in('order_status', ['preparing', 'ready']);
   }
 
   // Final FCFS update with double-gate
@@ -471,11 +477,16 @@ export async function getRiderActiveOrder(riderId: string) {
     .select('*')
     .eq('rider_id', riderId)
     .not('order_status', 'in', '("delivered","cancelled")')
-    .maybeSingle();
-  return data || null;
+    .limit(2);
+  // If batch mode is removed or frontend expects a single active order, 
+  // return the first one. For multiple active orders, frontend must be updated.
+  return data && data.length > 0 ? data[0] : null;
 }
 
 export async function getUnassignedOrders() {
+  const session = await verifyRiderSession();
+  if (!session.success) return [];
+
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select('*')

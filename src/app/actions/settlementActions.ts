@@ -42,6 +42,17 @@ export async function settleWeeklyPayout(payload: SettlePayload) {
     return { success: false, error: 'No deliveries found for this rider in the specified week' };
   }
 
+  // Ensure the rider has no active orders in flight
+  const { data: activeOrders } = await supabaseAdmin
+    .from('orders')
+    .select('id')
+    .eq('rider_id', riderId)
+    .not('order_status', 'in', '("delivered","cancelled")');
+
+  if (activeOrders && activeOrders.length > 0) {
+    return { success: false, error: 'Cannot settle: Rider has active orders in flight.' };
+  }
+
   let totalDeliveries = 0;
   let totalEarnings = 0;
   const dailyCounts = new Map<string, number>();
@@ -94,18 +105,29 @@ export async function settleWeeklyPayout(payload: SettlePayload) {
     return { success: false, error: error.message };
   }
 
-  const { data: currentRider } = await supabaseAdmin
-    .from('riders')
-    .select('total_settled')
-    .eq('id', riderId)
-    .single();
+  // Atomic increment via RPC to avoid race conditions
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: rpcError } = await supabaseAdmin.rpc('increment_rider_settlement' as any, {
+    p_rider_id: riderId,
+    p_amount: calculatedTotalAmount
+  });
 
-  const newTotalSettled = (currentRider?.total_settled || 0) + calculatedTotalAmount;
+  if (rpcError) {
+    // If RPC fails, try read-modify-write as fallback but log warning
+    console.warn('RPC increment_rider_settlement failed or missing, using fallback', rpcError);
+    const { data: currentRider } = await supabaseAdmin
+      .from('riders')
+      .select('total_settled')
+      .eq('id', riderId)
+      .single();
 
-  await supabaseAdmin
-    .from('riders')
-    .update({ total_settled: newTotalSettled })
-    .eq('id', riderId);
+    const newTotalSettled = (currentRider?.total_settled || 0) + calculatedTotalAmount;
+
+    await supabaseAdmin
+      .from('riders')
+      .update({ total_settled: newTotalSettled })
+      .eq('id', riderId);
+  }
 
   return { success: true, data };
 }

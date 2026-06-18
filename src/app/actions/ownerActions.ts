@@ -21,7 +21,8 @@ export async function getRestaurantSettings() {
     .single();
 
   if (error) {
-    return { success: true, data: { online_status: true, prep_time_minutes: 20, auto_reject_minutes: 5 } };
+    logger.error('Failed to fetch restaurant settings:', error);
+    return { success: false, error: 'Database unreachable' };
   }
 
   return { success: true, data };
@@ -180,6 +181,7 @@ export async function dispatchOrder(orderId: string) {
 
   const updateData: Database['public']['Tables']['orders']['Update'] = {
     manual_dispatch: true,
+    order_status: 'out_for_delivery',
   };
 
   const { data: updated, error: updateError } = await supabaseAdmin
@@ -208,7 +210,7 @@ export async function initiateRefund(orderId: string) {
 
   const { data: order, error: fetchError } = await supabaseAdmin
     .from('orders')
-    .select('id, payment_status, razorpay_payment_id, total_amount')
+    .select('id, payment_status, razorpay_payment_id')
     .eq('id', orderId)
     .single();
 
@@ -218,6 +220,18 @@ export async function initiateRefund(orderId: string) {
   }
   if (!order.razorpay_payment_id) {
     return { success: false, error: 'No Razorpay payment ID found' };
+  }
+
+  // Fetch actual captured amount from Razorpay API
+  let capturedAmount = 0;
+  try {
+    const payment = await razorpay.payments.fetch(order.razorpay_payment_id);
+    capturedAmount = Number(payment.amount);
+    if (!capturedAmount || capturedAmount <= 0) {
+      return { success: false, error: 'Invalid captured amount from Razorpay' };
+    }
+  } catch (err) {
+    return { success: false, error: 'Failed to fetch payment details from Razorpay' };
   }
 
   // Atomic lock: claim the refund by setting payment_status to 'refund_processing'
@@ -236,7 +250,7 @@ export async function initiateRefund(orderId: string) {
   try {
     // Context7-verified: instance.payments.refund(paymentId, { amount, speed, receipt })
     const refund = await razorpay.payments.refund(order.razorpay_payment_id, {
-      amount: Math.round(order.total_amount * 100),
+      amount: capturedAmount,
       speed: 'normal',
       receipt: `refund_${order.id.slice(0, 20)}`,
     });

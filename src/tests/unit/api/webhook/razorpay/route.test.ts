@@ -52,15 +52,16 @@ describe('razorpay webhook', () => {
     const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
 
-    const mockEq2 = vi.fn().mockResolvedValue(updateResult);
-    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
+    const mockNeq = vi.fn().mockResolvedValue(updateResult);
+    const mockIn = vi.fn().mockReturnValue({ neq: mockNeq });
+    const mockEq = vi.fn().mockReturnValue({ in: mockIn });
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
 
     mocks.mockFrom
       .mockReturnValueOnce({ select: mockSelect })  // first call: select
       .mockReturnValueOnce({ update: mockUpdate });  // second call: update
 
-    return { mockSingle, mockSelect, mockEqSelect, mockUpdate, mockEq1, mockEq2 };
+    return { mockSingle, mockSelect, mockEqSelect, mockUpdate, mockEq, mockIn, mockNeq };
   };
 
   it('should return 500 if webhook secret not configured', async () => {
@@ -141,9 +142,10 @@ describe('razorpay webhook', () => {
   it('should guard update with payment_status=pending to prevent race conditions', async () => {
     mocks.mockValidateWebhookSignature.mockReturnValue(true);
 
-    const mockEq2 = vi.fn().mockResolvedValue({ error: null });
-    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
+    const mockNeq = vi.fn().mockResolvedValue({ error: null });
+    const mockIn = vi.fn().mockReturnValue({ neq: mockNeq });
+    const mockEq = vi.fn().mockReturnValue({ in: mockIn });
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
 
     const mockSingle = vi.fn().mockResolvedValue({
       data: { id: 'order-1', payment_status: 'pending' },
@@ -167,9 +169,10 @@ describe('razorpay webhook', () => {
 
     await POST(createRequest(payload, 'valid-sig'));
 
-    // Must chain .eq('id', ...).eq('payment_status', 'pending')
-    expect(mockEq1).toHaveBeenCalledWith('id', 'order-1');
-    expect(mockEq2).toHaveBeenCalledWith('payment_status', 'pending');
+    // Must chain .eq('id', ...).in('payment_status', ['pending', 'failed']).neq('order_status', 'cancelled')
+    expect(mockEq).toHaveBeenCalledWith('id', 'order-1');
+    expect(mockIn).toHaveBeenCalledWith('payment_status', ['pending', 'failed']);
+    expect(mockNeq).toHaveBeenCalledWith('order_status', 'cancelled');
   });
 
   it('should handle payment.failed event', async () => {
@@ -313,9 +316,11 @@ describe('razorpay webhook', () => {
       .mockResolvedValueOnce({ data: { id: 'order-1', payment_status: 'paid' }, error: null });
     const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
-    const mockEq2 = vi.fn().mockResolvedValue({ error: null });
-    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
+    
+    const mockNeq = vi.fn().mockResolvedValue({ error: null });
+    const mockIn = vi.fn().mockReturnValue({ neq: mockNeq });
+    const mockEq = vi.fn().mockReturnValue({ in: mockIn });
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
 
     mocks.mockFrom
       .mockReturnValueOnce({ select: mockSelect })  // first call: select
