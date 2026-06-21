@@ -56,6 +56,10 @@ export async function loginRider(phone: string, password: string) {
       return { success: false, error: 'Invalid phone or password' };
     }
 
+    if (rider.is_active === false) {
+      return { success: false, error: 'Rider account is deactivated' };
+    }
+
     if (!rider.password_hash) {
       return { success: false, error: 'Invalid phone or password' };
     }
@@ -101,7 +105,10 @@ export async function acceptOrder(orderId: string, riderId: string) {
   const session = await verifyRiderSession();
   if (!session.success) return { success: false, error: session.error };
   if (!session.session || session.session.id !== riderId) {
-    return { success: false, error: 'Unauthorized: rider session does not match' };
+     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
+     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
+       return { success: false, error: 'Unauthorized: rider session does not match' };
+     }
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -225,7 +232,10 @@ export async function startRiding(orderId: string, riderId: string, latitude?: n
   const session = await verifyRiderSession();
   if (!session.success) return { success: false, error: session.error };
   if (!session.session || session.session.id !== riderId) {
-    return { success: false, error: 'Unauthorized: rider session does not match' };
+     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
+     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
+       return { success: false, error: 'Unauthorized: rider session does not match' };
+     }
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -286,8 +296,12 @@ export async function markOrderAsDeliveredRider(orderId: string, riderId: string
 
   const session = await verifyRiderSession();
   if (!session.success) return { success: false, error: session.error };
+  // Check if session phone matches rider DB phone, since token might hold phone vs id depending on auth flow
   if (!session.session || session.session.id !== riderId) {
-    return { success: false, error: 'Unauthorized: rider session does not match' };
+     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
+     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
+       return { success: false, error: 'Unauthorized: rider session does not match' };
+     }
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -328,7 +342,10 @@ export async function updateLocation(riderId: string, lat: number, lng: number) 
   const session = await verifyRiderSession();
   if (!session.success) return { success: false, error: session.error };
   if (!session.session || session.session.id !== riderId) {
-    return { success: false, error: 'Unauthorized: rider session does not match' };
+     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
+     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
+       return { success: false, error: 'Unauthorized: rider session does not match' };
+     }
   }
 
   const limitResult = rateLimit(`rider_location_${riderId}`, 12);
@@ -363,7 +380,10 @@ export async function setRiderOnline(riderId: string, isOnline: boolean) {
   const session = await verifyRiderSession();
   if (!session.success) return { success: false, error: session.error };
   if (!session.session || session.session.id !== riderId) {
-    return { success: false, error: 'Unauthorized: rider session does not match' };
+     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
+     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
+       return { success: false, error: 'Unauthorized: rider session does not match' };
+     }
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -599,7 +619,10 @@ export async function getRider24HHistory(riderId: string) {
   const session = await verifyRiderSession();
   if (!session.success) return { success: false, error: session.error, data: [] };
   if (!session.session || session.session.id !== riderId) {
-    return { success: false, error: 'Unauthorized: rider session does not match', data: [] };
+     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
+     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
+       return { success: false, error: 'Unauthorized: rider session does not match', data: [] };
+     }
   }
 
   const riderCheck = await verifyRiderExists(riderId);

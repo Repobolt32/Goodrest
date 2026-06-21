@@ -220,7 +220,7 @@ describe('orderActions', () => {
       expect(result.error).toBe('DB error');
     });
 
-    it.skip('should set COD orders as placed immediately', async () => {
+    it('should set COD orders as placed immediately', async () => {
       await createOrder({ ...validInput, payment_method: 'cod' });
       const rpcCall = mocks.mockRpc.mock.calls[0][1];
       expect(rpcCall.p_order.order_status).toBe('confirmed');

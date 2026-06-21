@@ -45,6 +45,9 @@ export default function OrderBroadcast({
 
     const fetchExisting = async () => {
       try {
+        const { data: riderData } = await supabase.from('riders').select('is_online').eq('id', riderId).single();
+        if (!riderData?.is_online) return;
+
         const orders = await getUnassignedOrders();
         if (cancelled || !orders || orders.length === 0 || broadcastOrderRef.current) return;
 
@@ -92,7 +95,10 @@ export default function OrderBroadcast({
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
-        (payload: RealtimePostgresChangesPayload<BroadcastOrder>) => {
+        async (payload: RealtimePostgresChangesPayload<BroadcastOrder>) => {
+          const { data: riderData } = await supabase.from('riders').select('is_online').eq('id', riderId).single();
+          if (!riderData?.is_online) return;
+
           const order = payload.new as BroadcastOrder;
           if (
             order.rider_id === null &&
@@ -111,7 +117,14 @@ export default function OrderBroadcast({
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders' },
-        (payload: RealtimePostgresChangesPayload<BroadcastOrder>) => {
+        async (payload: RealtimePostgresChangesPayload<BroadcastOrder>) => {
+          const { data: riderData } = await supabase.from('riders').select('is_online').eq('id', riderId).single();
+          if (!riderData?.is_online) {
+            setBroadcastOrder(null);
+            alertSound.pause();
+            return;
+          }
+
           const order = payload.new as BroadcastOrder;
           const current = broadcastOrderRef.current;
           if (

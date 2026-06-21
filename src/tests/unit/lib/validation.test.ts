@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { isValidUUID, getRestoCoordinates } from '@/lib/validation';
+import { isValidUUID, getRestoCoordinates, isValidMenuItemId } from '@/lib/validation';
 
 describe('isValidUUID', () => {
   it('should return true for valid UUID v4', () => {
@@ -40,6 +40,31 @@ describe('isValidUUID', () => {
 
   it('should return false for plain number string', () => {
     expect(isValidUUID('12345678')).toBe(false);
+  });
+});
+
+describe('isValidMenuItemId', () => {
+  it('should return true for valid slug', () => {
+    expect(isValidMenuItemId('paneer-tikka')).toBe(true);
+    expect(isValidMenuItemId('butter-chicken-123')).toBe(true);
+    expect(isValidMenuItemId('garlic_naan')).toBe(true);
+  });
+
+  it('should return true for valid UUID', () => {
+    expect(isValidMenuItemId('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
+  });
+
+  it('should return false for empty or non-string values', () => {
+    expect(isValidMenuItemId('')).toBe(false);
+    expect(isValidMenuItemId(null as unknown as string)).toBe(false);
+    expect(isValidMenuItemId(undefined as unknown as string)).toBe(false);
+  });
+
+  it('should return false for spaces or special characters', () => {
+    expect(isValidMenuItemId('paneer tikka')).toBe(false);
+    expect(isValidMenuItemId('butter-chicken!')).toBe(false);
+    expect(isValidMenuItemId('garlic-naan;')).toBe(false);
+    expect(isValidMenuItemId('"garlic-naan"')).toBe(false);
   });
 });
 

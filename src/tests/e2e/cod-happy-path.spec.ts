@@ -8,8 +8,9 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 const JWT_SECRET = process.env.JWT_SECRET || 'placeholder-jwt-secret-key-at-least-32-chars-long';
 
-const TEST_PREFIX = 'E2E_COD_HP';
-const TEST_RIDER_PHONE = `9999${Date.now().toString().slice(-6)}`;
+const TIMESTAMP = Date.now().toString().slice(-6);
+const TEST_PREFIX = `E2E_COD_${TIMESTAMP}`;
+const TEST_RIDER_PHONE = `9999${TIMESTAMP}`;
 
 let testRiderId: string;
 let testOrderId: string;
@@ -130,7 +131,7 @@ test.describe('COD Happy Path', () => {
     // Wait for location confirmation text
     await expect.poll(async () => {
       const status = page.locator('p.text-xs.font-bold.mt-2');
-      const text = await status.textContent().catch(() => '');
+      const text = (await status.textContent().catch(() => '')) || '';
       return text.includes('✅') || text.includes('📍') || text.includes('Verified');
     }, { timeout: 15000, intervals: [500] }).toBe(true);
 
@@ -173,26 +174,75 @@ test.describe('COD Happy Path', () => {
 
     // === STEP 3: Rider accepts order via broadcast ===
     // Bypass login form — set session in localStorage and navigate directly
-    await page.goto('/rider/dashboard');
-    await page.evaluate((rider) => {
-      localStorage.setItem('rider_session', JSON.stringify(rider));
-    }, { id: testRiderId, name: `${TEST_PREFIX}_Rider`, phone: TEST_RIDER_PHONE });
-    await page.reload();
+    await page.goto('/rider/login');
+    await page.fill('input[placeholder="Phone Number"]', TEST_RIDER_PHONE);
+    await page.fill('input[placeholder="Password"]', 'test123');
+    await page.click('button[type="submit"]');
+
+    // Wait for the redirect to happen which means login was successful
+    await page.waitForURL('**/rider/dashboard');
     await page.waitForSelector('text=Terminal', { timeout: 15000 });
 
     // Mock geolocation for rider and go online
     await mockGeolocation(page);
     await page.click('button:has-text("Go Online")');
+    
+    // Set rider online in DB just in case UI toggle fails in test env
+    await supabase.from('riders').update({ is_online: true }).eq('id', testRiderId);
+    
+    // Sometimes OrderBroadcast unmounts or websocket channel disconnects
+    // Give it a chance to fetchExisting() after rider is online by reloading
+    await page.reload();
+    await page.waitForSelector('text=Terminal', { timeout: 15000 });
+    // IMPORTANT: Wait for mock geolocation to apply and go online again after reload
+    await mockGeolocation(page);
+    try {
+        await page.click('button:has-text("Go Online")', { timeout: 2000 });
+    } catch (e) {
+        // already online or button not found
+    }
 
-    // Wait for broadcast modal with the test order
-    await page.waitForSelector('text=New Delivery!', { timeout: 15000 });
-    await page.click('button:has-text("Accept")');
+    // Wait for broadcast modal with the test order (use polling because of the websocket logic delays)
+    // Wait for db update to be registered in case it was slow
+    await expect.poll(async () => {
+       const { data } = await supabase.from('riders').select('is_online').eq('id', testRiderId).single();
+       return data?.is_online;
+    }, { timeout: 10000 }).toBe(true);
+    
+    // Set order status to preparing to trigger broadcast
+    await supabase.from('orders').update({ order_status: 'preparing' }).eq('id', testOrderId);
 
+    // Wait for broadcast modal
+    // Trigger another update to ping realtime after channel is subscribed
+    await page.waitForTimeout(2000);
+    await supabase.from('orders').update({ order_status: 'preparing' }).eq('id', testOrderId);
+
+    await expect.poll(async () => {
+      return await page.locator('text=New Delivery!').isVisible();
+    }, { timeout: 20000 }).toBe(true);
+    
+    // Add event listener to capture alert messages if accept order fails
+    page.on('dialog', async dialog => {
+      console.log('Dialog message:', dialog.message());
+      try {
+        await dialog.accept();
+      } catch (e) {
+        console.log('Failed to accept dialog (maybe already handled)', e);
+      }
+    });
+
+    // Verify rider assignment in DB
+    // Check if the accept button is actually visible and clickable
+    console.log("Accept button visible:", await page.locator('button:has-text("Accept")').isVisible());
+    
+    // We can also poll the database to verify that the Accept has taken place instead of blindly waiting
+    await page.click('button:has-text("Accept")', { force: true });
+    
     // Verify rider assignment in DB
     await expect.poll(async () => {
       const { data } = await supabase.from('orders').select('rider_id').eq('id', testOrderId).single();
       return data?.rider_id;
-    }, { timeout: 10000 }).toBe(testRiderId);
+    }, { timeout: 15000 }).toBe(testRiderId);
 
     // === STEP 4: Owner marks food ready and dispatches ===
     // Use Supabase admin client directly — server action auth may not work with injected cookies

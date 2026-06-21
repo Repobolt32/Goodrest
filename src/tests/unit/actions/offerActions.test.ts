@@ -40,7 +40,17 @@ import {
 
 describe('offerActions', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mocks.mockSelect.mockReset();
+    mocks.mockSingle.mockReset();
+    mocks.mockEq.mockReset();
+    mocks.mockNeq.mockReset();
+    mocks.mockInsert.mockReset();
+    mocks.mockUpdate.mockReset();
+    mocks.mockDelete.mockReset();
+    mocks.mockOrder.mockReset();
+    mocks.mockVerifyAdminSession.mockReset();
+    mocks.mockRevalidatePath.mockReset();
+
     mocks.mockVerifyAdminSession.mockResolvedValue({ success: true, session: { role: 'admin' } });
 
     const chain = {
@@ -177,12 +187,39 @@ describe('offerActions', () => {
   });
 
   describe('toggleOffer', () => {
-    it('should toggle offer active status', async () => {
+    it('should toggle offer active status to true when no overlaps exist', async () => {
       const validId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
       const mockToggled = { id: validId, active: true };
-      mocks.mockSingle.mockResolvedValueOnce({ data: mockToggled, error: null });
+      
+      mocks.mockSingle
+        .mockResolvedValueOnce({ data: { type: 'discount_percent' }, error: null }) // SELECT type
+        .mockResolvedValueOnce({ data: mockToggled, error: null }); // UPDATE result
+
+      mocks.mockNeq.mockResolvedValueOnce({ data: [], error: null }); // overlapping check
 
       const result = await toggleOffer(validId, true);
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockToggled);
+    });
+
+    it('should reject activation if an overlapping active offer already exists', async () => {
+      const validId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      
+      mocks.mockSingle.mockResolvedValueOnce({ data: { type: 'discount_percent' }, error: null }); // SELECT type
+      mocks.mockNeq.mockResolvedValueOnce({ data: [{ id: 'other-offer' }], error: null }); // overlapping check (found one!)
+
+      const result = await toggleOffer(validId, true);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('already exists');
+    });
+
+    it('should toggle active status to false without checking for overlaps', async () => {
+      const validId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      const mockToggled = { id: validId, active: false };
+      
+      mocks.mockSingle.mockResolvedValueOnce({ data: mockToggled, error: null }); // UPDATE result (directly, no select type mock needed because active is false)
+
+      const result = await toggleOffer(validId, false);
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockToggled);
     });

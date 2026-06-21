@@ -27,7 +27,7 @@ const isDBConfigured =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes('your-anon-key');
 
-describe.skip('COD Integration: Create Order', () => {
+describe('COD Integration: Create Order', () => {
   let testOrderId: string | null = null;
   const TEST_PHONE = '9800000001';
   let originalE2E: string | undefined;
@@ -65,6 +65,8 @@ describe.skip('COD Integration: Create Order', () => {
         },
       ],
       total_amount: 120,
+      lat: 24.79,
+      lng: 85.01,
     };
 
     const result = await createOrder(input);

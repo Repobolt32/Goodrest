@@ -3,8 +3,9 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAdminSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { isValidUUID } from '@/lib/validation';
+import { isValidUUID, isValidMenuItemId } from '@/lib/validation';
 import { logger } from '@/lib/logger';
+import { initiateRefund } from '@/app/actions/ownerActions';
 
 const ALLOWED_ORDER_STATUSES = ['created', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
 const ALLOWED_PAYMENT_STATUSES = ['pending', 'paid', 'requires_refund', 'refund_processing', 'refunded'];
@@ -36,7 +37,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
 
   const { data: order, error: fetchError } = await supabaseAdmin
     .from('orders')
-    .select('order_status')
+    .select('order_status, payment_status')
     .eq('id', orderId)
     .single();
 
@@ -64,7 +65,6 @@ export async function updateOrderStatus(orderId: string, status: string) {
   if (status === 'cancelled') {
     updateData.cancelled_by = 'admin';
     updateData.cancel_reason = 'Cancelled by admin';
-    // Let payment status and rider unassignment be handled separately or added here
     updateData.rider_id = null; 
   }
 
@@ -76,6 +76,14 @@ export async function updateOrderStatus(orderId: string, status: string) {
   if (error) {
     logger.error('Failed to update order status:', error);
     return { success: false, error: error.message };
+  }
+
+  if (status === 'cancelled' && order.payment_status === 'paid') {
+    const refundRes = await initiateRefund(orderId);
+    if (!refundRes.success) {
+      logger.error('Refund initiation failed during admin cancellation:', refundRes.error);
+      return { success: false, error: `Order cancelled, but refund failed: ${refundRes.error}` };
+    }
   }
 
   revalidatePath('/admin/orders');
@@ -162,7 +170,7 @@ export async function toggleItemAvailability(id: string, isAvailable: boolean) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
 
-  if (!isValidUUID(id)) return { success: false, error: 'Invalid menu item ID' };
+  if (!isValidMenuItemId(id)) return { success: false, error: 'Invalid menu item ID' };
 
   const { error } = await supabaseAdmin
     .from('menu_items')
@@ -183,7 +191,7 @@ export async function updateItemPrice(id: string, price: number) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
 
-  if (!isValidUUID(id)) return { success: false, error: 'Invalid menu item ID' };
+  if (!isValidMenuItemId(id)) return { success: false, error: 'Invalid menu item ID' };
 
   if (typeof price !== 'number' || isNaN(price) || price <= 0) {
     return { success: false, error: 'Price must be a valid number greater than zero.' };
@@ -219,9 +227,11 @@ export async function addMenuItem(item: {
     return { success: false, error: 'Price must be a valid number greater than zero.' };
   }
 
+  const { category: _category, ...insertData } = item;
+
   const { data, error } = await supabaseAdmin
     .from('menu_items')
-    .insert([item])
+    .insert([insertData])
     .select()
     .single();
 
@@ -232,7 +242,7 @@ export async function addMenuItem(item: {
 
   revalidatePath('/admin/menu');
   revalidatePath('/');
-  return { success: true, data };
+  return { success: true, data: data ? { ...data, category: item.category } : null };
 }
 
 export async function updateMenuItem(id: string, updates: {
@@ -246,15 +256,17 @@ export async function updateMenuItem(id: string, updates: {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
 
-  if (!isValidUUID(id)) return { success: false, error: 'Invalid menu item ID' };
+  if (!isValidMenuItemId(id)) return { success: false, error: 'Invalid menu item ID' };
 
   if (updates.price !== undefined && (typeof updates.price !== 'number' || isNaN(updates.price) || updates.price <= 0)) {
     return { success: false, error: 'Price must be a valid number greater than zero.' };
   }
 
+  const { category: _category, ...updateData } = updates;
+
   const { data, error } = await supabaseAdmin
     .from('menu_items')
-    .update(updates)
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
@@ -266,7 +278,7 @@ export async function updateMenuItem(id: string, updates: {
 
   revalidatePath('/admin/menu');
   revalidatePath('/');
-  return { success: true, data };
+  return { success: true, data: data ? { ...data, category: updates.category } : null };
 }
 
 export async function getCategories() {
@@ -290,7 +302,7 @@ export async function deleteMenuItem(id: string) {
   const auth = await verifyAdminSession();
   if (!auth.success) return { success: false, error: auth.error };
 
-  if (!isValidUUID(id)) return { success: false, error: 'Invalid menu item ID' };
+  if (!isValidMenuItemId(id)) return { success: false, error: 'Invalid menu item ID' };
 
   const { error } = await supabaseAdmin
     .from('menu_items')

@@ -41,7 +41,7 @@ const isDBConfigured =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes('your-anon-key');
 
-describe.skip('COD Integration: Owner Lifecycle', () => {
+describe('COD Integration: Owner Lifecycle', () => {
   let testOrderId: string | null = null;
   let testRiderId: string | null = null;
   let originalE2E: string | undefined;
@@ -105,6 +105,8 @@ describe.skip('COD Integration: Owner Lifecycle', () => {
         },
       ],
       total_amount: 60,
+      lat: 24.79,
+      lng: 85.01,
     };
 
     const createResult = await createOrder(input);
@@ -177,7 +179,7 @@ describe.skip('COD Integration: Owner Lifecycle', () => {
       .single();
 
     expect(dispatchedOrder?.manual_dispatch).toBe(true);
-    expect(dispatchedOrder?.order_status).toBe('ready'); // status unchanged by dispatch
+    expect(dispatchedOrder?.order_status).toBe('out_for_delivery'); // status updated by dispatch
 
     // 6. Rider starts riding -> out_for_delivery
     const startResult = await startRiding(testOrderId as string, testRiderId as string, 24.7975, 85.01);

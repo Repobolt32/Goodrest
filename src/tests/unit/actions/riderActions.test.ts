@@ -226,6 +226,16 @@ describe('riderActions', () => {
       expect(result.error).toBe('Invalid phone or password');
     });
 
+    it('should return error when rider is deactivated', async () => {
+      const mockRider = { id: VALID_RIDER_ID, phone: '9999999999', name: 'Test Rider', password_hash: 'some_hash', is_active: false };
+      mocks.mockSingle.mockResolvedValueOnce({ data: mockRider, error: null });
+
+      const result = await loginRider('9999999999', 'test123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Rider account is deactivated');
+    });
+
     it('should handle unexpected bcrypt errors gracefully', async () => {
       const mockRider = { id: VALID_RIDER_ID, phone: '9999999999', name: 'Test Rider', password_hash: 'some_hash' };
       mocks.mockSingle.mockResolvedValueOnce({ data: mockRider, error: null });
@@ -691,10 +701,17 @@ describe('riderActions', () => {
       expect(result.error).toBe('Unauthorized');
     });
 
-    it('should reject when rider session ID does not match riderId param', async () => {
+    it('should reject when rider session ID does not match riderId param and phone check fails', async () => {
       mocks.mockVerifyRiderSession.mockResolvedValueOnce({
         success: true,
         session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
+      });
+
+      // Rider DB query for phone check
+      mocks.mockSelect.mockReturnValueOnce({
+        eq: vi.fn().mockReturnValueOnce({
+          single: vi.fn().mockResolvedValueOnce({ data: { phone: '8888888888' }, error: null }),
+        }),
       });
 
       const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);

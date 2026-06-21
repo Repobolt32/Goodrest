@@ -182,6 +182,7 @@ export async function dispatchOrder(orderId: string) {
   const updateData: Database['public']['Tables']['orders']['Update'] = {
     manual_dispatch: true,
     order_status: 'out_for_delivery',
+    rider_started_at: new Date().toISOString(),
   };
 
   const { data: updated, error: updateError } = await supabaseAdmin

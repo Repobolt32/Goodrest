@@ -45,7 +45,7 @@ describe.skipIf(!isDBConfigured)('Database Integration: Order & Customer Flow', 
     if (error || !menuItems || menuItems.length < 2) {
       throw new Error(`Failed to fetch menu items for integration test: ${error?.message || 'Not enough items'}`);
     }
-    testMenuItems = menuItems;
+    testMenuItems = menuItems as unknown as typeof testMenuItems;
   });
 
   it('successfully populates 8 diverse orders and ensures customer records are upserted', async () => {

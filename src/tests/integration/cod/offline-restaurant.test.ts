@@ -27,7 +27,7 @@ const isDBConfigured =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes('your-anon-key');
 
-describe.skip('COD Integration: Offline Restaurant Rejection', () => {
+describe('COD Integration: Offline Restaurant Rejection', () => {
   let testOrderId: string | null = null;
   let originalE2E: string | undefined;
 
@@ -80,6 +80,8 @@ describe.skip('COD Integration: Offline Restaurant Rejection', () => {
         },
       ],
       total_amount: 60,
+      lat: 24.79,
+      lng: 85.01,
     };
 
     const result = await createOrder(input);
@@ -112,6 +114,8 @@ describe.skip('COD Integration: Offline Restaurant Rejection', () => {
         },
       ],
       total_amount: 120,
+      lat: 24.79,
+      lng: 85.01,
     };
 
     const result = await createOrder(input);

@@ -9,6 +9,18 @@ export function isValidUUID(id: string): boolean {
 }
 
 /**
+ * Validates whether a string is a valid menu item ID (slug or UUID).
+ * 
+ * @param id The string to validate
+ * @returns True if valid slug or UUID, false otherwise
+ */
+export function isValidMenuItemId(id: string): boolean {
+  if (!id || typeof id !== 'string') return false;
+  return /^[a-zA-Z0-9-_]+$/.test(id);
+}
+
+
+/**
  * Returns the restaurant coordinates from environment variables.
  * Throws a descriptive error if variables are missing. (BUG-17)
  * 

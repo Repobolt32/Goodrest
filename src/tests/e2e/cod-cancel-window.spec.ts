@@ -65,7 +65,7 @@ async function placeCODOrder(page: Page, context: { grantPermissions: (permissio
 
   await expect.poll(async () => {
     const status = page.locator('p.text-xs.font-bold.mt-2');
-    const text = await status.textContent().catch(() => '');
+    const text = (await status.textContent().catch(() => '')) || '';
     return text.includes('✅') || text.includes('📍') || text.includes('Verified');
   }, { timeout: 15000, intervals: [500] }).toBe(true);
 
