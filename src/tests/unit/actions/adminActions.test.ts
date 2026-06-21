@@ -12,6 +12,14 @@ const mocks = vi.hoisted(() => ({
   mockVerifyAdminSession: vi.fn(),
 }));
 
+const ownerMocks = vi.hoisted(() => ({
+  mockInitiateRefund: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock('@/app/actions/ownerActions', () => ({
+  initiateRefund: ownerMocks.mockInitiateRefund,
+}));
+
 vi.mock('@/lib/auth', () => ({
   verifyAdminSession: mocks.mockVerifyAdminSession,
 }));
@@ -159,10 +167,36 @@ describe('adminActions', () => {
 
     it('should allow created -> cancelled', async () => {
       mocks.mockFrom
-        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'created' }, error: null }) }) }) })
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'created', payment_status: 'pending' }, error: null }) }) }) })
         .mockReturnValueOnce({ update: () => ({ eq: () => Promise.resolve({ error: null }) }) });
       const result = await updateOrderStatus(VALID_ORDER, 'cancelled');
       expect(result.success).toBe(true);
+    });
+
+    it('should allow created -> cancelled and trigger refund when payment status is paid', async () => {
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'created', payment_status: 'paid' }, error: null }) }) }) })
+        .mockReturnValueOnce({ update: () => ({ eq: () => Promise.resolve({ error: null }) }) });
+      
+      ownerMocks.mockInitiateRefund.mockResolvedValueOnce({ success: true });
+
+      const result = await updateOrderStatus(VALID_ORDER, 'cancelled');
+      
+      expect(result.success).toBe(true);
+      expect(ownerMocks.mockInitiateRefund).toHaveBeenCalledWith(VALID_ORDER);
+    });
+
+    it('should return error when created -> cancelled but refund fails', async () => {
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { order_status: 'created', payment_status: 'paid' }, error: null }) }) }) })
+        .mockReturnValueOnce({ update: () => ({ eq: () => Promise.resolve({ error: null }) }) });
+      
+      ownerMocks.mockInitiateRefund.mockResolvedValueOnce({ success: false, error: 'Razorpay error' });
+
+      const result = await updateOrderStatus(VALID_ORDER, 'cancelled');
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('refund failed: Razorpay error');
     });
 
     it('should reject delivered -> preparing (backwards from terminal)', async () => {
@@ -250,7 +284,7 @@ describe('adminActions', () => {
   });
 
   describe('deleteOrder', () => {
-    it('should soft delete order by setting deleted_at', async () => {
+    it('should soft delete order by setting deleted_at if status is delivered', async () => {
       const mockSingle = vi.fn().mockResolvedValue({ data: { order_status: 'delivered' }, error: null });
       const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
       const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
@@ -266,6 +300,48 @@ describe('adminActions', () => {
       const result = await deleteOrder(VALID_ORDER);
       expect(result.success).toBe(true);
       expect(mockIs).toHaveBeenCalled();
+    });
+
+    it('should soft delete order by setting deleted_at if status is cancelled', async () => {
+      const mockSingle = vi.fn().mockResolvedValue({ data: { order_status: 'cancelled' }, error: null });
+      const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
+
+      const mockIs = vi.fn().mockResolvedValue({ error: null });
+      const mockEqUpdate = vi.fn().mockReturnValue({ is: mockIs });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEqUpdate });
+
+      mocks.mockFrom
+        .mockReturnValueOnce({ select: mockSelect })
+        .mockReturnValueOnce({ update: mockUpdate });
+
+      const result = await deleteOrder(VALID_ORDER);
+      expect(result.success).toBe(true);
+      expect(mockIs).toHaveBeenCalled();
+    });
+
+    it('should reject soft deletion if order status is active (preparing)', async () => {
+      const mockSingle = vi.fn().mockResolvedValue({ data: { order_status: 'preparing' }, error: null });
+      const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
+
+      mocks.mockFrom.mockReturnValueOnce({ select: mockSelect });
+
+      const result = await deleteOrder(VALID_ORDER);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Only delivered or cancelled');
+    });
+
+    it('should reject soft deletion if order status is active (out_for_delivery)', async () => {
+      const mockSingle = vi.fn().mockResolvedValue({ data: { order_status: 'out_for_delivery' }, error: null });
+      const mockEqSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSelect });
+
+      mocks.mockFrom.mockReturnValueOnce({ select: mockSelect });
+
+      const result = await deleteOrder(VALID_ORDER);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Only delivered or cancelled');
     });
   });
 

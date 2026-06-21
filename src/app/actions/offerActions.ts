@@ -190,6 +190,29 @@ export async function toggleOffer(id: string, active: boolean) {
       return { success: false, error: 'Invalid offer ID' };
     }
 
+    if (active) {
+      const { data: existingOffer, error: fetchError } = await supabaseAdmin
+        .from('offers')
+        .select('type')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existingOffer) {
+        return { success: false, error: 'Offer not found' };
+      }
+
+      const { data: overlappingOffers } = await supabaseAdmin
+        .from('offers')
+        .select('id')
+        .eq('active', true)
+        .eq('type', existingOffer.type)
+        .neq('id', id);
+
+      if (overlappingOffers && overlappingOffers.length > 0) {
+        return { success: false, error: `An active offer of type ${existingOffer.type} already exists. Disable it first.` };
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from('offers')
       .update({ active, updated_at: new Date().toISOString() })

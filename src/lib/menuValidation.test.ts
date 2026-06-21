@@ -18,7 +18,9 @@ describe('menuValidation', () => {
       
       const result = validateMenuItems(validItems);
       expect(result.success).toBe(true);
-      expect(result.data).toHaveLength(1);
+      if (result.success) {
+        expect(result.data).toHaveLength(1);
+      }
     });
 
     it('rejects items with missing required fields', () => {
@@ -54,7 +56,9 @@ describe('menuValidation', () => {
     it('handles empty array', () => {
       const result = validateMenuItems([]);
       expect(result.success).toBe(true);
-      expect(result.data).toHaveLength(0);
+      if (result.success) {
+        expect(result.data).toHaveLength(0);
+      }
     });
   });
 

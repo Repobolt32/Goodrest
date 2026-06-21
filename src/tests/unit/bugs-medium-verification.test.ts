@@ -109,13 +109,12 @@ describe('QOL-06: Hardcoded Rating "4.1"', () => {
 // BUG-18: Menu Images Use External Unsplash URLs
 // ──────────────────────────────────────────
 describe('BUG-18: Menu Images Use External Unsplash URLs', () => {
-  it('MenuItemCard.tsx detects and replaces external URLs', () => {
+  it('MenuItemCard.tsx uses onError fallback for broken images', () => {
     const cardPath = path.resolve(process.cwd(), 'src/components/MenuItemCard.tsx');
     const content = fs.readFileSync(cardPath, 'utf-8');
     
-    // Should check for external URL pattern
-    expect(content).toContain('startsWith');
-    expect(content).toContain('http');
+    // Should use onError fallback instead of blocking external URLs
+    expect(content).toContain('onError');
     expect(content).toContain('food-placeholder.svg');
   });
 
@@ -132,11 +131,11 @@ describe('BUG-18: Menu Images Use External Unsplash URLs', () => {
     expect(foodImages).toHaveLength(0);
   });
 
-  it('MenuItemCard test verifies external URLs become placeholder', () => {
+  it('MenuItemCard test displays external URLs directly', () => {
     const testPath = path.resolve(process.cwd(), 'src/components/MenuItemCard.test.tsx');
     const content = fs.readFileSync(testPath, 'utf-8');
     expect(content).toMatch(/unsplash/i);
-    expect(content).toContain('food-placeholder.svg');
-    expect(content).toContain('uses default placeholder for external URLs');
+    expect(content).not.toContain('uses default placeholder for external URLs');
+    expect(content).toContain('displays external URLs directly');
   });
 });

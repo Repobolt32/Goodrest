@@ -178,9 +178,9 @@ export async function createOrder(input: OrderInput) {
       delivery_address: sanitizedAddress,
       items: JSON.parse(JSON.stringify(input.items)), // Deep copy for JSONB
       total_amount: serverTotal,
-      payment_method: 'online',
+      payment_method: input.payment_method || 'online',
       payment_status: 'pending',
-      order_status: 'created',
+      order_status: input.payment_method === 'cod' ? 'confirmed' : 'created',
       lat: input.lat,
       lng: input.lng,
       distance_km: distanceKm,

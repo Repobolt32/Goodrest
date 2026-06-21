@@ -301,14 +301,15 @@ describe('Order Lifecycle State Machine Tests', () => {
 
   // ─── 4. dispatchOrder transitions ──────────────────────────────────
   describe('dispatchOrder', () => {
-    it('should set manual_dispatch to true when ready', async () => {
+    it('should set manual_dispatch to true and order_status to out_for_delivery when ready', async () => {
       mocks.mockSingle
         .mockResolvedValueOnce({ data: { id: VALID_ORDER_ID, order_status: 'ready', rider_id: VALID_RIDER_ID, duration_seconds: 900 }, error: null })
-        .mockResolvedValueOnce({ data: { id: VALID_ORDER_ID, order_status: 'ready', manual_dispatch: true }, error: null });
+        .mockResolvedValueOnce({ data: { id: VALID_ORDER_ID, order_status: 'out_for_delivery', manual_dispatch: true }, error: null });
 
       const result = await dispatchOrder(VALID_ORDER_ID);
       expect(result.success).toBe(true);
       expect(result.data?.manual_dispatch).toBe(true);
+      expect(result.data?.order_status).toBe('out_for_delivery');
     });
 
     it('should reject if not ready', async () => {

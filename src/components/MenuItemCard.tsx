@@ -23,8 +23,7 @@ export default function MenuItemCard({ item, quantity, onAdd, onRemove }: MenuIt
 
   const [imgError, setImgError] = useState(false);
   
-  const isExternalUrl = item.image_url?.startsWith('http') || false;
-  const imageSrc = imgError || isExternalUrl ? DEFAULT_FOOD_IMAGE : (item.image_url || DEFAULT_FOOD_IMAGE);
+  const imageSrc = imgError ? DEFAULT_FOOD_IMAGE : (item.image_url || DEFAULT_FOOD_IMAGE);
   
   const isVeg = item.is_veg ?? true;
 

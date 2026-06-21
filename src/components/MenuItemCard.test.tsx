@@ -34,7 +34,7 @@ const mockItemNoImage: MenuItem = {
 };
 
 describe('MenuItemCard', () => {
-  it('uses default placeholder for external URLs', () => {
+  it('displays external URLs directly', () => {
     render(
       <MenuItemCard
         item={mockItem}
@@ -45,7 +45,7 @@ describe('MenuItemCard', () => {
     );
     
     const img = screen.getByRole('img', { name: /butter chicken/i });
-    expect(img).toHaveAttribute('src', expect.stringContaining('/images/food-placeholder.svg'));
+    expect(img).toHaveAttribute('src', mockItem.image_url);
   });
 
   it('uses local image path when provided', () => {

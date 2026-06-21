@@ -7,44 +7,7 @@ This document combines the findings from both agent audits, focusing on critical
 
 ---
 
-## 🟠 HIGH - Business Logic & State Machine Flaws
 
-### 6. Deactivated Riders Can Still Accept Orders
-**File:** `src/app/actions/riderActions.ts`
-**Issue:** `verifyRiderExists` only checks if the rider ID exists. If an owner deactivates/fires a rider, but the rider still has an unexpired JWT cookie, they can continue accepting and picking up orders.
-**Fix:** Add `.eq('is_active', true)` to `verifyRiderExists`.
-
-### 7. Cancelled Orders Revived by Late Webhooks
-**File:** `src/app/api/webhook/razorpay/route.ts`
-**Issue:** A customer cancels a pending order. A delayed Razorpay webhook (or a user completing an open tab) arrives and sets `order_status = 'confirmed'`, reviving a cancelled order.
-**Fix:** The webhook must add `.neq('order_status', 'cancelled')` before applying the success state.
-
-### 8. `maybeSingle()` Crash on Batched Orders
-**File:** `src/app/actions/riderActions.ts`
-**Issue:** `getRiderActiveOrder` uses `.maybeSingle()`. Since riders can accept up to 2 orders (batching), this query throws an error when a rider has 2 active orders, causing the app to silently fail and show "No active orders."
-**Fix:** Change to `.select().limit(2)` and handle returning an array of active orders.
-
-### 9. Rider Pay Deduction Race Condition (Batching)
-**File:** `src/app/actions/riderActions.ts`
-**Issue:** When a rider accepts a 2nd order, it retroactively reduces the pay of their 1st order. It updates the 1st order blindly, even if the 1st order was already delivered a millisecond ago.
-**Fix:** Ensure the 1st order is still `.in('order_status', ['preparing', 'ready'])` before modifying its earnings.
-
-### 10. Admin `updateOrderStatus` Bypasses Side-Effects
-**File:** `src/app/actions/adminActions.ts`
-**Issue:** If an admin cancels an order using the generic status dropdown, it just changes the string to `cancelled`. It does *not* refund the customer, unassign the rider, or log the cancellation reason.
-**Fix:** Admin cancellation needs a dedicated flow that handles refunds and rider unassignment.
-
-### 11. Refund Initiated on `total_amount` instead of Captured Amount
-**File:** `src/app/actions/ownerActions.ts`
-**Issue:** The refund uses the DB's `total_amount`. If the admin modified the order or if there were discrepancies, Razorpay will reject the refund because it exceeds the captured amount.
-**Fix:** Fetch the actual captured amount from the Razorpay API before initiating the refund.
-
-### 12. Double Settlement Race Condition
-**File:** `src/app/actions/settlementActions.ts`
-**Issue:** Rider payouts are recorded using a read-modify-write without atomic locking (`const newTotal = oldTotal + added; update({ total_settled: newTotal })`). A double-click pays the rider twice but only increments the balance once.
-**Fix:** Use an RPC for atomic increment, or handle the constraint violation cleanly.
-
----
 
 ## 🟡 MEDIUM - Gaps & Accounting Inaccuracies
 

@@ -159,4 +159,30 @@ describe('settleWeeklyPayout', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('should reject settlement if the rider has active orders in flight', async () => {
+    const activeOrdersChain = {
+      select: () => activeOrdersChain,
+      is: () => activeOrdersChain,
+      eq: () => activeOrdersChain,
+      not: () => Promise.resolve({ data: [{ id: 'active-order-1' }], error: null }),
+      gte: () => activeOrdersChain,
+      lte: () => activeOrdersChain,
+      order: () => Promise.resolve({ data: [{ rider_id: VALID_RIDER_ID, rider_earning: 41, distance_km: 2.0, delivered_at: '2026-06-15T10:00:00.000Z' }], error: null }),
+    };
+
+    supabaseMocks.mockFrom.mockImplementation((table: string) => {
+      if (table === 'orders') return activeOrdersChain;
+      return {};
+    });
+
+    const result = await settleWeeklyPayout({
+      riderId: VALID_RIDER_ID,
+      weekStart: '2026-06-15',
+      weekEnd: '2026-06-21',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('active orders in flight');
+  });
 });
