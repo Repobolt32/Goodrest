@@ -6,6 +6,7 @@ on:
       - main
       - feature/apk-pipeline
       - 02-06-final
+      - testing-final-varient
   workflow_dispatch:
 
 jobs:
