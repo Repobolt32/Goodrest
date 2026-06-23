@@ -40,6 +40,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          JWT_SECRET: "ci-build-placeholder-jwt-secret-key-must-be-long-enough"
 
       - name: Create empty web assets directory for Capacitor
         run: mkdir -p out
