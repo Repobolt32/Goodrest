@@ -63,6 +63,27 @@ export async function verifyRiderSession(): Promise<{ success: boolean; error?: 
   }
 }
 
+/** Verify a rider JWT token directly (no cookie read). Use this for token-based auth. */
+export async function verifyRiderToken(token: string): Promise<{ success: boolean; error?: string; session?: RiderSession }> {
+  if (!token) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return {
+      success: true,
+      session: {
+        id: payload.id as string,
+        name: payload.name as string,
+        phone: payload.phone as string,
+      },
+    };
+  } catch {
+    return { success: false, error: 'Unauthorized' };
+  }
+}
+
 export async function signRiderSession(payload: RiderSession): Promise<string> {
   const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })

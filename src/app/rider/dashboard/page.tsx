@@ -22,6 +22,7 @@ interface RiderSession {
   id: string;
   name: string;
   phone: string;
+  token: string;
 }
 
 interface RiderStats {
@@ -88,7 +89,8 @@ export default function RiderDashboardPage() {
   } = useBackgroundLocation(
     rider?.id ?? '',
     isOnline,
-    handleLocationError
+    handleLocationError,
+    rider?.token ?? ''
   );
 
   // Load rider session
@@ -116,7 +118,7 @@ export default function RiderDashboardPage() {
     const [statsData, orderData, historyRes] = await Promise.all([
       getRiderStats(rider.id),
       getRiderActiveOrder(rider.id),
-      getRider24HHistory(rider.id),
+      getRider24HHistory(rider.token, rider.id),
     ]);
     if (statsData) setStats(statsData as RiderStats);
     if (orderData) setActiveOrder(orderData as ActiveOrder);
@@ -165,7 +167,7 @@ export default function RiderDashboardPage() {
 
     localStorage.setItem('rider_isOnline', String(isOnline));
 
-    setRiderOnline(rider.id, isOnline).then((res) => {
+    setRiderOnline(rider.token, rider.id, isOnline).then((res) => {
       if (!res.success) {
         console.warn('Failed to persist rider online state:', res.error);
       }
@@ -190,7 +192,7 @@ export default function RiderDashboardPage() {
     setActionLoading(true);
     const lat = lastLat ?? undefined;
     const lng = lastLng ?? undefined;
-    const result = await startRiding(activeOrder.id, rider.id, lat, lng);
+    const result = await startRiding(rider.token, activeOrder.id, rider.id, lat, lng);
     if (result.success) {
       await refreshData();
     } else {
@@ -202,7 +204,7 @@ export default function RiderDashboardPage() {
   const handleDelivered = async (): Promise<{ success: boolean; error?: string }> => {
     if (!activeOrder || !rider) return { success: false, error: 'No active order found' };
     setActionLoading(true);
-    const result = await markOrderAsDeliveredRider(activeOrder.id, rider.id);
+    const result = await markOrderAsDeliveredRider(rider.token, activeOrder.id, rider.id);
     if (result.success) {
       setActiveOrder(null);
       await refreshData();
@@ -264,6 +266,7 @@ export default function RiderDashboardPage() {
       {activeTab === 'terminal' ? (
         <TerminalView
           riderId={rider.id}
+          sessionToken={rider.token}
           isOnline={isOnline}
           geoError={geoError}
           stats={stats}

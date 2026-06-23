@@ -15,28 +15,6 @@ const mocks = vi.hoisted(() => ({
   mockInsert: vi.fn(),
 }));
 
-const cookieStore = vi.hoisted(() => ({
-  store: new Map<string, string>(),
-  set: vi.fn(),
-  get: vi.fn(),
-  delete: vi.fn(),
-}));
-
-cookieStore.set.mockImplementation((name: string, value: string) => {
-  cookieStore.store.set(name, value);
-});
-cookieStore.get.mockImplementation((name: string) => {
-  const val = cookieStore.store.get(name);
-  return val ? { name, value: val } : undefined;
-});
-cookieStore.delete.mockImplementation((name: string) => {
-  cookieStore.store.delete(name);
-});
-
-vi.mock('next/headers', () => ({
-  cookies: vi.fn().mockResolvedValue(cookieStore),
-}));
-
 vi.mock('@/lib/supabaseAdmin', () => ({
   supabaseAdmin: { from: mocks.mockFrom },
 }));
@@ -58,7 +36,7 @@ vi.mock('bcryptjs', () => ({
   default: { compare: vi.fn() },
 }));
 
-// Mock auth: signRiderSession uses real jose, verifyRiderSession uses real jose + our mocked cookies
+// Mock auth: signRiderSession uses real jose, verifyRiderToken uses real jose
 const REAL_JWT_SECRET = new TextEncoder().encode('test-jwt-secret-for-auth-integration-at-least-32-chars');
 
 vi.mock('@/lib/auth', async (importOriginal) => {
@@ -72,15 +50,14 @@ vi.mock('@/lib/auth', async (importOriginal) => {
         .setExpirationTime('7d')
         .sign(REAL_JWT_SECRET);
     },
-    // Override verifyRiderSession to use our known secret + mocked cookies
-    verifyRiderSession: async () => {
-      const session = cookieStore.get('rider_session')?.value;
-      if (!session) {
+    // Override verifyRiderToken to use our known secret
+    verifyRiderToken: async (token: string) => {
+      if (!token) {
         return { success: false, error: 'Unauthorized' };
       }
       try {
         const { jwtVerify } = await import('jose');
-        const { payload } = await jwtVerify(session, REAL_JWT_SECRET);
+        const { payload } = await jwtVerify(token, REAL_JWT_SECRET);
         return {
           success: true,
           session: {
@@ -99,13 +76,12 @@ vi.mock('@/lib/auth', async (importOriginal) => {
 import { loginRider, acceptOrder } from '@/app/actions/riderActions';
 import bcrypt from 'bcryptjs';
 
-describe('BUG-14 FIX: Real cookie round-trip — loginRider → acceptOrder', () => {
+describe('BUG-14 FIX: Real token round-trip — loginRider → acceptOrder', () => {
   const RIDER_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
   const ORDER_ID = '11111111-2222-3333-4444-555555555555';
 
   beforeEach(() => {
     vi.clearAllMocks();
-    cookieStore.store.clear();
 
     vi.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
 
@@ -130,7 +106,7 @@ describe('BUG-14 FIX: Real cookie round-trip — loginRider → acceptOrder', ()
     mocks.mockInsert.mockReturnValue(defaultChain);
   });
 
-  it('loginRider sets real JWT cookie, acceptOrder reads and verifies it', async () => {
+  it('loginRider returns real JWT token, acceptOrder reads and verifies it', async () => {
     const rider = {
       id: RIDER_ID,
       phone: '9999999999',
@@ -144,12 +120,11 @@ describe('BUG-14 FIX: Real cookie round-trip — loginRider → acceptOrder', ()
     const loginResult = await loginRider('9999999999', 'password');
     expect(loginResult.success).toBe(true);
 
-    // Cookie was set with a real JWT
-    const cookieVal = cookieStore.store.get('rider_session');
-    expect(cookieVal).toBeDefined();
-    expect(cookieVal!.split('.')).toHaveLength(3); // JWT format
+    const token = loginResult.token;
+    expect(token).toBeDefined();
+    expect(token!.split('.')).toHaveLength(3); // JWT format
 
-    // acceptOrder: verifyRiderSession reads cookie (real flow via our mock)
+    // acceptOrder: verifyRiderToken reads token
     mocks.mockSingle
       .mockResolvedValueOnce({ data: { id: RIDER_ID }, error: null })       // verifyRiderExists
       .mockResolvedValueOnce({ data: { rider_id: null }, error: null })     // early race check
@@ -168,20 +143,18 @@ describe('BUG-14 FIX: Real cookie round-trip — loginRider → acceptOrder', ()
       }),
     });
 
-    const acceptResult = await acceptOrder(ORDER_ID, RIDER_ID);
+    const acceptResult = await acceptOrder(token!, ORDER_ID, RIDER_ID);
     expect(acceptResult.success).toBe(true);
   });
 
-  it('acceptOrder rejects when cookie is missing (real verifyRiderSession)', async () => {
-    const result = await acceptOrder(ORDER_ID, RIDER_ID);
+  it('acceptOrder rejects when token is missing (real verifyRiderToken)', async () => {
+    const result = await acceptOrder('', ORDER_ID, RIDER_ID);
     expect(result.success).toBe(false);
     expect(result.error).toBe('Unauthorized');
   });
 
-  it('acceptOrder rejects when cookie has invalid JWT (real verifyRiderSession)', async () => {
-    cookieStore.store.set('rider_session', 'not-a-real-jwt');
-
-    const result = await acceptOrder(ORDER_ID, RIDER_ID);
+  it('acceptOrder rejects when token has invalid JWT (real verifyRiderToken)', async () => {
+    const result = await acceptOrder('not-a-real-jwt', ORDER_ID, RIDER_ID);
     expect(result.success).toBe(false);
     expect(result.error).toBe('Unauthorized');
   });
@@ -193,9 +166,7 @@ describe('BUG-14 FIX: Real cookie round-trip — loginRider → acceptOrder', ()
       .setExpirationTime('7d')
       .sign(REAL_JWT_SECRET);
 
-    cookieStore.store.set('rider_session', otherToken);
-
-    const result = await acceptOrder(ORDER_ID, RIDER_ID);
+    const result = await acceptOrder(otherToken, ORDER_ID, RIDER_ID);
     expect(result.success).toBe(false);
     expect(result.error).toBe('Unauthorized: rider session does not match');
   });

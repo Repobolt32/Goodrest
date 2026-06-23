@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { logout } from '@/app/actions/authActions';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -26,6 +26,13 @@ import Link from 'next/link';
 import AdminSearchBar from '@/components/admin/AdminSearchBar';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/types/database.types';
+import { toOrderRecord, type OrderRecord } from '@/types/orders';
+import BellNotification from '@/components/owner/BellNotification';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getIsElectron = () => typeof window !== 'undefined' && !!(window as any).electronAPI;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getElectronAPI = () => (window as any).electronAPI;
 
 /**
  * AdminLayout - The core layout for the admin portal.
@@ -51,6 +58,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [cancelledOrders, setCancelledOrders] = useState<OrderRow[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
   const [isBellOpen, setIsBellOpen] = useState(false);
+
+  // Electron/Global Bell states
+  const [confirmedOrders, setConfirmedOrders] = useState<OrderRecord[]>([]);
+  const [dismissedOrderIds, setDismissedOrderIds] = useState<Set<string>>(new Set());
+  const notifiedOrderIdsRef = useRef<Set<string>>(new Set());
 
   const fetchSettings = async () => {
     const { getAppSettings } = await import('@/app/actions/settingsActions');
@@ -82,9 +94,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   };
 
+  const fetchConfirmedOrders = async () => {
+    try {
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('order_status', 'confirmed')
+        .order('created_at', { ascending: false });
+      if (data) {
+        setConfirmedOrders(data.map(toOrderRecord));
+      }
+    } catch (err) {
+      console.error('Error fetching confirmed orders:', err);
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchTodayCancelledOrders();
+    fetchConfirmedOrders();
 
     const uniqueId = Math.random().toString(36).substring(2, 10);
     const channel = supabase
@@ -100,15 +128,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           if (payload.new) {
             const newOrder = payload.new as OrderRow;
             const orderId = newOrder.id;
-            // Refetch the complete order row to ensure all fields (created_at, friendly_id, customer_name, customer_phone, etc.)
-            // are fully populated regardless of replica identity settings.
+            // Refetch the complete order row to ensure all fields are fully populated
             supabase
               .from('orders')
-              .select('id, friendly_id, customer_name, customer_phone, order_status, cancelled_by, cancel_reason, customer_help_message, created_at')
+              .select('*')
               .eq('id', orderId)
               .single()
               .then(({ data: fullOrder }) => {
                 if (!fullOrder) return;
+
+                // Handle confirmed orders
+                const isConfirmed = fullOrder.order_status === 'confirmed';
+                setConfirmedOrders((prev) => {
+                  const existing = prev.some((o) => o.id === fullOrder.id);
+                  if (isConfirmed) {
+                    if (existing) {
+                      return prev.map((o) => (o.id === fullOrder.id ? toOrderRecord(fullOrder as OrderRow) : o));
+                    } else {
+                      return [toOrderRecord(fullOrder as OrderRow), ...prev];
+                    }
+                  } else {
+                    return prev.filter((o) => o.id !== fullOrder.id);
+                  }
+                });
+
+                // Handle cancelled orders
                 const isToday = fullOrder.created_at ? new Date(fullOrder.created_at) >= new Date(new Date().setHours(0, 0, 0, 0)) : false;
                 if (!isToday) return;
 
@@ -132,6 +176,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   setCancelledOrders((prev) => prev.filter((o) => o.id !== fullOrder.id));
                 }
               });
+          } else if (payload.eventType === 'DELETE' && payload.old?.id) {
+            setConfirmedOrders((prev) => prev.filter((o) => o.id !== payload.old!.id));
+            setCancelledOrders((prev) => prev.filter((o) => o.id !== payload.old!.id));
           }
         }
       )
@@ -142,6 +189,122 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Polling fallback to keep confirmed orders in sync if WebSockets are blocked
+  useEffect(() => {
+    let cancelled = false;
+    const pollInterval = setInterval(async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('order_status', 'confirmed')
+        .order('created_at', { ascending: false });
+      if (!cancelled && data) {
+        setConfirmedOrders(data.map(toOrderRecord));
+      }
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(pollInterval);
+    };
+  }, []);
+
+  // Centralized bell state management — single source of truth for Electron bell
+  const hasInitializedRef = useRef(false);
+  useEffect(() => {
+    if (!getIsElectron()) return;
+    const api = getElectronAPI();
+
+    const activePendingOrders = confirmedOrders.filter(
+      o => o.order_status === 'confirmed' && !dismissedOrderIds.has(o.id)
+    );
+
+    // Skip the very first render — bell starts hidden
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      if (activePendingOrders.length > 0) {
+        const latestOrder = activePendingOrders[0];
+        notifiedOrderIdsRef.current.add(latestOrder.id);
+        api.showBellWindow({
+          id: latestOrder.id,
+          customer_name: latestOrder.customer_name,
+          items_summary: latestOrder.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
+          total_amount: latestOrder.total_amount,
+        });
+        api.updateTrayBadge(activePendingOrders.length);
+      }
+      return;
+    }
+
+    if (activePendingOrders.length > 0) {
+      const latestOrder = activePendingOrders[0];
+
+      // Only trigger OS notification for genuinely new orders
+      if (!notifiedOrderIdsRef.current.has(latestOrder.id)) {
+        notifiedOrderIdsRef.current.add(latestOrder.id);
+        api.playNotificationSound();
+      }
+
+      api.showBellWindow({
+        id: latestOrder.id,
+        customer_name: latestOrder.customer_name,
+        items_summary: latestOrder.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
+        total_amount: latestOrder.total_amount,
+      });
+      api.updateTrayBadge(activePendingOrders.length);
+    } else {
+      api.hideBellWindow();
+      api.updateTrayBadge(0);
+    }
+  }, [confirmedOrders, dismissedOrderIds]);
+
+  // Listen for dismiss events from bell popup window
+  useEffect(() => {
+    if (!getIsElectron()) return;
+    const api = getElectronAPI();
+    if (api && api.onDismissOrderFromBell) {
+      const unsubscribe = api.onDismissOrderFromBell((orderData: { id: string }) => {
+        if (orderData && orderData.id) {
+          setDismissedOrderIds(prev => new Set(prev).add(orderData.id));
+        }
+      });
+      return unsubscribe;
+    }
+  }, []);
+
+  // Listen for Electron accept events from the bell popup window
+  useEffect(() => {
+    if (getIsElectron()) {
+      const api = getElectronAPI();
+      if (api && api.onAcceptOrderFromBell) {
+        const unsubscribe = api.onAcceptOrderFromBell(async (orderData: { id: string }) => {
+          if (orderData && orderData.id) {
+            const { acceptOrder } = await import('@/app/actions/ownerActions');
+            const result = await acceptOrder(orderData.id);
+            if (result.success) {
+              setConfirmedOrders(prev => prev.filter(o => o.id !== orderData.id));
+              notifiedOrderIdsRef.current.delete(orderData.id);
+            } else {
+              alert('Failed to accept: ' + result.error);
+            }
+          }
+        });
+        return unsubscribe;
+      }
+    }
+  }, []);
+
+  const handleAcceptFromBell = async (orderId: string) => {
+    const { acceptOrder } = await import('@/app/actions/ownerActions');
+    const result = await acceptOrder(orderId);
+    if (result.success) {
+      setConfirmedOrders(prev => prev.filter(o => o.id !== orderId));
+      notifiedOrderIdsRef.current.delete(orderId);
+    } else {
+      alert('Failed to accept: ' + result.error);
+    }
+  };
 
   const isLoginPage = pathname === '/admin/login';
   if (isLoginPage) return <>{children}</>;
@@ -447,6 +610,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </AnimatePresence>
         </section>
       </main>
+      <BellNotification orders={confirmedOrders} onAccept={handleAcceptFromBell} />
     </div>
   );
 }

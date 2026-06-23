@@ -45,7 +45,8 @@ const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('Backg
 export function useBackgroundLocation(
   riderId: string,
   isOnline: boolean,
-  onLocationError?: (message: string) => void
+  onLocationError?: (message: string) => void,
+  sessionToken?: string
 ) {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [lastLat, setLastLat] = useState<number | null>(null);
@@ -127,7 +128,7 @@ export function useBackgroundLocation(
                 consecutiveErrorsRef.current = 0;
 
                 // Fire server action to update DB
-                updateLocation(riderId, latitude, longitude);
+                updateLocation(sessionToken || '', riderId, latitude, longitude);
               }
             }
           );
@@ -171,7 +172,7 @@ export function useBackgroundLocation(
             consecutiveErrorsRef.current = 0;
 
             // Fire server action to update DB
-            updateLocation(riderId, latitude, longitude);
+            updateLocation(sessionToken || '', riderId, latitude, longitude);
           },
           (err) => {
             if (!isSubscribed) return;
@@ -205,7 +206,7 @@ export function useBackgroundLocation(
         navigator.geolocation.clearWatch(webWatcherId);
       }
     };
-  }, [isOnline, riderId, onLocationError]);
+  }, [isOnline, riderId, onLocationError, sessionToken]);
 
   return {
     geoError,

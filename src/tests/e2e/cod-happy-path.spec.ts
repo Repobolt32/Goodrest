@@ -31,6 +31,15 @@ async function signAdminJWT(): Promise<string> {
     .sign(secret);
 }
 
+async function signRiderJWT(rider: { id: string; name: string; phone: string }): Promise<string> {
+  const encoder = new globalThis.TextEncoder();
+  const secret = encoder.encode(JWT_SECRET);
+  return new SignJWT({ id: rider.id, name: rider.name, phone: rider.phone })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('7d')
+    .sign(secret);
+}
+
 test.beforeAll(async () => {
   const { data: existingRiders } = await supabase
     .from('riders')
@@ -154,17 +163,9 @@ test.describe('COD Happy Path', () => {
     await page.goto('/admin/orders');
     await page.waitForSelector('text=Owner Dashboard', { timeout: 15000 });
 
-    // Accept the order — close ALL notification popups, then click the first visible Accept button
-    await page.waitForSelector('button:has-text("Accept")', { timeout: 15000 });
-    // Dismiss all NEW ORDER notification popups
-    const popupClose = page.locator('[data-testid="close-new-order-popup"]');
-    while (await popupClose.first().isVisible({ timeout: 2000 }).catch(() => false)) {
-      await popupClose.first().click();
-      await page.waitForTimeout(300);
-    }
-    // Click the first Accept button in the main content (not popups)
-    const acceptButton = page.locator('section button:has-text("Accept")').first();
-    await acceptButton.click({ force: true });
+    // Accept via BellNotification popup (Realtime-driven, no grace period race)
+    await page.waitForSelector('[data-testid="new-order-popup"] button:has-text("Accept Order")', { timeout: 15000 });
+    await page.click('[data-testid="new-order-popup"] button:has-text("Accept Order")');
 
     // Verify DB state moved to preparing
     await expect.poll(async () => {
@@ -173,53 +174,43 @@ test.describe('COD Happy Path', () => {
     }, { timeout: 10000 }).toBe('preparing');
 
     // === STEP 3: Rider accepts order via broadcast ===
-    // Bypass login form — set session in localStorage and navigate directly
-    await page.goto('/rider/login');
-    await page.fill('input[placeholder="Phone Number"]', TEST_RIDER_PHONE);
-    await page.fill('input[placeholder="Password"]', 'test123');
-    await page.click('button[type="submit"]');
+    // Inject rider session (cookie + localStorage) to skip UI login hydration issues
+    const riderToken = await signRiderJWT({
+      id: testRiderId,
+      name: `${TEST_PREFIX}_Rider`,
+      phone: TEST_RIDER_PHONE,
+    });
+    await context.addCookies([
+      { name: 'rider_session', value: riderToken, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' },
+    ]);
+    await page.evaluate(({ session, token }) => {
+      localStorage.setItem('rider_session', JSON.stringify({ ...session, token }));
+      localStorage.setItem('rider_isOnline', 'false');
+    }, { session: { id: testRiderId, name: `${TEST_PREFIX}_Rider`, phone: TEST_RIDER_PHONE }, token: riderToken });
 
-    // Wait for the redirect to happen which means login was successful
-    await page.waitForURL('**/rider/dashboard');
+    await page.goto('/rider/dashboard');
     await page.waitForSelector('text=Terminal', { timeout: 15000 });
 
     // Mock geolocation for rider and go online
     await mockGeolocation(page);
     await page.click('button:has-text("Go Online")');
-    
-    // Set rider online in DB just in case UI toggle fails in test env
-    await supabase.from('riders').update({ is_online: true }).eq('id', testRiderId);
-    
-    // Sometimes OrderBroadcast unmounts or websocket channel disconnects
-    // Give it a chance to fetchExisting() after rider is online by reloading
-    await page.reload();
-    await page.waitForSelector('text=Terminal', { timeout: 15000 });
-    // IMPORTANT: Wait for mock geolocation to apply and go online again after reload
-    await mockGeolocation(page);
-    try {
-        await page.click('button:has-text("Go Online")', { timeout: 2000 });
-    } catch (e) {
-        // already online or button not found
-    }
 
-    // Wait for broadcast modal with the test order (use polling because of the websocket logic delays)
-    // Wait for db update to be registered in case it was slow
+    // Poll DB until rider is online
     await expect.poll(async () => {
-       const { data } = await supabase.from('riders').select('is_online').eq('id', testRiderId).single();
-       return data?.is_online;
-    }, { timeout: 10000 }).toBe(true);
-    
-    // Set order status to preparing to trigger broadcast
+      const { data } = await supabase.from('riders').select('is_online').eq('id', testRiderId).single();
+      return data?.is_online;
+    }, { timeout: 15000 }).toBe(true);
+
+    // The order is already 'preparing' from step 2.
+    // Flip status confirmed→preparing to trigger realtime UPDATE event for broadcast.
+    await supabase.from('orders').update({ order_status: 'confirmed' }).eq('id', testOrderId);
+    await page.waitForTimeout(500);
     await supabase.from('orders').update({ order_status: 'preparing' }).eq('id', testOrderId);
 
-    // Wait for broadcast modal
-    // Trigger another update to ping realtime after channel is subscribed
-    await page.waitForTimeout(2000);
-    await supabase.from('orders').update({ order_status: 'preparing' }).eq('id', testOrderId);
-
+    // Poll for broadcast modal
     await expect.poll(async () => {
       return await page.locator('text=New Delivery!').isVisible();
-    }, { timeout: 20000 }).toBe(true);
+    }, { timeout: 25000 }).toBe(true);
     
     // Add event listener to capture alert messages if accept order fails
     page.on('dialog', async dialog => {

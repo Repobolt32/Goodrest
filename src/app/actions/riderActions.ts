@@ -5,8 +5,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { rateLimit } from '@/lib/rateLimit';
 import { getGoogleMapsRouteData } from './distanceActions';
 import { revalidatePath } from 'next/cache';
-import { verifyRiderSession, signRiderSession } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { verifyRiderToken, signRiderSession } from '@/lib/auth';
 
 import { calculateRiderEarning, calculateNightlyBonus, calculateEarningBreakdown, calculateBonusProgress } from '@/lib/pricing';
 import { randomUUID } from 'crypto';
@@ -27,8 +26,8 @@ async function verifyRiderExists(riderId: string): Promise<{ success: boolean; e
   return { success: true };
 }
 
-export async function getRiderByPhone(phone: string) {
-  const session = await verifyRiderSession();
+export async function getRiderByPhone(sessionToken: string, phone: string) {
+  const session = await verifyRiderToken(sessionToken);
   if (!session.success || !session.session || session.session.phone !== phone) {
     return null;
   }
@@ -69,22 +68,13 @@ export async function loginRider(phone: string, password: string) {
       return { success: false, error: 'Invalid phone or password' };
     }
 
-    const sessionToken = await signRiderSession({
+    const token = await signRiderSession({
       id: rider.id,
       name: rider.name || '',
       phone: rider.phone || '',
     });
 
-    const cookieStore = await cookies();
-    cookieStore.set('rider_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    return { success: true, rider };
+    return { success: true, rider, token };
   } catch (err) {
     logger.error('Error logging in rider:', err);
     return { success: false, error: 'Invalid phone or password' };
@@ -92,23 +82,18 @@ export async function loginRider(phone: string, password: string) {
 }
 
 export async function logoutRider() {
-  const cookieStore = await cookies();
-  cookieStore.delete('rider_session');
   return { success: true };
 }
 
-export async function acceptOrder(orderId: string, riderId: string) {
+export async function acceptOrder(sessionToken: string, orderId: string, riderId: string) {
   if (!isValidUUID(orderId) || !isValidUUID(riderId)) {
     return { success: false, error: 'Invalid order or rider ID' };
   }
 
-  const session = await verifyRiderSession();
+  const session = await verifyRiderToken(sessionToken);
   if (!session.success) return { success: false, error: session.error };
   if (!session.session || session.session.id !== riderId) {
-     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
-     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
-       return { success: false, error: 'Unauthorized: rider session does not match' };
-     }
+    return { success: false, error: 'Unauthorized: rider session does not match' };
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -224,18 +209,15 @@ export async function acceptOrder(orderId: string, riderId: string) {
   return { success: true, distanceKm, durationSeconds, earning, error: undefined };
 }
 
-export async function startRiding(orderId: string, riderId: string, latitude?: number, longitude?: number) {
+export async function startRiding(sessionToken: string, orderId: string, riderId: string, latitude?: number, longitude?: number) {
   if (!isValidUUID(orderId) || !isValidUUID(riderId)) {
     return { success: false, error: 'Invalid order or rider ID' };
   }
 
-  const session = await verifyRiderSession();
+  const session = await verifyRiderToken(sessionToken);
   if (!session.success) return { success: false, error: session.error };
   if (!session.session || session.session.id !== riderId) {
-     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
-     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
-       return { success: false, error: 'Unauthorized: rider session does not match' };
-     }
+    return { success: false, error: 'Unauthorized: rider session does not match' };
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -289,19 +271,15 @@ export async function startRiding(orderId: string, riderId: string, latitude?: n
   return { success: true };
 }
 
-export async function markOrderAsDeliveredRider(orderId: string, riderId: string) {
+export async function markOrderAsDeliveredRider(sessionToken: string, orderId: string, riderId: string) {
   if (!isValidUUID(orderId) || !isValidUUID(riderId)) {
     return { success: false, error: 'Invalid order or rider ID' };
   }
 
-  const session = await verifyRiderSession();
+  const session = await verifyRiderToken(sessionToken);
   if (!session.success) return { success: false, error: session.error };
-  // Check if session phone matches rider DB phone, since token might hold phone vs id depending on auth flow
   if (!session.session || session.session.id !== riderId) {
-     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
-     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
-       return { success: false, error: 'Unauthorized: rider session does not match' };
-     }
+    return { success: false, error: 'Unauthorized: rider session does not match' };
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -334,18 +312,15 @@ export async function markOrderAsDeliveredRider(orderId: string, riderId: string
   return { success: true };
 }
 
-export async function updateLocation(riderId: string, lat: number, lng: number) {
+export async function updateLocation(sessionToken: string, riderId: string, lat: number, lng: number) {
   if (!isValidUUID(riderId)) {
     return { success: false, error: 'Invalid rider ID' };
   }
 
-  const session = await verifyRiderSession();
+  const session = await verifyRiderToken(sessionToken);
   if (!session.success) return { success: false, error: session.error };
   if (!session.session || session.session.id !== riderId) {
-     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
-     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
-       return { success: false, error: 'Unauthorized: rider session does not match' };
-     }
+    return { success: false, error: 'Unauthorized: rider session does not match' };
   }
 
   const limitResult = rateLimit(`rider_location_${riderId}`, 12);
@@ -372,18 +347,15 @@ export async function updateLocation(riderId: string, lat: number, lng: number) 
   return { success: true };
 }
 
-export async function setRiderOnline(riderId: string, isOnline: boolean) {
+export async function setRiderOnline(sessionToken: string, riderId: string, isOnline: boolean) {
   if (!isValidUUID(riderId)) {
     return { success: false, error: 'Invalid rider ID' };
   }
 
-  const session = await verifyRiderSession();
+  const session = await verifyRiderToken(sessionToken);
   if (!session.success) return { success: false, error: session.error };
   if (!session.session || session.session.id !== riderId) {
-     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
-     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
-       return { success: false, error: 'Unauthorized: rider session does not match' };
-     }
+    return { success: false, error: 'Unauthorized: rider session does not match' };
   }
 
   const riderCheck = await verifyRiderExists(riderId);
@@ -503,8 +475,8 @@ export async function getRiderActiveOrder(riderId: string) {
   return data && data.length > 0 ? data[0] : null;
 }
 
-export async function getUnassignedOrders() {
-  const session = await verifyRiderSession();
+export async function getUnassignedOrders(sessionToken: string) {
+  const session = await verifyRiderToken(sessionToken);
   if (!session.success) return [];
 
   const { data, error } = await supabaseAdmin
@@ -611,18 +583,15 @@ export async function getRiderEarningHistory(riderId: string) {
   };
 }
 
-export async function getRider24HHistory(riderId: string) {
+export async function getRider24HHistory(sessionToken: string, riderId: string) {
   if (!isValidUUID(riderId)) {
     return { success: false, error: 'Invalid rider ID', data: [] };
   }
 
-  const session = await verifyRiderSession();
+  const session = await verifyRiderToken(sessionToken);
   if (!session.success) return { success: false, error: session.error, data: [] };
   if (!session.session || session.session.id !== riderId) {
-     const riderData = await supabaseAdmin.from('riders').select('phone').eq('id', riderId).single();
-     if (!riderData.data || session.session?.phone !== riderData.data.phone) {
-       return { success: false, error: 'Unauthorized: rider session does not match', data: [] };
-     }
+    return { success: false, error: 'Unauthorized: rider session does not match', data: [] };
   }
 
   const riderCheck = await verifyRiderExists(riderId);

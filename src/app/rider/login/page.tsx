@@ -22,8 +22,7 @@ export default function RiderLoginPage() {
     const result = await loginRider(phone, password);
     
     if (result.success) {
-      // In a real app, the server action would set the cookie
-      localStorage.setItem('rider_session', JSON.stringify(result.rider));
+      localStorage.setItem('rider_session', JSON.stringify({ ...result.rider, token: result.token }));
       router.push('/rider/dashboard');
     } else {
       setError(result.error || 'Login failed');

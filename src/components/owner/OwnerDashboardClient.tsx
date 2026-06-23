@@ -8,15 +8,9 @@ import { AnimatePresence } from 'framer-motion';
 import type { OrderRecord, OrderRow } from '@/types/orders';
 import { toOrderRecord } from '@/types/orders';
 import { ChefHat, Truck, Bell } from 'lucide-react';
-import BellNotification from './BellNotification';
 import OrderCard from './OrderCard';
 import OnlineToggle from './OnlineToggle';
 import RiderPayoutsPanel from './RiderPayoutsPanel';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getIsElectron = () => typeof window !== 'undefined' && !!(window as any).electronAPI;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getElectronAPI = () => (window as any).electronAPI;
 
 export default function OwnerDashboardClient({
   initialOrders,
@@ -29,8 +23,6 @@ export default function OwnerDashboardClient({
   const [updating, setUpdating] = useState<string | null>(null);
   const [online, setOnline] = useState(initialOnlineStatus);
   const [toggleLoading, setToggleLoading] = useState(false);
-  const [dismissedOrderIds, setDismissedOrderIds] = useState<Set<string>>(new Set());
-  const notifiedOrderIdsRef = useRef<Set<string>>(new Set());
   const pendingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
@@ -170,68 +162,8 @@ export default function OwnerDashboardClient({
     };
   }, []);
 
-  // Centralized bell state management — single source of truth for Electron bell
-  const hasInitializedRef = useRef(false);
-  useEffect(() => {
-    if (!getIsElectron()) return;
-    const api = getElectronAPI();
-
-    const activePendingOrders = orders.filter(
-      o => o.order_status === 'confirmed' && !dismissedOrderIds.has(o.id)
-    );
-
-    // Skip the very first render — bell starts hidden
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-      if (activePendingOrders.length > 0) {
-        const latestOrder = activePendingOrders[0];
-        notifiedOrderIdsRef.current.add(latestOrder.id);
-        api.showBellWindow({
-          id: latestOrder.id,
-          customer_name: latestOrder.customer_name,
-          items_summary: latestOrder.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
-          total_amount: latestOrder.total_amount,
-        });
-        api.updateTrayBadge(activePendingOrders.length);
-      }
-      return;
-    }
-
-    if (activePendingOrders.length > 0) {
-      const latestOrder = activePendingOrders[0];
-
-      // Only trigger OS notification for genuinely new orders
-      if (!notifiedOrderIdsRef.current.has(latestOrder.id)) {
-        notifiedOrderIdsRef.current.add(latestOrder.id);
-        api.playNotificationSound();
-      }
-
-      api.showBellWindow({
-        id: latestOrder.id,
-        customer_name: latestOrder.customer_name,
-        items_summary: latestOrder.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
-        total_amount: latestOrder.total_amount,
-      });
-      api.updateTrayBadge(activePendingOrders.length);
-    } else {
-      api.hideBellWindow();
-      api.updateTrayBadge(0);
-    }
-  }, [orders, dismissedOrderIds]);
-
   // Listen for dismiss events from bell popup window
-  useEffect(() => {
-    if (!getIsElectron()) return;
-    const api = getElectronAPI();
-    if (api && api.onDismissOrderFromBell) {
-      const unsubscribe = api.onDismissOrderFromBell((orderData: { id: string }) => {
-        if (orderData && orderData.id) {
-          setDismissedOrderIds(prev => new Set(prev).add(orderData.id));
-        }
-      });
-      return unsubscribe;
-    }
-  }, []);
+  // Accepted order from bell is handled by AdminLayout now.
 
   const handleAccept = async (orderId: string) => {
     setUpdating(orderId);
@@ -239,28 +171,11 @@ export default function OwnerDashboardClient({
     if (result.success) {
       // Optimistically remove accepted order from state
       setOrders(prev => prev.filter(o => o.id !== orderId));
-      // Clean up notification tracking
-      notifiedOrderIdsRef.current.delete(orderId);
     } else {
       alert('Failed to accept: ' + result.error);
     }
     setUpdating(null);
   };
-
-  // Listen for Electron accept events from the bell popup window
-  useEffect(() => {
-    if (getIsElectron()) {
-      const api = getElectronAPI();
-      if (api && api.onAcceptOrderFromBell) {
-        const unsubscribe = api.onAcceptOrderFromBell((orderData: { id: string }) => {
-          if (orderData && orderData.id) {
-            handleAccept(orderData.id);
-          }
-        });
-        return unsubscribe;
-      }
-    }
-  }, []);
 
   const handleFoodReady = async (orderId: string) => {
     setUpdating(orderId);
@@ -293,9 +208,6 @@ export default function OwnerDashboardClient({
 
   return (
     <div className="space-y-8 pb-32 relative">
-      {/* Bell Notification Overlay */}
-      <BellNotification orders={orders} onAccept={handleAccept} />
-
       {/* Online Toggle */}
       <div className="flex items-center justify-between">
         <div>

@@ -5,21 +5,10 @@ const mocks = vi.hoisted(() => ({
   mockSingle: vi.fn(),
   mockEq: vi.fn(),
   mockFrom: vi.fn(),
-  mockCookies: vi.fn(),
 }));
 
 vi.mock('@/lib/supabaseAdmin', () => ({
   supabaseAdmin: { from: mocks.mockFrom },
-}));
-
-const cookieStoreMock = {
-  set: vi.fn(),
-  get: vi.fn(),
-  delete: vi.fn(),
-};
-
-vi.mock('next/headers', () => ({
-  cookies: vi.fn().mockImplementation(() => Promise.resolve(cookieStoreMock)),
 }));
 
 vi.mock('@/lib/validation', () => ({
@@ -41,11 +30,11 @@ vi.mock('bcryptjs', () => ({
 
 const authMocks = vi.hoisted(() => ({
   signRiderSession: vi.fn().mockResolvedValue('signed_token_123'),
-  verifyRiderSession: vi.fn(),
+  verifyRiderToken: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({
-  verifyRiderSession: authMocks.verifyRiderSession,
+  verifyRiderToken: authMocks.verifyRiderToken,
   signRiderSession: authMocks.signRiderSession,
 }));
 
@@ -53,17 +42,15 @@ vi.mock('@/lib/auth', () => ({
 import { loginRider, acceptOrder } from '@/app/actions/riderActions';
 import bcrypt from 'bcryptjs';
 
-describe('BUG #2 VERIFICATION: Rider session cookie is set and verified', () => {
+describe('BUG #2 VERIFICATION: Rider session token is returned and verified', () => {
   const VALID_RIDER_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
   const VALID_ORDER_ID = '11111111-2222-3333-4444-555555555555';
 
   beforeEach(() => {
     vi.clearAllMocks();
-    cookieStoreMock.set.mockReset();
-    cookieStoreMock.get.mockReset();
     authMocks.signRiderSession.mockReset();
     authMocks.signRiderSession.mockResolvedValue('signed_token_123');
-    authMocks.verifyRiderSession.mockReset();
+    authMocks.verifyRiderToken.mockReset();
     
     vi.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
 
@@ -78,7 +65,7 @@ describe('BUG #2 VERIFICATION: Rider session cookie is set and verified', () => 
     mocks.mockEq.mockReturnValue(chain);
   });
 
-  it('loginRider signs the session and sets the rider_session cookie', async () => {
+  it('loginRider signs the session and returns the token directly', async () => {
     const chain = {
       select: mocks.mockSelect,
       eq: mocks.mockEq,
@@ -98,29 +85,16 @@ describe('BUG #2 VERIFICATION: Rider session cookie is set and verified', () => 
       name: 'Test Rider',
       phone: '9999999999',
     });
-    expect(cookieStoreMock.set).toHaveBeenCalledWith(
-      'rider_session',
-      'signed_token_123',
-      expect.objectContaining({ httpOnly: true, path: '/' })
-    );
+    expect(result.token).toBe('signed_token_123');
   });
 
-  it('verifyRiderSession is verified and fails when no rider_session cookie exists', async () => {
-    // mock verifyRiderSession to simulate the real behavior: checking cookie
-    authMocks.verifyRiderSession.mockImplementationOnce(async () => {
-      const session = cookieStoreMock.get('rider_session')?.value;
-      if (!session) {
-        return { success: false, error: 'Unauthorized' };
-      }
-      return { success: true, session: { id: VALID_RIDER_ID, name: 'Test Rider', phone: '9999999999' } };
-    });
+  it('verifyRiderToken is verified and fails when verifyRiderToken returns success: false', async () => {
+    authMocks.verifyRiderToken.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
 
-    cookieStoreMock.get.mockReturnValueOnce(undefined);
-
-    const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+    const result = await acceptOrder('invalid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
     expect(result.success).toBe(false);
     expect(result.error).toBe('Unauthorized');
-    expect(cookieStoreMock.get).toHaveBeenCalledWith('rider_session');
+    expect(authMocks.verifyRiderToken).toHaveBeenCalledWith('invalid_token');
   });
 });

@@ -21,10 +21,12 @@ interface BroadcastOrder {
 
 export default function OrderBroadcast({
   riderId,
+  sessionToken,
   hasActiveOrder,
   onAccept,
 }: {
   riderId?: string;
+  sessionToken?: string;
   hasActiveOrder: boolean;
   onAccept?: () => void;
 }) {
@@ -48,7 +50,7 @@ export default function OrderBroadcast({
         const { data: riderData } = await supabase.from('riders').select('is_online').eq('id', riderId).single();
         if (!riderData?.is_online) return;
 
-        const orders = await getUnassignedOrders();
+        const orders = await getUnassignedOrders(sessionToken || '');
         if (cancelled || !orders || orders.length === 0 || broadcastOrderRef.current) return;
 
         const first = orders[0] as BroadcastOrder;
@@ -158,8 +160,8 @@ export default function OrderBroadcast({
   if (!broadcastOrder) return null;
 
   const handleAccept = async () => {
-    if (!broadcastOrder || !riderId) return;
-    const result = await acceptOrder(broadcastOrder.id, riderId);
+    if (!broadcastOrder || !riderId || !sessionToken) return;
+    const result = await acceptOrder(sessionToken, broadcastOrder.id, riderId);
     if (result.success) {
       setBroadcastOrder(null);
       audioRef.current?.pause();

@@ -43,6 +43,7 @@ interface ActiveOrder {
 
 interface TerminalViewProps {
   riderId: string;
+  sessionToken: string;
   isOnline: boolean;
   geoError: string | null;
   stats: RiderStats | null;
@@ -55,7 +56,7 @@ interface TerminalViewProps {
 }
 
 export default function TerminalView({
-  riderId, isOnline, geoError, stats, activeOrder, actionLoading,
+  riderId, sessionToken, isOnline, geoError, stats, activeOrder, actionLoading,
   onToggleOnline, onStartRiding, onDelivered, onAcceptBroadcast,
 }: TerminalViewProps) {
   const [isConfirming, setIsConfirming] = useState(false);
@@ -236,6 +237,7 @@ export default function TerminalView({
       {/* Order Broadcast */}
       <OrderBroadcast
         riderId={riderId}
+        sessionToken={sessionToken}
         hasActiveOrder={!!activeOrder}
         onAccept={onAcceptBroadcast}
       />

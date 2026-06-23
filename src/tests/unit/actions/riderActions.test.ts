@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
   mockVerifyAdminSession: vi.fn(),
-  mockVerifyRiderSession: vi.fn(),
+  mockVerifyRiderToken: vi.fn(),
 }));
 
 const distanceMocks = vi.hoisted(() => ({
@@ -49,7 +49,7 @@ const authMocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth', () => ({
   verifyAdminSession: mocks.mockVerifyAdminSession,
-  verifyRiderSession: mocks.mockVerifyRiderSession,
+  verifyRiderToken: mocks.mockVerifyRiderToken,
   signRiderSession: authMocks.signRiderSession,
 }));
 
@@ -124,7 +124,7 @@ describe('riderActions', () => {
     mocks.mockFrom.mockReset();
     mocks.mockRpc.mockReset();
     mocks.mockVerifyAdminSession.mockReset();
-    mocks.mockVerifyRiderSession.mockReset();
+    mocks.mockVerifyRiderToken.mockReset();
     distanceMocks.getGoogleMapsRouteData.mockReset();
     revalidateMocks.revalidatePath.mockReset();
     cookiesMocks.set.mockReset();
@@ -135,8 +135,8 @@ describe('riderActions', () => {
     // Default: admin session valid
     mocks.mockVerifyAdminSession.mockResolvedValue({ success: true, session: { role: 'admin' } });
 
-    // Default: rider session valid
-    mocks.mockVerifyRiderSession.mockResolvedValue({
+    // Default: rider token valid
+    mocks.mockVerifyRiderToken.mockResolvedValue({
       success: true,
       session: { id: VALID_RIDER_ID, name: 'Test Rider', phone: '9999999999' },
     });
@@ -205,16 +205,13 @@ describe('riderActions', () => {
       
       expect(result.success).toBe(true);
       expect(result.rider).toEqual(mockRider);
+      expect(result.token).toBe('signed_token_123');
       expect(mocks.mockFrom).toHaveBeenCalledWith('riders');
       expect(authMocks.signRiderSession).toHaveBeenCalledWith({
         id: VALID_RIDER_ID,
         name: 'Test Rider',
         phone: '9999999999',
       });
-      expect(cookiesMocks.set).toHaveBeenCalledWith('rider_session', 'signed_token_123', expect.objectContaining({
-        httpOnly: true,
-        path: '/',
-      }));
     });
 
     it('should return error on invalid credentials', async () => {
@@ -281,51 +278,43 @@ describe('riderActions', () => {
   // ─── acceptOrder ──────────────────────────────────────────────────
   describe('acceptOrder', () => {
     it('should reject when rider session is invalid', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
     });
 
-    it('should reject when the rider_session cookie is missing', async () => {
-      mocks.mockVerifyRiderSession.mockImplementationOnce(async () => {
-        const val = cookiesMocks.get('rider_session')?.value;
-        if (!val) {
-          return { success: false, error: 'Unauthorized' };
-        }
-        return { success: true, session: { id: VALID_RIDER_ID, name: 'Test Rider', phone: '9999999999' } };
-      });
-      cookiesMocks.get.mockReturnValueOnce(undefined);
+    it('should reject when the session token is empty', async () => {
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
-      expect(cookiesMocks.get).toHaveBeenCalledWith('rider_session');
     });
 
     it('should reject when rider session ID does not match riderId param', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({
         success: true,
         session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
       });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized: rider session does not match');
     });
 
     it('should reject invalid UUID for orderId', async () => {
-      const result = await acceptOrder('not-a-uuid', VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', 'not-a-uuid', VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid order or rider ID');
     });
 
     it('should reject invalid UUID for riderId', async () => {
-      const result = await acceptOrder(VALID_ORDER_ID, 'bad-id');
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, 'bad-id');
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid order or rider ID');
     });
@@ -353,7 +342,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(true);
       expect((result as unknown as AcceptOrderSuccess).distanceKm).toBe(5.2);
@@ -385,7 +374,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(true);
       expect(distanceMocks.getGoogleMapsRouteData).toHaveBeenCalled();
@@ -416,7 +405,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Order already taken or no longer available');
@@ -427,7 +416,7 @@ describe('riderActions', () => {
         .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: 'some-other-rider' }, error: null }) }) }) }); // early rider_id check shows taken
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Order already taken or no longer available');
@@ -455,7 +444,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('DB failure');
@@ -484,7 +473,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(true);
       expect((result as unknown as AcceptOrderSuccess).earning).toBe(41); // default fallback earning
@@ -512,7 +501,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await acceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await acceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Order already taken or no longer available');
@@ -522,28 +511,28 @@ describe('riderActions', () => {
   // ─── startRiding ──────────────────────────────────────────────────
   describe('startRiding', () => {
     it('should reject when rider session is invalid', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
     });
 
     it('should reject when rider session ID does not match riderId param', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({
         success: true,
         session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
       });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized: rider session does not match');
     });
 
     it('should reject invalid UUID', async () => {
-      const result = await startRiding('bad-id', VALID_RIDER_ID);
+      const result = await startRiding('valid_token', 'bad-id', VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid order or rider ID');
     });
@@ -561,7 +550,7 @@ describe('riderActions', () => {
         }),
       });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Not your order');
@@ -580,7 +569,7 @@ describe('riderActions', () => {
         }),
       });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(true);
     });
@@ -612,7 +601,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(true);
       expect(revalidateMocks.revalidatePath).toHaveBeenCalledWith('/admin/orders');
@@ -651,7 +640,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID, 28.6139, 77.209);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID, 28.6139, 77.209);
 
       expect(result.success).toBe(true);
       // Verify the 4th mock call was for updating the rider's location (1st is verifyRiderExists)
@@ -683,7 +672,7 @@ describe('riderActions', () => {
           }),
         });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Update failed');
@@ -693,35 +682,28 @@ describe('riderActions', () => {
   // ─── markOrderAsDeliveredRider ─────────────────────────────────────
   describe('markOrderAsDeliveredRider', () => {
     it('should reject when rider session is invalid', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
     });
 
-    it('should reject when rider session ID does not match riderId param and phone check fails', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+    it('should reject when rider session ID does not match riderId param', async () => {
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({
         success: true,
         session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
       });
 
-      // Rider DB query for phone check
-      mocks.mockSelect.mockReturnValueOnce({
-        eq: vi.fn().mockReturnValueOnce({
-          single: vi.fn().mockResolvedValueOnce({ data: { phone: '8888888888' }, error: null }),
-        }),
-      });
-
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized: rider session does not match');
     });
 
     it('should reject invalid UUID', async () => {
-      const result = await markOrderAsDeliveredRider('bad-id', VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', 'bad-id', VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid order or rider ID');
     });
@@ -739,7 +721,7 @@ describe('riderActions', () => {
         }),
       });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Not your order');
@@ -758,7 +740,7 @@ describe('riderActions', () => {
         }),
       });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Order must be out for delivery');
@@ -779,7 +761,7 @@ describe('riderActions', () => {
 
       mocks.mockRpc.mockResolvedValueOnce({ error: null });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(true);
       expect(mocks.mockRpc).toHaveBeenCalledWith('deliver_order', {
@@ -804,7 +786,7 @@ describe('riderActions', () => {
 
       mocks.mockRpc.mockResolvedValueOnce({ error: null });
 
-      await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(mocks.mockRpc).toHaveBeenCalledWith('deliver_order', {
         p_order_id: VALID_ORDER_ID,
@@ -828,7 +810,7 @@ describe('riderActions', () => {
 
       mocks.mockRpc.mockResolvedValueOnce({ error: { message: 'RPC failed' } });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('RPC failed');
@@ -838,27 +820,27 @@ describe('riderActions', () => {
   // ─── updateLocation ──────────────────────────────────────────────
   describe('updateLocation', () => {
     it('should reject invalid UUID', async () => {
-      const result = await updateLocation('bad-id', 28.61, 77.20);
+      const result = await updateLocation('valid_token', 'bad-id', 28.61, 77.20);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid rider ID');
     });
 
     it('should reject when rider session is invalid', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
 
-      const result = await updateLocation(VALID_RIDER_ID, 28.61, 77.20);
+      const result = await updateLocation('valid_token', VALID_RIDER_ID, 28.61, 77.20);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
     });
 
     it('should reject when rider session ID does not match riderId', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({
         success: true,
         session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
       });
 
-      const result = await updateLocation(VALID_RIDER_ID, 28.61, 77.20);
+      const result = await updateLocation('valid_token', VALID_RIDER_ID, 28.61, 77.20);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized: rider session does not match');
@@ -871,7 +853,7 @@ describe('riderActions', () => {
       });
       mocks.mockInsert.mockReturnValueOnce(Promise.resolve({ error: null }));
 
-      const result = await updateLocation(VALID_RIDER_ID, 28.6139, 77.209);
+      const result = await updateLocation('valid_token', VALID_RIDER_ID, 28.6139, 77.209);
 
       expect(result.success).toBe(true);
     });
@@ -880,27 +862,27 @@ describe('riderActions', () => {
   // ─── setRiderOnline ──────────────────────────────────────────────
   describe('setRiderOnline', () => {
     it('should reject invalid UUID', async () => {
-      const result = await setRiderOnline('bad-id', true);
+      const result = await setRiderOnline('valid_token', 'bad-id', true);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid rider ID');
     });
 
     it('should reject when rider session is invalid', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
 
-      const result = await setRiderOnline(VALID_RIDER_ID, true);
+      const result = await setRiderOnline('valid_token', VALID_RIDER_ID, true);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
     });
 
     it('should reject when rider session ID does not match riderId', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({
         success: true,
         session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
       });
 
-      const result = await setRiderOnline(VALID_RIDER_ID, true);
+      const result = await setRiderOnline('valid_token', VALID_RIDER_ID, true);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized: rider session does not match');
@@ -914,7 +896,7 @@ describe('riderActions', () => {
         }),
       });
 
-      const result = await setRiderOnline(VALID_RIDER_ID, true);
+      const result = await setRiderOnline('valid_token', VALID_RIDER_ID, true);
 
       expect(result.success).toBe(true);
       expect(mocks.mockFrom).toHaveBeenCalledWith('riders');
@@ -928,7 +910,7 @@ describe('riderActions', () => {
         }),
       });
 
-      const result = await setRiderOnline(VALID_RIDER_ID, false);
+      const result = await setRiderOnline('valid_token', VALID_RIDER_ID, false);
 
       expect(result.success).toBe(true);
     });
@@ -941,7 +923,7 @@ describe('riderActions', () => {
         }),
       });
 
-      const result = await setRiderOnline(VALID_RIDER_ID, true);
+      const result = await setRiderOnline('valid_token', VALID_RIDER_ID, true);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Update failed');
@@ -1076,7 +1058,7 @@ describe('riderActions', () => {
       ];
       mocks.mockOrder.mockResolvedValueOnce({ data: mockOrders, error: null });
 
-      const result = await getUnassignedOrders();
+      const result = await getUnassignedOrders('valid_token');
 
       expect(result).toEqual(mockOrders);
       expect(mocks.mockFrom).toHaveBeenCalledWith('orders');
@@ -1085,7 +1067,7 @@ describe('riderActions', () => {
     it('should return empty array when no unassigned orders', async () => {
       mocks.mockOrder.mockResolvedValueOnce({ data: null, error: null });
 
-      const result = await getUnassignedOrders();
+      const result = await getUnassignedOrders('valid_token');
 
       expect(result).toEqual([]);
     });
@@ -1094,28 +1076,28 @@ describe('riderActions', () => {
   // ─── getRider24HHistory ───────────────────────────────────────────
   describe('getRider24HHistory', () => {
     it('should reject when rider session is invalid', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({ success: false, error: 'Unauthorized' });
 
-      const result = await getRider24HHistory(VALID_RIDER_ID);
+      const result = await getRider24HHistory('valid_token', VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized');
     });
 
     it('should reject when rider session ID does not match riderId param', async () => {
-      mocks.mockVerifyRiderSession.mockResolvedValueOnce({
+      mocks.mockVerifyRiderToken.mockResolvedValueOnce({
         success: true,
         session: { id: 'different-rider-id', name: 'Other', phone: '1111111111' },
       });
 
-      const result = await getRider24HHistory(VALID_RIDER_ID);
+      const result = await getRider24HHistory('valid_token', VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Unauthorized: rider session does not match');
     });
 
     it('should reject invalid UUID', async () => {
-      const result = await getRider24HHistory('bad-id');
+      const result = await getRider24HHistory('valid_token', 'bad-id');
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid rider ID');
     });
@@ -1127,7 +1109,7 @@ describe('riderActions', () => {
       ];
       mocks.mockLimit.mockResolvedValueOnce({ data: mockOrders, error: null });
 
-      const result = await getRider24HHistory(VALID_RIDER_ID);
+      const result = await getRider24HHistory('valid_token', VALID_RIDER_ID);
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockOrders);
@@ -1137,7 +1119,7 @@ describe('riderActions', () => {
       mockRiderExists();
       mocks.mockLimit.mockResolvedValueOnce({ data: null, error: { message: 'Database error' } });
 
-      const result = await getRider24HHistory(VALID_RIDER_ID);
+      const result = await getRider24HHistory('valid_token', VALID_RIDER_ID);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Database error');

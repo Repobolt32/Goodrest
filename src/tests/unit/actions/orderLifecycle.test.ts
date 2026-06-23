@@ -31,7 +31,7 @@ const cacheMocks = vi.hoisted(() => ({
 vi.mock('@/lib/auth', () => ({
   verifyAdminSession: mocks.mockVerifyAdminSession,
   verifyCustomerSession: mocks.mockVerifyCustomerSession,
-  verifyRiderSession: mocks.mockVerifyRiderSession,
+  verifyRiderToken: mocks.mockVerifyRiderSession,
 }));
 
 vi.mock('@/lib/supabaseAdmin', () => ({
@@ -376,7 +376,7 @@ describe('Order Lifecycle State Machine Tests', () => {
           }),
         });
 
-      const result = await riderAcceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await riderAcceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(true);
       expect((result as { earning: number }).earning).toBe(34);
     });
@@ -386,7 +386,7 @@ describe('Order Lifecycle State Machine Tests', () => {
         .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: 'other-rider' }, error: null }) }) }) }); // early check: taken
 
-      const result = await riderAcceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await riderAcceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Order already taken or no longer available');
     });
@@ -395,7 +395,7 @@ describe('Order Lifecycle State Machine Tests', () => {
       mocks.mockFrom
         .mockReturnValueOnce(mockRiderNotFoundQuery); // verifyRiderExists fails
 
-      const result = await riderAcceptOrder(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await riderAcceptOrder('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Rider not found');
     });
@@ -419,7 +419,7 @@ describe('Order Lifecycle State Machine Tests', () => {
           }),
         });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(true);
     });
 
@@ -428,7 +428,7 @@ describe('Order Lifecycle State Machine Tests', () => {
         .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'ready', manual_dispatch: false }, error: null }) }) }) });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Waiting for restaurant handover');
     });
@@ -438,7 +438,7 @@ describe('Order Lifecycle State Machine Tests', () => {
         .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'placed' }, error: null }) }) }) });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toContain('Cannot start riding order with status');
     });
@@ -448,7 +448,7 @@ describe('Order Lifecycle State Machine Tests', () => {
         .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: 'other-rider', order_status: 'ready' }, error: null }) }) }) });
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Not your order');
     });
@@ -457,7 +457,7 @@ describe('Order Lifecycle State Machine Tests', () => {
       mocks.mockFrom
         .mockReturnValueOnce(mockRiderNotFoundQuery); // verifyRiderExists fails
 
-      const result = await startRiding(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await startRiding('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Rider not found');
     });
@@ -472,7 +472,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
       mocks.mockRpc.mockResolvedValueOnce({ error: null });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(true);
       expect(mocks.mockRpc).toHaveBeenCalledWith('deliver_order', {
         p_order_id: VALID_ORDER_ID,
@@ -486,7 +486,7 @@ describe('Order Lifecycle State Machine Tests', () => {
         .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: VALID_RIDER_ID, order_status: 'ready', rider_earning: 150 }, error: null }) }) }) });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Order must be out for delivery');
     });
@@ -496,7 +496,7 @@ describe('Order Lifecycle State Machine Tests', () => {
         .mockReturnValueOnce(mockRiderQuery) // verifyRiderExists
         .mockReturnValueOnce({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { rider_id: 'other-rider', order_status: 'out_for_delivery', rider_earning: 150 }, error: null }) }) }) });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Not your order');
     });
@@ -508,7 +508,7 @@ describe('Order Lifecycle State Machine Tests', () => {
 
       mocks.mockRpc.mockResolvedValueOnce({ error: null });
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(true);
       expect(mocks.mockRpc).toHaveBeenCalledWith('deliver_order', {
         p_order_id: VALID_ORDER_ID,
@@ -521,7 +521,7 @@ describe('Order Lifecycle State Machine Tests', () => {
       mocks.mockFrom
         .mockReturnValueOnce(mockRiderNotFoundQuery); // verifyRiderExists fails
 
-      const result = await markOrderAsDeliveredRider(VALID_ORDER_ID, VALID_RIDER_ID);
+      const result = await markOrderAsDeliveredRider('valid_token', VALID_ORDER_ID, VALID_RIDER_ID);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Rider not found');
     });
