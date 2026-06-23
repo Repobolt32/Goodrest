@@ -18,7 +18,7 @@
     "verify:cod": "npm run lint && npm run build && npm run test:cod:unit && npm run test:cod:integration && npm run test:cod:e2e",
     "electron:dev": "wait-on http-get://localhost:3000 && electron .",
     "electron:start": "electron .",
-    "electron:build": "next build && node scripts/copy-standalone.js && electron-builder --win",
+    "electron:build": "electron-builder --win",
     "electron:icons": "node scripts/generate-icons.js",
     "tunnel": "node scripts/start-tunnel.mjs"
   },

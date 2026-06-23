@@ -46,7 +46,7 @@ function createMainWindow() {
     icon: path.join(__dirname, 'assets', 'icon.png'),
   });
 
-  const serverUrl = process.env.ELECTRON_SERVER_URL || 'http://localhost:3000';
+  const serverUrl = process.env.ELECTRON_SERVER_URL || 'https://goodrest-claude.vercel.app';
   mainWindow.loadURL(`${serverUrl}/admin/orders`);
 
   if (isDev) {
@@ -108,23 +108,29 @@ function createTray() {
 
 function startServer() {
   return new Promise((resolve, reject) => {
+    const serverUrl = process.env.ELECTRON_SERVER_URL || 'https://goodrest-claude.vercel.app';
+
+    // When using a remote server (Vercel), skip spawning a local server
+    if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
+      const isRemote = !serverUrl.includes('localhost') && !serverUrl.includes('127.0.0.1');
+      if (isRemote) {
+        console.log(`Server URL set to ${serverUrl} — skipping local server start`);
+        waitForReady(serverUrl).then(resolve).catch(reject);
+        return;
+      }
+    }
+
     if (isDev) {
-      // Dev: assume next dev is running externally, just check readiness
-      waitForReady().then(resolve).catch(reject);
+      waitForReady("http://localhost:3000").then(resolve).catch(reject);
       return;
     }
 
-    // Prod: resolve paths based on packaged vs dev mode
-    const basePath = app.isPackaged
-      ? path.join(path.dirname(app.getAppPath()), 'app.asar.unpacked', 'electron')
-      : __dirname;
+    // Prod with local server: resolve paths based on packaged mode
+    const basePath = path.join(path.dirname(app.getAppPath()), 'app.asar.unpacked', 'electron');
     const standaloneDir = path.join(basePath, '.next', 'standalone');
     const serverScript = path.join(standaloneDir, 'server.js');
 
-    // Load .env — from extraResources in packaged mode, from project root in dev
-    const envFile = app.isPackaged
-      ? path.join(process.resourcesPath, '.env')
-      : path.join(__dirname, '..', '.env');
+    const envFile = path.join(process.resourcesPath, '.env');
     const envVars = fs.existsSync(envFile)
       ? dotenv.parse(fs.readFileSync(envFile))
       : {};
@@ -150,14 +156,13 @@ function startServer() {
       }
     });
 
-    waitForReady().then(resolve).catch(reject);
+    waitForReady("http://127.0.0.1:3000").then(resolve).catch(reject);
   });
 }
 
-function waitForReady(port = 3000, timeout = 30000) {
+function waitForReady(targetUrl, timeout = 30000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
-    const targetUrl = process.env.ELECTRON_SERVER_URL || `http://127.0.0.1:${port}`;
     const client = targetUrl.startsWith('https') ? https : http;
     const check = () => {
       const req = client.get(targetUrl, (res) => {

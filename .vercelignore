@@ -1,0 +1,10 @@
+.next
+release
+scripts
+.opencode
+.agents
+electron
+app-debug-apk
+*.apk
+*.aab
+.env
