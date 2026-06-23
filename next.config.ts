@@ -2,10 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  allowedDevOrigins: ['192.168.1.117', '192.168.29.229', 'localhost:3000', '192.168.29.229:3000', '192.168.29.229:3001'],
+  allowedDevOrigins: ['192.168.29.229', 'localhost:3000', '192.168.29.229:3000', '192.168.29.229:3001'],
   experimental: {
     serverActions: {
-      allowedOrigins: ['192.168.1.117', '192.168.29.229', 'localhost:3000', '192.168.29.229:3000', '192.168.29.229:3001']
+      allowedOrigins: ['192.168.29.229', 'localhost:3000', '192.168.29.229:3000', '192.168.29.229:3001']
     }
   },
   images: {
@@ -88,13 +88,13 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             value: [
-              "default-src 'self' http://192.168.1.117:3000 http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://192.168.1.117:3000 http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com",
-              "style-src 'self' 'unsafe-inline' http://192.168.1.117:3000 http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com",
-              "img-src 'self' data: blob: https: http://192.168.1.117:3000 http://192.168.29.229:3000 http://192.168.29.229:3001",
-              "font-src 'self' data: http://192.168.1.117:3000 http://192.168.29.229:3000 http://192.168.29.229:3001",
-              "connect-src 'self' http://192.168.1.117:3000 http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com https://*.supabase.co wss://*.supabase.co https://api.razorpay.com",
-              "frame-ancestors 'self' capacitor://localhost http://localhost http://192.168.1.117:3000 http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com",
+              "default-src 'self' http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com",
+              "style-src 'self' 'unsafe-inline' http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com",
+              "img-src 'self' data: blob: https: http://192.168.29.229:3000 http://192.168.29.229:3001",
+              "font-src 'self' data: http://192.168.29.229:3000 http://192.168.29.229:3001",
+              "connect-src 'self' http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com https://*.supabase.co wss://*.supabase.co https://api.razorpay.com",
+              "frame-ancestors 'self' capacitor://localhost http://localhost http://192.168.29.229:3000 http://192.168.29.229:3001 https://*.trycloudflare.com",
             ].join('; ') + ';',
           },
           ...sharedSecurityHeaders,
