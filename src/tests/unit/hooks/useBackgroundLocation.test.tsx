@@ -29,7 +29,6 @@ describe('useBackgroundLocation', () => {
     if (typeof window !== 'undefined') {
       originalGeolocation = window.navigator.geolocation;
       originalCapacitor = (window as Record<string, unknown>).Capacitor;
-      // Set Capacitor to simulate native platform
       (window as Record<string, unknown>).Capacitor = {
         isNativePlatform: () => true,
       };
@@ -55,8 +54,7 @@ describe('useBackgroundLocation', () => {
     }
   });
 
-  it('should trigger onLocationError when geolocation is missing/undefined on web', async () => {
-    // Remove Capacitor to simulate web platform
+  it('should trigger onLocationError when geolocation is missing on web', async () => {
     delete (window as Record<string, unknown>).Capacitor;
 
     if (typeof window !== 'undefined') {
@@ -75,31 +73,37 @@ describe('useBackgroundLocation', () => {
     );
 
     await act(async () => {});
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
+    await act(async () => { vi.advanceTimersByTime(1); });
 
     expect(onLocationErrorMock).toHaveBeenCalledWith('Geolocation not supported by this browser.');
     expect(result.current.geoError).toBe('Geolocation not supported by this browser.');
   });
 
-  it('should handle native plugin initialization failure gracefully', async () => {
+  it('should fallback to web tracking when native addWatcher throws', async () => {
     mockAddWatcher.mockRejectedValue(new Error('BackgroundGeolocation plugin is not implemented on android'));
 
-    const onLocationErrorMock = vi.fn();
+    const watchMock = vi.fn().mockReturnValue(99);
+    if (typeof window !== 'undefined') {
+      Object.defineProperty(window.navigator, 'geolocation', {
+        value: {
+          watchPosition: watchMock,
+          clearWatch: vi.fn(),
+          getCurrentPosition: vi.fn(),
+        },
+        configurable: true,
+        writable: true,
+      });
+    }
+
     const { useBackgroundLocation } = await import('@/hooks/useBackgroundLocation');
 
-    const { result } = renderHook(() =>
-      useBackgroundLocation('rider-123', true, onLocationErrorMock)
-    );
+    renderHook(() => useBackgroundLocation('rider-123', true));
 
     await act(async () => {});
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
+    await act(async () => { vi.advanceTimersByTime(1); });
 
-    expect(result.current.geoError).toBe('Failed to initialize native tracking service.');
-    expect(onLocationErrorMock).toHaveBeenCalledWith('Failed to initialize native tracking service.');
+    expect(mockAddWatcher).toHaveBeenCalled();
+    expect(watchMock).toHaveBeenCalled();
   });
 
   it('should track consecutive native watcher errors and trigger callback after 3', async () => {
@@ -118,22 +122,13 @@ describe('useBackgroundLocation', () => {
     );
 
     await act(async () => {});
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
+    await act(async () => { vi.advanceTimersByTime(1); });
 
     expect(watcherCallback).toBeDefined();
 
-    // 3 consecutive errors should trigger onLocationError
-    await act(async () => {
-      watcherCallback!(null, { code: 1, message: 'Permission denied' });
-    });
-    await act(async () => {
-      watcherCallback!(null, { code: 1, message: 'Permission denied' });
-    });
-    await act(async () => {
-      watcherCallback!(null, { code: 1, message: 'Permission denied' });
-    });
+    await act(async () => { watcherCallback!(null, { code: 1, message: 'Permission denied' }); });
+    await act(async () => { watcherCallback!(null, { code: 1, message: 'Permission denied' }); });
+    await act(async () => { watcherCallback!(null, { code: 1, message: 'Permission denied' }); });
 
     expect(onLocationErrorMock).toHaveBeenCalledWith('Permission denied');
   });
@@ -154,26 +149,13 @@ describe('useBackgroundLocation', () => {
     );
 
     await act(async () => {});
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
+    await act(async () => { vi.advanceTimersByTime(1); });
 
-    // 2 errors, then success, then 2 more errors — should NOT trigger callback
-    await act(async () => {
-      watcherCallback!(null, { code: 1, message: 'Error 1' });
-    });
-    await act(async () => {
-      watcherCallback!(null, { code: 1, message: 'Error 2' });
-    });
-    await act(async () => {
-      watcherCallback!({ latitude: 12.97, longitude: 77.59, accuracy: 10, altitude: 0, altitudeAccuracy: 0, speed: 0, bearing: 0, simulated: false, time: Date.now() }, null);
-    });
-    await act(async () => {
-      watcherCallback!(null, { code: 1, message: 'Error 3' });
-    });
-    await act(async () => {
-      watcherCallback!(null, { code: 1, message: 'Error 4' });
-    });
+    await act(async () => { watcherCallback!(null, { code: 1, message: 'Error 1' }); });
+    await act(async () => { watcherCallback!(null, { code: 1, message: 'Error 2' }); });
+    await act(async () => { watcherCallback!({ latitude: 12.97, longitude: 77.59, accuracy: 10, altitude: 0, altitudeAccuracy: 0, speed: 0, bearing: 0, simulated: false, time: Date.now() }, null); });
+    await act(async () => { watcherCallback!(null, { code: 1, message: 'Error 3' }); });
+    await act(async () => { watcherCallback!(null, { code: 1, message: 'Error 4' }); });
 
     expect(onLocationErrorMock).not.toHaveBeenCalled();
   });
@@ -188,9 +170,7 @@ describe('useBackgroundLocation', () => {
     );
 
     await act(async () => {});
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
+    await act(async () => { vi.advanceTimersByTime(1); });
 
     unmount();
 
@@ -200,14 +180,10 @@ describe('useBackgroundLocation', () => {
   it('should not start tracking when isOnline is false', async () => {
     const { useBackgroundLocation } = await import('@/hooks/useBackgroundLocation');
 
-    renderHook(() =>
-      useBackgroundLocation('rider-123', false)
-    );
+    renderHook(() => useBackgroundLocation('rider-123', false));
 
     await act(async () => {});
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
+    await act(async () => { vi.advanceTimersByTime(1); });
 
     expect(mockAddWatcher).not.toHaveBeenCalled();
   });
@@ -215,15 +191,90 @@ describe('useBackgroundLocation', () => {
   it('should not start tracking when riderId is empty', async () => {
     const { useBackgroundLocation } = await import('@/hooks/useBackgroundLocation');
 
+    renderHook(() => useBackgroundLocation('', true));
+
+    await act(async () => {});
+    await act(async () => { vi.advanceTimersByTime(1); });
+
+    expect(mockAddWatcher).not.toHaveBeenCalled();
+  });
+
+  it('should track consecutive web watcher errors and trigger callback after 3', async () => {
+    delete (window as Record<string, unknown>).Capacitor;
+
+    let webWatcherCallback: ((error: { code: number; message: string }) => void) | undefined;
+    const watchMock = vi.fn().mockImplementation((_successCb: unknown, errorCb: typeof webWatcherCallback) => {
+      webWatcherCallback = errorCb;
+      return 88;
+    });
+
+    if (typeof window !== 'undefined') {
+      Object.defineProperty(window.navigator, 'geolocation', {
+        value: {
+          watchPosition: watchMock,
+          clearWatch: vi.fn(),
+          getCurrentPosition: vi.fn(),
+        },
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    const onLocationErrorMock = vi.fn();
+    const { useBackgroundLocation } = await import('@/hooks/useBackgroundLocation');
+
     renderHook(() =>
-      useBackgroundLocation('', true)
+      useBackgroundLocation('rider-123', true, onLocationErrorMock)
     );
 
     await act(async () => {});
+    await act(async () => { vi.advanceTimersByTime(1); });
+
+    expect(webWatcherCallback).toBeDefined();
+
+    // Trigger web geolocation watch errors
+    await act(async () => { webWatcherCallback!({ code: 1, message: 'Web GPS failed' }); });
+    await act(async () => { webWatcherCallback!({ code: 1, message: 'Web GPS failed' }); });
+    await act(async () => { webWatcherCallback!({ code: 1, message: 'Web GPS failed' }); });
+
+    expect(onLocationErrorMock).toHaveBeenCalledWith('Web GPS failed');
+  });
+
+  it('should restart web watcher on visibility change to visible', async () => {
+    delete (window as Record<string, unknown>).Capacitor;
+
+    const watchMock = vi.fn().mockReturnValue(77);
+    const clearMock = vi.fn();
+
+    if (typeof window !== 'undefined') {
+      Object.defineProperty(window.navigator, 'geolocation', {
+        value: {
+          watchPosition: watchMock,
+          clearWatch: clearMock,
+          getCurrentPosition: vi.fn(),
+        },
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    const { useBackgroundLocation } = await import('@/hooks/useBackgroundLocation');
+
+    const { unmount } = renderHook(() => useBackgroundLocation('rider-123', true));
+
+    await act(async () => {});
+    await act(async () => { vi.advanceTimersByTime(1); });
+
+    expect(watchMock).toHaveBeenCalledTimes(1);
+
     await act(async () => {
-      vi.advanceTimersByTime(1);
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    expect(mockAddWatcher).not.toHaveBeenCalled();
+    expect(clearMock).toHaveBeenCalled();
+    expect(watchMock).toHaveBeenCalledTimes(2);
+
+    unmount();
   });
 });
