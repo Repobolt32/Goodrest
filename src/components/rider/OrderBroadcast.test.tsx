@@ -26,6 +26,10 @@ vi.stubGlobal(
   },
 );
 
+if (typeof navigator !== 'undefined') {
+  navigator.vibrate = vi.fn();
+}
+
 vi.mock('@/lib/supabase', () => {
   const selectMock = vi.fn().mockReturnThis();
   const eqMock = vi.fn().mockReturnThis();
@@ -87,12 +91,12 @@ describe('OrderBroadcast', () => {
   });
 
   it('should render nothing when there is no new order', () => {
-    render(<OrderBroadcast hasActiveOrder={false} sessionToken="token-123" />);
+    render(<OrderBroadcast isOnline={true} hasActiveOrder={false} sessionToken="token-123" />);
     expect(screen.queryByText(/New Order/i)).toBeNull();
   });
 
   it('should render broadcast when INSERT event fires with unassigned ready order', async () => {
-    render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+    render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
 
     await act(async () => {
       insertCallback!({ new: mockOrder });
@@ -104,7 +108,7 @@ describe('OrderBroadcast', () => {
   });
 
   it('should auto-dismiss when UPDATE event shows another rider took the order', async () => {
-    render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+    render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
 
     await act(async () => {
       insertCallback!({ new: mockOrder });
@@ -121,7 +125,7 @@ describe('OrderBroadcast', () => {
 
   it('should call acceptOrder and dismiss modal when Accept is clicked', async () => {
     const onAccept = vi.fn();
-    render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} onAccept={onAccept} />);
+    render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} onAccept={onAccept} />);
 
     await act(async () => {
       insertCallback!({ new: mockOrder });
@@ -137,7 +141,7 @@ describe('OrderBroadcast', () => {
   });
 
   it('should dismiss broadcast when Reject is clicked', async () => {
-    render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+    render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
 
     await act(async () => {
       insertCallback!({ new: mockOrder });
@@ -157,7 +161,7 @@ describe('OrderBroadcast', () => {
     ]);
 
     await act(async () => {
-      render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+      render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
     });
 
     expect(getUnassignedOrders).toHaveBeenCalledTimes(1);
@@ -169,7 +173,7 @@ describe('OrderBroadcast', () => {
 
   it('does not fetch unassigned orders when rider has active order', async () => {
     await act(async () => {
-      render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={true} />);
+      render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={true} />);
     });
 
     expect(getUnassignedOrders).not.toHaveBeenCalled();
@@ -179,7 +183,7 @@ describe('OrderBroadcast', () => {
   it('does not subscribe to realtime when rider has active order', async () => {
     const { supabase } = await import('@/lib/supabase');
     await act(async () => {
-      render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={true} />);
+      render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={true} />);
     });
 
     expect(supabase.channel).not.toHaveBeenCalled();
@@ -188,14 +192,14 @@ describe('OrderBroadcast', () => {
   it('unsubscribes from realtime when hasActiveOrder changes from false to true', async () => {
     const { supabase } = await import('@/lib/supabase');
     const { rerender } = await act(async () => {
-      return render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+      return render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
     });
 
     expect(supabase.channel).toHaveBeenCalledTimes(1);
     expect(supabase.removeChannel).not.toHaveBeenCalled();
 
     await act(async () => {
-      rerender(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={true} />);
+      rerender(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={true} />);
     });
 
     expect(supabase.removeChannel).toHaveBeenCalledTimes(1);
@@ -205,7 +209,7 @@ describe('OrderBroadcast', () => {
     vi.mocked(getUnassignedOrders).mockResolvedValue([]);
 
     const { rerender } = await act(async () => {
-      return render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={true} />);
+      return render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={true} />);
     });
 
     expect(getUnassignedOrders).not.toHaveBeenCalled();
@@ -215,7 +219,7 @@ describe('OrderBroadcast', () => {
     ]);
 
     await act(async () => {
-      rerender(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+      rerender(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
     });
 
     expect(getUnassignedOrders).toHaveBeenCalledTimes(1);
@@ -229,7 +233,7 @@ describe('OrderBroadcast', () => {
     ]);
 
     await act(async () => {
-      render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+      render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
     });
 
     expect(screen.getByText(/User A/i)).toBeInTheDocument();
@@ -245,7 +249,7 @@ describe('OrderBroadcast', () => {
     vi.mocked(getUnassignedOrders).mockRejectedValue(new Error('Network error'));
 
     await act(async () => {
-      render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+      render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
     });
 
     expect(getUnassignedOrders).toHaveBeenCalledTimes(1);
@@ -254,7 +258,7 @@ describe('OrderBroadcast', () => {
 
   // ─── Earning Breakdown (Task 11) ──────────────────────────────────
   it('should show itemized earning breakdown when distance_km is set', async () => {
-    render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+    render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
 
     await act(async () => {
       insertCallback!({ new: { ...mockOrder, distance_km: 2.5, rider_earning: 41 } });
@@ -264,7 +268,7 @@ describe('OrderBroadcast', () => {
   });
 
   it('should not show breakdown when distance_km is null', async () => {
-    render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+    render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
 
     await act(async () => {
       insertCallback!({ new: { ...mockOrder, distance_km: null } });
@@ -279,7 +283,7 @@ describe('OrderBroadcast', () => {
     ]);
 
     await act(async () => {
-      render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+      render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
     });
 
     expect(screen.getByText('BD User')).toBeInTheDocument();
@@ -292,7 +296,7 @@ describe('OrderBroadcast', () => {
     ]);
 
     await act(async () => {
-      render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+      render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
     });
 
     expect(screen.getByText('NoDist')).toBeInTheDocument();
@@ -301,19 +305,70 @@ describe('OrderBroadcast', () => {
   });
 
   it('should ignore insert broadcast if rider is offline', async () => {
-    const { supabase } = await import('@/lib/supabase');
-    vi.mocked(supabase.from).mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: { is_online: false }, error: null }),
-    } as unknown as ReturnType<typeof supabase.from>);
+    render(<OrderBroadcast isOnline={false} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
 
-    render(<OrderBroadcast riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+    await act(async () => {
+      if (insertCallback) {
+        insertCallback({ new: mockOrder });
+      }
+    });
+
+    expect(screen.queryByText(/New Delivery/i)).toBeNull();
+  });
+
+  it('should clear broadcast and stop audio when toggled offline', async () => {
+    const { rerender } = render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+
+    await act(async () => {
+      insertCallback!({ new: mockOrder });
+    });
+    expect(screen.getByText(/New Delivery/i)).toBeInTheDocument();
+
+    await act(async () => {
+      rerender(<OrderBroadcast isOnline={false} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+    });
+    expect(screen.queryByText(/New Delivery/i)).toBeNull();
+  });
+
+  it('should check for unassigned orders on 30s interval tick', async () => {
+    vi.useFakeTimers();
+    vi.mocked(getUnassignedOrders).mockResolvedValue([
+      { id: 'order-interval', order_status: 'ready', rider_id: null, distance_km: 2, rider_earning: 520, customer_name: 'Interval User', delivery_address: '100 St' } as unknown as never,
+    ]);
+
+    render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
+
+    // Clear initial call mocks
+    vi.mocked(getUnassignedOrders).mockClear();
+
+    await act(async () => {
+      vi.advanceTimersByTime(30000);
+    });
+
+    expect(getUnassignedOrders).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Interval User/i)).toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it('should trigger loop vibration while broadcast order is active', async () => {
+    vi.useFakeTimers();
+    const vibrateSpy = vi.spyOn(navigator, 'vibrate');
+
+    render(<OrderBroadcast isOnline={true} riderId="rider-1" sessionToken="token-123" hasActiveOrder={false} />);
 
     await act(async () => {
       insertCallback!({ new: mockOrder });
     });
 
-    expect(screen.queryByText(/New Delivery/i)).toBeNull();
+    expect(vibrateSpy).toHaveBeenCalledWith([500, 200, 500, 200]);
+    vibrateSpy.mockClear();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(vibrateSpy).toHaveBeenCalledWith([500, 200, 500, 200]);
+
+    vi.useRealTimers();
   });
 });

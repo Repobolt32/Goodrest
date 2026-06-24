@@ -18,4 +18,13 @@ public class MainActivity extends BridgeActivity {
       webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
     }
   }
+
+  @Override
+  protected void onPause() {
+    super.onPause();
+    WebView webView = (WebView) this.bridge.getWebView();
+    if (webView != null) {
+      webView.onResume();
+    }
+  }
 }

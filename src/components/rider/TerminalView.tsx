@@ -239,6 +239,7 @@ export default function TerminalView({
         riderId={riderId}
         sessionToken={sessionToken}
         hasActiveOrder={!!activeOrder}
+        isOnline={isOnline}
         onAccept={onAcceptBroadcast}
       />
 

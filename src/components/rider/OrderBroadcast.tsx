@@ -23,11 +23,13 @@ export default function OrderBroadcast({
   riderId,
   sessionToken,
   hasActiveOrder,
+  isOnline,
   onAccept,
 }: {
   riderId?: string;
   sessionToken?: string;
   hasActiveOrder: boolean;
+  isOnline: boolean;
   onAccept?: () => void;
 }) {
   const [broadcastOrder, setBroadcastOrder] = useState<BroadcastOrder | null>(null);
@@ -39,26 +41,24 @@ export default function OrderBroadcast({
     broadcastOrderRef.current = broadcastOrder;
   }, [broadcastOrder]);
 
-  // Fetch existing unassigned orders on mount or when rider becomes available
+  // Fetch existing unassigned orders on mount, online state change, or active order change
   useEffect(() => {
-    if (!riderId || hasActiveOrder) return;
+    if (!riderId || hasActiveOrder || !isOnline) {
+      setBroadcastOrder(null);
+      audioRef.current?.pause();
+      return;
+    }
 
     let cancelled = false;
 
     const fetchExisting = async () => {
       try {
-        const { data: riderData } = await supabase.from('riders').select('is_online').eq('id', riderId).single();
-        if (!riderData?.is_online) return;
-
         const orders = await getUnassignedOrders(sessionToken || '');
         if (cancelled || !orders || orders.length === 0 || broadcastOrderRef.current) return;
 
         const first = orders[0] as BroadcastOrder;
         setBroadcastOrder(first);
         audioRef.current?.play().catch((e) => console.warn('Audio play failed:', e));
-        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-          navigator.vibrate([500, 200, 500, 200, 500]);
-        }
       } catch (err) {
         console.error('Failed to fetch unassigned orders:', err);
       }
@@ -67,10 +67,64 @@ export default function OrderBroadcast({
     fetchExisting();
 
     return () => { cancelled = true; };
-  }, [riderId, hasActiveOrder]);
+  }, [riderId, hasActiveOrder, isOnline, sessionToken]);
+
+  // 30-second interval check to continuously ring for unassigned orders
+  useEffect(() => {
+    if (!riderId || hasActiveOrder || !isOnline) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const orders = await getUnassignedOrders(sessionToken || '');
+        if (!orders || orders.length === 0) {
+          // No more unassigned orders left in the system
+          setBroadcastOrder(null);
+          audioRef.current?.pause();
+          return;
+        }
+
+        // If not currently showing a broadcast order, show the first unassigned one
+        if (!broadcastOrderRef.current) {
+          const first = orders[0] as BroadcastOrder;
+          setBroadcastOrder(first);
+          audioRef.current?.play().catch((e) => console.warn('Audio play failed:', e));
+        }
+      } catch (err) {
+        console.error('Failed to fetch unassigned orders in interval:', err);
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [riderId, hasActiveOrder, isOnline, sessionToken]);
+
+  // Loop vibration when order broadcast is active
+  useEffect(() => {
+    if (!broadcastOrder || !isOnline || hasActiveOrder) return;
+
+    const vibrate = () => {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([500, 200, 500, 200]);
+      }
+    };
+
+    // Vibrate immediately
+    vibrate();
+
+    // Vibrate every 1.5 seconds while ringing
+    const vibrateInterval = setInterval(vibrate, 1500);
+
+    return () => {
+      clearInterval(vibrateInterval);
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(0);
+      }
+    };
+  }, [broadcastOrder, isOnline, hasActiveOrder]);
 
   useEffect(() => {
-    if (!riderId || hasActiveOrder) return;
+    if (!riderId || hasActiveOrder || !isOnline) return;
 
     const soundUrl = typeof window !== 'undefined'
       ? `${window.location.origin}/audio/goodrest-bill.mp3`
@@ -98,21 +152,14 @@ export default function OrderBroadcast({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         async (payload: RealtimePostgresChangesPayload<BroadcastOrder>) => {
-          const { data: riderData } = await supabase.from('riders').select('is_online').eq('id', riderId).single();
-          if (!riderData?.is_online) return;
-
           const order = payload.new as BroadcastOrder;
           if (
             order.rider_id === null &&
             (order.order_status === 'preparing' || order.order_status === 'ready')
           ) {
-            // Don't overwrite if we're already showing this order (from initial fetch)
             if (broadcastOrderRef.current?.id === order.id) return;
             setBroadcastOrder(order);
             alertSound.play().catch((e) => console.warn('Audio play failed:', e));
-            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-              navigator.vibrate([500, 200, 500, 200, 500]);
-            }
           }
         },
       )
@@ -120,13 +167,6 @@ export default function OrderBroadcast({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders' },
         async (payload: RealtimePostgresChangesPayload<BroadcastOrder>) => {
-          const { data: riderData } = await supabase.from('riders').select('is_online').eq('id', riderId).single();
-          if (!riderData?.is_online) {
-            setBroadcastOrder(null);
-            alertSound.pause();
-            return;
-          }
-
           const order = payload.new as BroadcastOrder;
           const current = broadcastOrderRef.current;
           if (
@@ -135,9 +175,6 @@ export default function OrderBroadcast({
           ) {
             setBroadcastOrder(order);
             alertSound.play().catch((e) => console.warn('Audio play failed:', e));
-            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-              navigator.vibrate([500, 200, 500, 200, 500]);
-            }
           } else if (current && order.id === current.id && order.rider_id !== null) {
             // Someone else took it
             setBroadcastOrder(null);
@@ -153,10 +190,10 @@ export default function OrderBroadcast({
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('click', unlockAudio);
     };
-  }, [riderId, hasActiveOrder]);
+  }, [riderId, hasActiveOrder, isOnline]);
 
-  // Don't show broadcast if rider has an active order
-  if (hasActiveOrder) return null;
+  // Don't show broadcast if rider is offline or has an active order
+  if (!isOnline || hasActiveOrder) return null;
   if (!broadcastOrder) return null;
 
   const handleAccept = async () => {
