@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion } from 'framer-motion';
-import { CheckCircle2, ChefHat, Truck, Package, AlertCircle, Wifi, Phone, Map, Clock, UtensilsCrossed } from 'lucide-react';
+import { CheckCircle2, ChefHat, Truck, Package, AlertCircle, Wifi, Phone, Map, Clock, UtensilsCrossed, Maximize2, Minimize2 } from 'lucide-react';
 import { calculateETA } from '@/lib/distance';
 import { getRiderLocationForOrder } from '@/app/actions/trackActions';
 
@@ -77,6 +77,7 @@ export default function OrderTracker({
   const [cancelReason, setCancelReason] = useState<string | null>(initialCancelReason);
   const [customerHelpMessage, setCustomerHelpMessage] = useState<string | null>(initialCustomerHelpMessage);
   const [etaMins, setEtaMins] = useState<number | null>(null);
+  const [isMapMaximized, setIsMapMaximized] = useState(false);
 
   // Clock skew correction: compute offset between server time and client time
   const clockOffsetRef = useRef(0);
@@ -414,7 +415,21 @@ export default function OrderTracker({
               animate={{ opacity: 1, height: 'auto' }}
               className="mb-8 rounded-3xl overflow-hidden border border-slate-100 shadow-inner"
             >
-              <div className="h-[250px] w-full bg-slate-100">
+              <motion.div
+                animate={{ height: isMapMaximized ? 500 : 250 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                className="relative w-full bg-slate-100 overflow-hidden"
+              >
+                {riderLocation && orderLat && orderLng && (
+                  <button
+                    type="button"
+                    onClick={() => setIsMapMaximized(!isMapMaximized)}
+                    className="absolute top-4 right-4 z-20 p-2.5 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-white rounded-xl shadow-lg hover:bg-slate-800 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+                    title={isMapMaximized ? 'Minimize Map' : 'Maximize Map'}
+                  >
+                    {isMapMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                )}
                 {riderLocation && orderLat && orderLng ? (
                   <iframe
                     width="100%"
@@ -433,7 +448,7 @@ export default function OrderTracker({
                     </p>
                   </div>
                 )}
-              </div>
+              </motion.div>
             </motion.div>
           )}
 
