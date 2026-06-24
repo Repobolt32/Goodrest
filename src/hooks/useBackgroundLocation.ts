@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { registerPlugin } from '@capacitor/core';
+import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { updateLocation } from '@/app/actions/riderActions';
 
 interface WindowWithCapacitor extends Window {
@@ -8,38 +8,37 @@ interface WindowWithCapacitor extends Window {
   };
 }
 
-interface GeolocationLocation {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  altitude: number;
-  altitudeAccuracy: number;
-  speed: number;
-  bearing: number;
-  simulated: boolean;
-  time: number;
+/** A single GPS fix forwarded from the native foreground service. */
+interface LocationFix {
+  lat: number;
+  lng: number;
 }
 
-interface CallbackError {
-  code: number;
-  message: string;
+/**
+ * Shape of the native `LocationSync` plugin (see
+ * `LocationSyncPlugin.java`). The service captures GPS AND uploads to the
+ * backend on its own thread; JS only subscribes to `locationUpdate` to keep
+ * `lastLat`/`lastLng` populated for the UI.
+ */
+interface LocationSyncPlugin {
+  startTracking(options: {
+    token: string;
+    url: string;
+    intervalMillis?: number;
+    distanceFilterMeters?: number;
+  }): Promise<void>;
+  stopTracking(): Promise<void>;
+  addListener(
+    eventName: 'locationUpdate',
+    listenerFunc: (data: LocationFix) => void,
+  ): Promise<PluginListenerHandle>;
+  removeListener(
+    eventName: 'locationUpdate',
+    listenerFunc: (data: LocationFix) => void,
+  ): Promise<void>;
 }
 
-interface BackgroundGeolocationPlugin {
-  addWatcher(
-    options: {
-      backgroundTitle?: string;
-      backgroundMessage?: string;
-      requestPermissions?: boolean;
-      stale?: boolean;
-      distanceFilter?: number;
-    },
-    callback: (location: GeolocationLocation | null, error: CallbackError | null) => void
-  ): Promise<string>;
-  removeWatcher(options: { id: string }): Promise<void>;
-}
-
-const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+export const LocationSync = registerPlugin<LocationSyncPlugin>('LocationSync');
 
 export function useBackgroundLocation(
   riderId: string,
@@ -84,8 +83,9 @@ export function useBackgroundLocation(
     }
 
     let isSubscribed = true;
-    let nativeWatcherId: string | null = null;
     let webWatcherId: number | null = null;
+    let nativeStarted = false;
+    let locationListener: ((data: LocationFix) => void) | null = null;
 
     const startWebTracking = () => {
       if (typeof window === 'undefined' || !navigator.geolocation) {
@@ -134,37 +134,32 @@ export function useBackgroundLocation(
 
       if (isNative) {
         try {
-          nativeWatcherId = await BackgroundGeolocation.addWatcher(
-            {
-              backgroundTitle: 'Goodrest Rider',
-              backgroundMessage: 'Tracking your delivery location.',
-              requestPermissions: true,
-              stale: false,
-              distanceFilter: 10,
-            },
-            (location, error) => {
-              if (!isSubscribed) return;
-              if (error) {
-                console.warn('Native geolocation error:', error);
-                consecutiveErrorsRef.current += 1;
-                if (consecutiveErrorsRef.current >= 3) {
-                  const errorMsg = error.message || 'Location access denied. Enable GPS to go online.';
-                  setGeoError(errorMsg);
-                  if (onLocationError) onLocationError(errorMsg);
-                }
-                return;
-              }
-              if (location) {
-                setLastLat(location.latitude);
-                setLastLng(location.longitude);
-                setGeoError(null);
-                consecutiveErrorsRef.current = 0;
-                updateLocation(sessionToken || '', riderId, location.latitude, location.longitude);
-              }
-            }
-          );
+          // The native foreground service uploads each fix to the backend itself,
+          // so this listener only mirrors the fix into state for the UI — it does
+          // NOT call updateLocation. Service-level errors are logged natively and
+          // do not surface here (listener fires on success only).
+          locationListener = (data: LocationFix) => {
+            if (!isSubscribed) return;
+            setLastLat(data.lat);
+            setLastLng(data.lng);
+            setGeoError(null);
+            consecutiveErrorsRef.current = 0;
+          };
+          await LocationSync.addListener('locationUpdate', locationListener);
+          await LocationSync.startTracking({
+            url: window.location.origin + '/api/rider/location',
+            token: sessionToken || '',
+            intervalMillis: 8000,
+            distanceFilterMeters: 10,
+          });
+          nativeStarted = true;
         } catch (err) {
-          console.error('Native geolocation watcher failed:', err);
+          console.error('Native location sync failed to start:', err);
+          // Clean up the listener if startTracking threw after it was registered.
+          if (locationListener) {
+            LocationSync.removeListener('locationUpdate', locationListener).catch(() => {});
+            locationListener = null;
+          }
           if (isSubscribed) {
             console.warn('Falling back to web geolocation');
             startWebTracking();
@@ -181,9 +176,15 @@ export function useBackgroundLocation(
     return () => {
       isSubscribed = false;
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (nativeWatcherId) {
-        BackgroundGeolocation.removeWatcher({ id: nativeWatcherId }).catch((err) => {
-          console.warn('Failed to remove native watcher:', err);
+      if (locationListener) {
+        LocationSync.removeListener('locationUpdate', locationListener).catch((err) => {
+          console.warn('Failed to remove native location listener:', err);
+        });
+        locationListener = null;
+      }
+      if (nativeStarted) {
+        LocationSync.stopTracking().catch((err) => {
+          console.warn('Failed to stop native tracking:', err);
         });
       }
       if (webWatcherId !== null && typeof window !== 'undefined') {

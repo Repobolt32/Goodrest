@@ -4,4 +4,9 @@
     <string name="title_activity_main">Goodrest Rider</string>
     <string name="package_name">com.goodrest.rider</string>
     <string name="custom_url_scheme">com.goodrest.rider</string>
+
+    <string name="location_sync_channel_name">Location Tracking</string>
+    <string name="location_sync_channel_desc">Continuously shares the rider\'s location with Goodrest while riding.</string>
+    <string name="location_sync_title">Goodrest Rider</string>
+    <string name="location_sync_text">Tracking your delivery location.</string>
 </resources>

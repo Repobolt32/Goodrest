@@ -16,7 +16,7 @@ import TerminalView from '@/components/rider/TerminalView';
 import EarningsView from '@/components/rider/EarningsView';
 import HistoryView from '@/components/rider/HistoryView';
 import { Bike, BarChart3, LogOut, RefreshCw, Clock } from 'lucide-react';
-import { useBackgroundLocation } from '@/hooks/useBackgroundLocation';
+import { useBackgroundLocation, LocationSync } from '@/hooks/useBackgroundLocation';
 
 interface RiderSession {
   id: string;
@@ -181,6 +181,9 @@ export default function RiderDashboardPage() {
   };
 
   const handleLogout = async () => {
+    // Stop the native foreground service first so the persistent notification
+    // disappears before the session is cleared. Harmless on web (rejects).
+    try { await LocationSync.stopTracking(); } catch { /* not on native */ }
     await logoutRider();
     localStorage.removeItem('rider_session');
     localStorage.removeItem('rider_isOnline');

@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-const mockAddWatcher = vi.fn();
-const mockRemoveWatcher = vi.fn();
+const mockStartTracking = vi.fn();
+const mockStopTracking = vi.fn();
+const mockAddListener = vi.fn();
+const mockRemoveListener = vi.fn();
 
 vi.mock('@capacitor/core', () => ({
   registerPlugin: vi.fn().mockReturnValue({
-    addWatcher: mockAddWatcher,
-    removeWatcher: mockRemoveWatcher,
+    startTracking: mockStartTracking,
+    stopTracking: mockStopTracking,
+    addListener: mockAddListener,
+    removeListener: mockRemoveListener,
   }),
 }));
 
@@ -21,10 +25,14 @@ describe('useBackgroundLocation', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    mockAddWatcher.mockReset();
-    mockRemoveWatcher.mockReset();
-    mockAddWatcher.mockResolvedValue('native-watcher-123');
-    mockRemoveWatcher.mockResolvedValue(undefined);
+    mockStartTracking.mockReset();
+    mockStopTracking.mockReset();
+    mockAddListener.mockReset();
+    mockRemoveListener.mockReset();
+    mockStartTracking.mockResolvedValue(undefined);
+    mockStopTracking.mockResolvedValue(undefined);
+    mockAddListener.mockResolvedValue(undefined);
+    mockRemoveListener.mockResolvedValue(undefined);
 
     if (typeof window !== 'undefined') {
       originalGeolocation = window.navigator.geolocation;
@@ -79,8 +87,8 @@ describe('useBackgroundLocation', () => {
     expect(result.current.geoError).toBe('Geolocation not supported by this browser.');
   });
 
-  it('should fallback to web tracking when native addWatcher throws', async () => {
-    mockAddWatcher.mockRejectedValue(new Error('BackgroundGeolocation plugin is not implemented on android'));
+  it('should fallback to web tracking when native startTracking throws', async () => {
+    mockStartTracking.mockRejectedValue(new Error('LocationSync plugin is not implemented on android'));
 
     const watchMock = vi.fn().mockReturnValue(99);
     if (typeof window !== 'undefined') {
@@ -102,79 +110,69 @@ describe('useBackgroundLocation', () => {
     await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(1); });
 
-    expect(mockAddWatcher).toHaveBeenCalled();
+    expect(mockStartTracking).toHaveBeenCalled();
     expect(watchMock).toHaveBeenCalled();
   });
 
-  it('should track consecutive native watcher errors and trigger callback after 3', async () => {
-    let watcherCallback: ((location: unknown, error: { code: number; message: string } | null) => void) | undefined;
+  it('should populate lastLat/lastLng from native locationUpdate events', async () => {
+    let updateListener: ((data: { lat: number; lng: number }) => void) | undefined;
 
-    mockAddWatcher.mockImplementation((_opts: unknown, cb: typeof watcherCallback) => {
-      watcherCallback = cb;
-      return Promise.resolve('native-watcher-123');
+    mockAddListener.mockImplementation((_event: string, cb: typeof updateListener) => {
+      updateListener = cb;
+      return Promise.resolve(undefined);
     });
 
-    const onLocationErrorMock = vi.fn();
     const { useBackgroundLocation } = await import('@/hooks/useBackgroundLocation');
 
-    renderHook(() =>
-      useBackgroundLocation('rider-123', true, onLocationErrorMock)
-    );
+    const { result } = renderHook(() => useBackgroundLocation('rider-123', true));
 
     await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(1); });
 
-    expect(watcherCallback).toBeDefined();
+    expect(updateListener).toBeDefined();
 
-    await act(async () => { watcherCallback!(null, { code: 1, message: 'Permission denied' }); });
-    await act(async () => { watcherCallback!(null, { code: 1, message: 'Permission denied' }); });
-    await act(async () => { watcherCallback!(null, { code: 1, message: 'Permission denied' }); });
+    await act(async () => { updateListener!({ lat: 12.97, lng: 77.59 }); });
 
-    expect(onLocationErrorMock).toHaveBeenCalledWith('Permission denied');
+    expect(result.current.lastLat).toBe(12.97);
+    expect(result.current.lastLng).toBe(77.59);
+    expect(result.current.geoError).toBeNull();
   });
 
-  it('should reset consecutive error count on successful location update', async () => {
-    let watcherCallback: ((location: { latitude: number; longitude: number; accuracy: number; altitude: number; altitudeAccuracy: number; speed: number; bearing: number; simulated: boolean; time: number } | null, error: { code: number; message: string } | null) => void) | undefined;
+  it('should not call updateLocation on the native path (service uploads itself)', async () => {
+    const { updateLocation } = await import('@/app/actions/riderActions');
+    (updateLocation as unknown as ReturnType<typeof vi.fn>).mockClear();
 
-    mockAddWatcher.mockImplementation((_opts: unknown, cb: typeof watcherCallback) => {
-      watcherCallback = cb;
-      return Promise.resolve('native-watcher-123');
+    let updateListener: ((data: { lat: number; lng: number }) => void) | undefined;
+    mockAddListener.mockImplementation((_event: string, cb: typeof updateListener) => {
+      updateListener = cb;
+      return Promise.resolve(undefined);
     });
 
-    const onLocationErrorMock = vi.fn();
     const { useBackgroundLocation } = await import('@/hooks/useBackgroundLocation');
 
-    renderHook(() =>
-      useBackgroundLocation('rider-123', true, onLocationErrorMock)
-    );
+    renderHook(() => useBackgroundLocation('rider-123', true));
 
     await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(1); });
 
-    await act(async () => { watcherCallback!(null, { code: 1, message: 'Error 1' }); });
-    await act(async () => { watcherCallback!(null, { code: 1, message: 'Error 2' }); });
-    await act(async () => { watcherCallback!({ latitude: 12.97, longitude: 77.59, accuracy: 10, altitude: 0, altitudeAccuracy: 0, speed: 0, bearing: 0, simulated: false, time: Date.now() }, null); });
-    await act(async () => { watcherCallback!(null, { code: 1, message: 'Error 3' }); });
-    await act(async () => { watcherCallback!(null, { code: 1, message: 'Error 4' }); });
+    await act(async () => { updateListener!({ lat: 12.97, lng: 77.59 }); });
 
-    expect(onLocationErrorMock).not.toHaveBeenCalled();
+    // Native foreground service uploads coordinates itself; JS must not double-post.
+    expect(updateLocation).not.toHaveBeenCalled();
   });
 
-  it('should remove native watcher on unmount', async () => {
-    mockAddWatcher.mockResolvedValue('native-watcher-cleanup');
-
+  it('should stop native tracking and remove listener on unmount', async () => {
     const { useBackgroundLocation } = await import('@/hooks/useBackgroundLocation');
 
-    const { unmount } = renderHook(() =>
-      useBackgroundLocation('rider-123', true)
-    );
+    const { unmount } = renderHook(() => useBackgroundLocation('rider-123', true));
 
     await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(1); });
 
     unmount();
 
-    expect(mockRemoveWatcher).toHaveBeenCalledWith({ id: 'native-watcher-cleanup' });
+    expect(mockStopTracking).toHaveBeenCalled();
+    expect(mockRemoveListener).toHaveBeenCalled();
   });
 
   it('should not start tracking when isOnline is false', async () => {
@@ -185,7 +183,7 @@ describe('useBackgroundLocation', () => {
     await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(1); });
 
-    expect(mockAddWatcher).not.toHaveBeenCalled();
+    expect(mockStartTracking).not.toHaveBeenCalled();
   });
 
   it('should not start tracking when riderId is empty', async () => {
@@ -196,7 +194,7 @@ describe('useBackgroundLocation', () => {
     await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(1); });
 
-    expect(mockAddWatcher).not.toHaveBeenCalled();
+    expect(mockStartTracking).not.toHaveBeenCalled();
   });
 
   it('should track consecutive web watcher errors and trigger callback after 3', async () => {

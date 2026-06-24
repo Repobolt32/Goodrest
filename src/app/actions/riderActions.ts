@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger';
 
 const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
 
-async function verifyRiderExists(riderId: string): Promise<{ success: boolean; error?: string }> {
+export async function verifyRiderExists(riderId: string): Promise<{ success: boolean; error?: string }> {
   if (!isValidUUID(riderId)) return { success: false, error: 'Invalid rider ID' };
   const { data, error } = await supabaseAdmin
     .from('riders')
