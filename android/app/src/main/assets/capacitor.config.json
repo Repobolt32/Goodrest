@@ -1,0 +1,14 @@
+{
+	"appId": "com.goodrest.rider",
+	"appName": "Goodrest Rider",
+	"webDir": "out",
+	"server": {
+		"url": "https://goodrest-claude.vercel.app/rider/login",
+		"cleartext": false
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	}
+}
