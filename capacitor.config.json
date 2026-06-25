@@ -2,7 +2,6 @@
   "appId": "com.goodrest.rider",
   "appName": "Goodrest Rider",
   "webDir": "out",
-  "overrideUserAgent": "cloudflared-tunnel",
   "server": {
     "url": "https://goodrest-claude.vercel.app/rider/login",
     "cleartext": false
