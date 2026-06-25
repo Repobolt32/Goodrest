@@ -11,7 +11,6 @@ import { getRestoCoordinates, isValidUUID } from '@/lib/validation';
 import { logger } from '@/lib/logger';
 import { Database } from '@/types/database.types';
 
-const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
 
 export async function getRestaurantSettings() {
   const { data, error } = await supabaseAdmin
@@ -84,7 +83,8 @@ export async function acceptOrder(orderId: string) {
   let durationSeconds: number | null = order.duration_seconds;
 
   if ((distanceKm === null || durationSeconds === null) && order.lat != null && order.lng != null) {
-    const routeData = await getGoogleMapsRouteData(RESTO_LAT, RESTO_LNG, order.lat, order.lng);
+    const { lat: restoLat, lng: restoLng } = getRestoCoordinates();
+    const routeData = await getGoogleMapsRouteData(restoLat, restoLng, order.lat, order.lng);
     if (routeData) {
       distanceKm = routeData.distanceKm;
       durationSeconds = routeData.durationSeconds;

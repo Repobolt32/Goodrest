@@ -12,7 +12,6 @@ import { randomUUID } from 'crypto';
 import { getRestoCoordinates, isValidUUID } from '@/lib/validation';
 import { logger } from '@/lib/logger';
 
-const { lat: RESTO_LAT, lng: RESTO_LNG } = getRestoCoordinates();
 
 export async function verifyRiderExists(riderId: string): Promise<{ success: boolean; error?: string }> {
   if (!isValidUUID(riderId)) return { success: false, error: 'Invalid rider ID' };
@@ -128,7 +127,8 @@ export async function acceptOrder(sessionToken: string, orderId: string, riderId
     durationSeconds = order.duration_seconds;
     earning = calculateRiderEarning(distanceKm);
   } else if (order?.lat != null && order?.lng != null) {
-    const routeData = await getGoogleMapsRouteData(RESTO_LAT, RESTO_LNG, order.lat, order.lng);
+    const { lat: restoLat, lng: restoLng } = getRestoCoordinates();
+    const routeData = await getGoogleMapsRouteData(restoLat, restoLng, order.lat, order.lng);
     if (routeData) {
       distanceKm = routeData.distanceKm;
       durationSeconds = routeData.durationSeconds;
