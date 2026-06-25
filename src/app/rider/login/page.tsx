@@ -19,15 +19,21 @@ export default function RiderLoginPage() {
     setLoading(true);
     setError(null);
     
-    const result = await loginRider(phone, password);
-    
-    if (result.success) {
-      localStorage.setItem('rider_session', JSON.stringify({ ...result.rider, token: result.token }));
-      router.push('/rider/dashboard');
-    } else {
-      setError(result.error || 'Login failed');
+    try {
+      const result = await loginRider(phone, password);
+      
+      if (result.success) {
+        localStorage.setItem('rider_session', JSON.stringify({ ...result.rider, token: result.token }));
+        router.push('/rider/dashboard');
+      } else {
+        setError(result.error || 'Login failed');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Rider login error:', err);
+      setError(err instanceof Error ? err.message : 'A connection or server error occurred. Please try again.');
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const inputType = showPassword ? 'text' : 'password';

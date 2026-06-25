@@ -18,11 +18,17 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError('');
 
-    const result = await login(password);
-    if (result.success) {
-      router.push('/admin/orders');
-    } else {
-      setError(result.error || 'Login failed');
+    try {
+      const result = await login(password);
+      if (result.success) {
+        router.push('/admin/orders');
+      } else {
+        setError(result.error || 'Login failed');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Admin login error:', err);
+      setError(err instanceof Error ? err.message : 'A connection or server error occurred. Please try again.');
       setLoading(false);
     }
   };
