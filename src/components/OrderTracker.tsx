@@ -110,7 +110,7 @@ export default function OrderTracker({
   const [helpError, setHelpError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status !== 'confirmed') {
+    if (!['created', 'confirmed'].includes(status)) {
       setTimeLeft(0);
       return;
     }
@@ -543,7 +543,7 @@ export default function OrderTracker({
           {/* Customer Cancel Button / Call support — available before out_for_delivery */}
           {!['out_for_delivery', 'delivered', 'cancelled'].includes(status) && (
             <div className="mt-12 p-6 bg-red-50/50 rounded-[2rem] border border-red-100 flex flex-col gap-4">
-              {status === 'confirmed' && timeLeft > 0 && onCancel ? (
+              {['created', 'confirmed'].includes(status) && timeLeft > 0 && onCancel ? (
                 showCancelConfirm ? (
                   <div className="flex flex-col gap-3 font-mono">
                     <h4 className="text-xs font-black uppercase tracking-widest text-red-600">

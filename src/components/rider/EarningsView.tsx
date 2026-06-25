@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, TrendingUp, CheckCircle } from 'lucide-react';
+import { ChevronDown, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
 import { getRiderEarningHistory } from '@/app/actions/riderActions';
 import { getRiderWeekSettlementStatus } from '@/app/actions/settlementActions';
 import { getCurrentWeekRange } from '@/lib/weekRange';
@@ -164,21 +164,44 @@ export default function EarningsView({
 
       {/* Week Settled Badge */}
       {!loading && settlement && (
-        <div className="bg-[#252525] border border-[#3AB757] border-l-4 border-l-[#3AB757] rounded-2xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#3AB757]/10 rounded-xl flex items-center justify-center">
-            <CheckCircle size={20} className="text-[#3AB757]" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-white">This Week is Settled</p>
-            <p className="text-xs text-[#9C9C9C] font-medium mt-0.5">
-              Paid {formatCurrency(settlement.total_amount)} on{' '}
-              {new Date(settlement.settled_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-            </p>
-            {settlement.notes && (
-              <p className="text-[10px] text-[#696969] font-medium mt-1 italic">&ldquo;{settlement.notes}&rdquo;</p>
-            )}
-          </div>
-        </div>
+        (() => {
+          const isPartial = settlement.total_amount < weekTotal.total - 0.01;
+          if (isPartial) {
+            return (
+              <div className="bg-[#252525] border border-[#E2B93B] border-l-4 border-l-[#E2B93B] rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#E2B93B]/10 rounded-xl flex items-center justify-center">
+                  <AlertCircle size={20} className="text-[#E2B93B]" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-white">Partial Settlement Done</p>
+                  <p className="text-xs text-[#9C9C9C] font-medium mt-0.5">
+                    Paid {formatCurrency(settlement.total_amount)} of {formatCurrency(weekTotal.total)}. Remaining amount will be settled soon.
+                  </p>
+                  {settlement.notes && (
+                    <p className="text-[10px] text-[#696969] font-medium mt-1 italic">&ldquo;{settlement.notes}&rdquo;</p>
+                  )}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div className="bg-[#252525] border border-[#3AB757] border-l-4 border-l-[#3AB757] rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#3AB757]/10 rounded-xl flex items-center justify-center">
+                <CheckCircle size={20} className="text-[#3AB757]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-white">This Week is Settled</p>
+                <p className="text-xs text-[#9C9C9C] font-medium mt-0.5">
+                  Paid {formatCurrency(settlement.total_amount)} on{' '}
+                  {new Date(settlement.settled_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </p>
+                {settlement.notes && (
+                  <p className="text-[10px] text-[#696969] font-medium mt-1 italic">&ldquo;{settlement.notes}&rdquo;</p>
+                )}
+              </div>
+            </div>
+          );
+        })()
       )}
 
       {/* Week Total Footer */}

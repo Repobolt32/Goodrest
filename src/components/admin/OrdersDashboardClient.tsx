@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Clock,
   Truck,
+  XCircle,
 } from 'lucide-react';
 
 export type { OrderItem, Order };
@@ -32,12 +33,14 @@ function OrderRow({
   order,
   updating,
   onUpdateStatus,
-  onDelete
+  onDelete,
+  onCancel
 }: {
   order: Order,
   updating: boolean,
   onUpdateStatus: (id: string, status: string) => void,
-  onDelete: (id: string) => void
+  onDelete: (id: string) => void,
+  onCancel: (id: string) => void
 }) {
   return (
     <motion.div
@@ -112,6 +115,14 @@ function OrderRow({
               </>
             )}
           </div>
+
+          <button
+            onClick={() => onCancel(order.id)}
+            className="p-2.5 text-slate-300 hover:text-red-500 transition-colors rounded-xl hover:bg-red-50"
+            title="Cancel order"
+          >
+            <XCircle size={16} />
+          </button>
 
           <button
             onClick={() => onDelete(order.id)}
@@ -248,6 +259,14 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
     setUpdating(null);
   };
 
+  const handleCancel = async (id: string) => {
+    if (!confirm('Cancel this order? Rider will be notified and refund will be initiated if prepaid.')) return;
+    setUpdating(id);
+    const result = await updateOrderStatus(id, 'cancelled');
+    if (!result.success) alert('Failed to cancel: ' + result.error);
+    setUpdating(null);
+  };
+
   const activeOrders = orders.filter(o => o.order_status === 'placed' || o.order_status === 'preparing' || o.order_status === 'ready');
   const dispatchedOrders = orders.filter(o => o.order_status === 'out_for_delivery');
 
@@ -266,6 +285,7 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
                 updating={updating === order.id}
                 onUpdateStatus={handleStatusUpdate}
                 onDelete={handleDelete}
+                onCancel={handleCancel}
               />
             ))}
           </AnimatePresence>
@@ -291,6 +311,7 @@ export default function OrdersDashboardClient({ initialOrders }: { initialOrders
                   updating={updating === order.id}
                   onUpdateStatus={handleStatusUpdate}
                   onDelete={handleDelete}
+                  onCancel={handleCancel}
                 />
               ))}
             </AnimatePresence>

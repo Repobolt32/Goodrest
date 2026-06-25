@@ -83,9 +83,20 @@ export async function settleWeeklyPayout(payload: SettlePayload) {
 
   const calculatedTotalAmount = totalEarnings + totalBonus;
 
+  // Fetch existing settlement to handle re-settlements/updates
+  const { data: existingSettlement } = await supabaseAdmin
+    .from('rider_settlements')
+    .select('total_amount, notes')
+    .eq('rider_id', riderId)
+    .eq('week_start', weekStart)
+    .maybeSingle();
+
+  const previousAmount = existingSettlement?.total_amount || 0;
+  const difference = calculatedTotalAmount - previousAmount;
+
   const { data, error } = await supabaseAdmin
     .from('rider_settlements')
-    .insert({
+    .upsert({
       rider_id: riderId,
       week_start: weekStart,
       week_end: weekEnd,
@@ -93,40 +104,42 @@ export async function settleWeeklyPayout(payload: SettlePayload) {
       total_earnings: totalEarnings,
       total_bonus: totalBonus,
       total_amount: calculatedTotalAmount,
-      notes: notes || null,
+      notes: notes || existingSettlement?.notes || null,
+      settled_at: new Date().toISOString(),
+    }, {
+      onConflict: 'rider_id,week_start'
     })
     .select()
     .single();
 
   if (error) {
-    if (error.code === '23505') {
-      return { success: false, error: 'This week is already settled for this rider' };
-    }
     return { success: false, error: error.message };
   }
 
-  // Atomic increment via RPC to avoid race conditions
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: rpcError } = await supabaseAdmin.rpc('increment_rider_settlement' as any, {
-    p_rider_id: riderId,
-    p_amount: calculatedTotalAmount
-  });
+  if (difference !== 0) {
+    // Atomic increment via RPC to avoid race conditions
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: rpcError } = await supabaseAdmin.rpc('increment_rider_settlement' as any, {
+      p_rider_id: riderId,
+      p_amount: difference
+    });
 
-  if (rpcError) {
-    // If RPC fails, try read-modify-write as fallback but log warning
-    console.warn('RPC increment_rider_settlement failed or missing, using fallback', rpcError);
-    const { data: currentRider } = await supabaseAdmin
-      .from('riders')
-      .select('total_settled')
-      .eq('id', riderId)
-      .single();
+    if (rpcError) {
+      // If RPC fails, try read-modify-write as fallback but log warning
+      console.warn('RPC increment_rider_settlement failed or missing, using fallback', rpcError);
+      const { data: currentRider } = await supabaseAdmin
+        .from('riders')
+        .select('total_settled')
+        .eq('id', riderId)
+        .single();
 
-    const newTotalSettled = (currentRider?.total_settled || 0) + calculatedTotalAmount;
+      const newTotalSettled = (currentRider?.total_settled || 0) + difference;
 
-    await supabaseAdmin
-      .from('riders')
-      .update({ total_settled: newTotalSettled })
-      .eq('id', riderId);
+      await supabaseAdmin
+        .from('riders')
+        .update({ total_settled: newTotalSettled })
+        .eq('id', riderId);
+    }
   }
 
   return { success: true, data };

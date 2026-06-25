@@ -502,6 +502,8 @@ export async function getWeeklyRiderPayouts() {
 
     const riderInfo = riderLookup.get(riderId);
     const settledAmount = settledMap.get(riderId) || 0;
+    const weekTotalDue = stats.earnings + weekBonus;
+    const isSettled = settledMap.has(riderId) && (settledAmount >= weekTotalDue - 0.01);
     return {
       riderId,
       riderName: riderInfo?.name || 'Unknown',
@@ -510,8 +512,8 @@ export async function getWeeklyRiderPayouts() {
       weekDeliveryFees: stats.deliveryFees,
       weekPickupPay: stats.pickupPay,
       weekBonus,
-      weekTotalDue: stats.earnings + weekBonus,
-      isSettled: settledMap.has(riderId),
+      weekTotalDue,
+      isSettled,
       settledAmount,
     };
   }).sort((a, b) => b.weekTotalDue - a.weekTotalDue);

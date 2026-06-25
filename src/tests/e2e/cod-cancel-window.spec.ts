@@ -1,5 +1,17 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { SignJWT } from 'jose';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'placeholder-jwt-secret-key-at-least-32-chars-long';
+
+async function signAdminJWT(): Promise<string> {
+  const encoder = new globalThis.TextEncoder();
+  const secret = encoder.encode(JWT_SECRET);
+  return new SignJWT({ role: 'admin' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('24h')
+    .sign(secret);
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -124,5 +136,28 @@ test.describe('COD Cancel Window', () => {
     // Call Restaurant fallback should be visible
     await expect(page.locator('a:has-text("Call Restaurant")')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=The kitchen is actively preparing your order')).toBeVisible();
+  });
+
+  test('owner bell notification is delayed by the 30-second grace window', async ({ page, context }) => {
+    test.setTimeout(90000);
+    testOrderId = await placeCODOrder(page, context);
+
+    // Login as Admin
+    const adminToken = await signAdminJWT();
+    await context.addCookies([
+      { name: 'admin_session', value: adminToken, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' },
+    ]);
+
+    // Go to admin dashboard
+    await page.goto('/admin/orders');
+    await page.waitForSelector('text=Owner Dashboard', { timeout: 15000 });
+
+    // Assert that the popup does NOT appear during the first 10s
+    await page.waitForTimeout(10000);
+    const popup = page.locator('[data-testid="new-order-popup"]');
+    await expect(popup).not.toBeVisible();
+
+    // Now wait up to 25s more (making total time >35s from order creation) and check it appears
+    await expect(popup).toBeVisible({ timeout: 25000 });
   });
 });

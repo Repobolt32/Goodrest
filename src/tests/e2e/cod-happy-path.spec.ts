@@ -164,7 +164,7 @@ test.describe('COD Happy Path', () => {
     await page.waitForSelector('text=Owner Dashboard', { timeout: 15000 });
 
     // Accept via BellNotification popup (Realtime-driven, no grace period race)
-    await page.waitForSelector('[data-testid="new-order-popup"] button:has-text("Accept Order")', { timeout: 15000 });
+    await page.waitForSelector('[data-testid="new-order-popup"] button:has-text("Accept Order")', { timeout: 40000 });
     await page.click('[data-testid="new-order-popup"] button:has-text("Accept Order")');
 
     // Verify DB state moved to preparing

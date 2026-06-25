@@ -191,7 +191,7 @@ describe('ownerActions', () => {
         { id: 'rider-2', name: 'Unsettled Rider', phone: '2222222222' },
       ];
       const mockSettlements = [
-        { rider_id: 'rider-1', week_start: '2026-06-15' },
+        { rider_id: 'rider-1', week_start: '2026-06-15', total_amount: 300 },
       ];
 
       const ordersChain = {

@@ -46,7 +46,8 @@ function createMainWindow() {
     icon: path.join(__dirname, 'assets', 'icon.png'),
   });
 
-  const serverUrl = process.env.ELECTRON_SERVER_URL || 'https://goodrest-claude.vercel.app';
+  const defaultUrl = isDev ? 'http://localhost:3000' : 'https://goodrest-claude.vercel.app';
+  const serverUrl = process.env.ELECTRON_SERVER_URL || defaultUrl;
   mainWindow.loadURL(`${serverUrl}/admin/orders`);
 
   if (isDev) {
@@ -108,7 +109,8 @@ function createTray() {
 
 function startServer() {
   return new Promise((resolve, reject) => {
-    const serverUrl = process.env.ELECTRON_SERVER_URL || 'https://goodrest-claude.vercel.app';
+    const defaultUrl = isDev ? 'http://localhost:3000' : 'https://goodrest-claude.vercel.app';
+    const serverUrl = process.env.ELECTRON_SERVER_URL || defaultUrl;
 
     // When using a remote server (Vercel), skip spawning a local server
     if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {

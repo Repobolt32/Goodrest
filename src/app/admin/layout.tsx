@@ -63,6 +63,58 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [confirmedOrders, setConfirmedOrders] = useState<OrderRecord[]>([]);
   const [dismissedOrderIds, setDismissedOrderIds] = useState<Set<string>>(new Set());
   const notifiedOrderIdsRef = useRef<Set<string>>(new Set());
+  
+  // Keep track of active timeouts for orders that are in the grace window
+  const pendingTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  const processConfirmedOrder = (order: OrderRecord) => {
+    const isConfirmed = order.order_status === 'confirmed';
+
+    // Clear any existing timer for this order
+    if (pendingTimersRef.current.has(order.id)) {
+      clearTimeout(pendingTimersRef.current.get(order.id));
+      pendingTimersRef.current.delete(order.id);
+    }
+
+    if (!isConfirmed) {
+      // Remove from confirmedOrders if status changes away from confirmed
+      setConfirmedOrders((prev) => prev.filter((o) => o.id !== order.id));
+      return;
+    }
+
+    const createdTime = order.created_at ? new Date(order.created_at).getTime() : Date.now();
+    const ageMs = Date.now() - createdTime;
+    const GRACE_PERIOD_MS = process.env.NEXT_PUBLIC_GRACE_PERIOD_MS 
+      ? parseInt(process.env.NEXT_PUBLIC_GRACE_PERIOD_MS, 10) 
+      : 30000;
+    const delay = GRACE_PERIOD_MS - ageMs;
+
+    if (delay > 0) {
+      // Schedule timeout to add to confirmedOrders once grace period ends
+      const timer = setTimeout(() => {
+        setConfirmedOrders((prev) => {
+          const exists = prev.some((o) => o.id === order.id);
+          if (exists) {
+            return prev.map((o) => (o.id === order.id ? order : o));
+          } else {
+            return [order, ...prev];
+          }
+        });
+        pendingTimersRef.current.delete(order.id);
+      }, delay);
+      pendingTimersRef.current.set(order.id, timer);
+    } else {
+      // Add immediately if delay is non-positive
+      setConfirmedOrders((prev) => {
+        const exists = prev.some((o) => o.id === order.id);
+        if (exists) {
+          return prev.map((o) => (o.id === order.id ? order : o));
+        } else {
+          return [order, ...prev];
+        }
+      });
+    }
+  };
 
   const fetchSettings = async () => {
     const { getAppSettings } = await import('@/app/actions/settingsActions');
@@ -102,7 +154,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .eq('order_status', 'confirmed')
         .order('created_at', { ascending: false });
       if (data) {
-        setConfirmedOrders(data.map(toOrderRecord));
+        data.map(toOrderRecord).forEach(processConfirmedOrder);
       }
     } catch (err) {
       console.error('Error fetching confirmed orders:', err);
@@ -138,19 +190,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 if (!fullOrder) return;
 
                 // Handle confirmed orders
-                const isConfirmed = fullOrder.order_status === 'confirmed';
-                setConfirmedOrders((prev) => {
-                  const existing = prev.some((o) => o.id === fullOrder.id);
-                  if (isConfirmed) {
-                    if (existing) {
-                      return prev.map((o) => (o.id === fullOrder.id ? toOrderRecord(fullOrder as OrderRow) : o));
-                    } else {
-                      return [toOrderRecord(fullOrder as OrderRow), ...prev];
-                    }
-                  } else {
-                    return prev.filter((o) => o.id !== fullOrder.id);
-                  }
-                });
+                processConfirmedOrder(toOrderRecord(fullOrder as OrderRow));
 
                 // Handle cancelled orders
                 const isToday = fullOrder.created_at ? new Date(fullOrder.created_at) >= new Date(new Date().setHours(0, 0, 0, 0)) : false;
@@ -177,15 +217,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 }
               });
           } else if (payload.eventType === 'DELETE' && payload.old?.id) {
-            setConfirmedOrders((prev) => prev.filter((o) => o.id !== payload.old!.id));
-            setCancelledOrders((prev) => prev.filter((o) => o.id !== payload.old!.id));
+            const deletedId = payload.old.id;
+            if (pendingTimersRef.current.has(deletedId)) {
+              clearTimeout(pendingTimersRef.current.get(deletedId));
+              pendingTimersRef.current.delete(deletedId);
+            }
+            setConfirmedOrders((prev) => prev.filter((o) => o.id !== deletedId));
+            setCancelledOrders((prev) => prev.filter((o) => o.id !== deletedId));
           }
         }
       )
       .subscribe();
 
+    const currentTimers = pendingTimersRef.current;
     return () => {
       supabase.removeChannel(channel);
+      currentTimers.forEach((timer) => clearTimeout(timer));
+      currentTimers.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -200,7 +248,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .eq('order_status', 'confirmed')
         .order('created_at', { ascending: false });
       if (!cancelled && data) {
-        setConfirmedOrders(data.map(toOrderRecord));
+        data.map(toOrderRecord).forEach(processConfirmedOrder);
       }
     }, 5000);
 

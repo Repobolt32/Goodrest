@@ -134,6 +134,22 @@ describe('OrderTracker', () => {
     expect(screen.getByText(/Need to cancel\? \(29s remaining\)/i)).toBeInTheDocument();
   });
 
+  it('renders the Cancel Order button for created status (online order pre-payment) within the grace window', () => {
+    const handleCancel = vi.fn();
+    const freshCreatedAt = new Date(Date.now() - 1000).toISOString(); // 1 second ago (29s remaining)
+    render(
+      <OrderTracker
+        orderId="123"
+        initialStatus="created"
+        createdAt={freshCreatedAt}
+        onCancel={handleCancel}
+      />
+    );
+
+    expect(screen.getByText(/Cancel Order/i)).toBeInTheDocument();
+    expect(screen.getByText(/Need to cancel\? \(29s remaining\)/i)).toBeInTheDocument();
+  });
+
   it('uses serverNow prop to correct clock skew for grace period', () => {
     const handleCancel = vi.fn();
     // Simulate: server clock is 10 seconds AHEAD of client clock

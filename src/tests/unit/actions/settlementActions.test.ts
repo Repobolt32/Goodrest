@@ -81,11 +81,13 @@ describe('settleWeeklyPayout', () => {
 
     let insertedValues: Record<string, unknown> | null = null;
     const settlementChain = {
-      insert: (values: Record<string, unknown>) => {
+      select: () => settlementChain,
+      eq: () => settlementChain,
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      upsert: (values: Record<string, unknown>) => {
         insertedValues = values;
         return settlementChain;
       },
-      select: () => settlementChain,
       single: () => Promise.resolve({ data: { id: 'settlement-1', ...insertedValues }, error: null }),
     };
 
