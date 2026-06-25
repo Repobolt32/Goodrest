@@ -130,7 +130,7 @@ public class LocationSyncService extends Service {
 
         LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, interval)
                 .setMinUpdateIntervalMillis(interval)
-                .setMinUpdateDistanceIntervalMeters(distance)
+                .setMinUpdateDistanceMeters((float) distance)
                 .setWaitForAccurateLocation(false)
                 .build();
 
@@ -146,7 +146,7 @@ public class LocationSyncService extends Service {
 
         try {
             // Requires ACCESS_FINE_LOCATION; declared in manifest and checked by the plugin.
-            fusedClient.requestLocationUpdates(request, locationCallback, ioExecutor);
+            fusedClient.requestLocationUpdates(request, ioExecutor, locationCallback);
         } catch (SecurityException e) {
             Logger.error("LocationSync", "Missing location permission; cannot request updates", e);
             stopSelf();
